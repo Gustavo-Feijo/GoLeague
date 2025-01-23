@@ -11,7 +11,7 @@ import (
 
 // Type for the client.
 type RedisClient struct {
-	client *redis.Client
+	*redis.Client
 }
 
 var (
@@ -29,7 +29,7 @@ func GetClient() *RedisClient {
 		})
 
 		instance = &RedisClient{
-			client: client,
+			Client: client,
 		}
 	})
 	return instance
@@ -37,15 +37,15 @@ func GetClient() *RedisClient {
 
 // Close the client connection.
 func (r *RedisClient) Close() error {
-	return r.client.Close()
+	return r.Client.Close()
 }
 
 // Wrapper to return the Result directly.
 func (r *RedisClient) Get(ctx context.Context, key string) (string, error) {
-	return r.client.Get(ctx, key).Result()
+	return r.Client.Get(ctx, key).Result()
 }
 
 // Wrapper to already return the .Err()
 func (r *RedisClient) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
-	return r.client.Set(ctx, key, value, ttl).Err()
+	return r.Client.Set(ctx, key, value, ttl).Err()
 }
