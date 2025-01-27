@@ -12,6 +12,7 @@ type RedisConfiguration struct {
 	Port     string
 }
 
+// Database configuration structure.
 type DatabaseConfiguration struct {
 	Database string
 	Host     string
@@ -24,6 +25,7 @@ type DatabaseConfiguration struct {
 var (
 	Redis    RedisConfiguration
 	Database DatabaseConfiguration
+	ApiKey   string
 )
 
 // Load the variables.
@@ -40,4 +42,7 @@ func LoadEnv() {
 	Database.Port = os.Getenv("POSTGRES_PORT")
 	Database.User = os.Getenv("POSTGRES_USER")
 	Database.URL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC", Database.Host, Database.User, Database.Password, Database.Database, Database.Port)
+
+	// Get the Riot API Key.
+	ApiKey = os.Getenv("API_KEY")
 }

@@ -12,9 +12,11 @@ import (
 func main() {
 	config.LoadEnv()
 	client := redis.GetClient()
-	time.Sleep(time.Second * 5)
-	data, err := client.Get(context.Background(), "teste")
+	time.Sleep(time.Second * 10)
+	data, err := client.Get(context.Background(), "ddragon:champion:62")
 	if err == nil {
 		fmt.Println(data)
+	} else {
+		fmt.Println(err)
 	}
 }
