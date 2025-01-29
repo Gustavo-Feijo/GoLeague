@@ -2,21 +2,44 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"goleague/pkg/config"
-	"goleague/pkg/redis"
+	pb "goleague/pkg/grpc"
+	"log"
 	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Simple testing for the Redis.
 func main() {
 	config.LoadEnv()
-	client := redis.GetClient()
-	time.Sleep(time.Second * 10)
-	data, err := client.Get(context.Background(), "ddragon:champion:62")
-	if err == nil {
-		fmt.Println(data)
-	} else {
-		fmt.Println(err)
+
+	// Connect to the fetcher grpc.
+	conn, err := grpc.NewClient("fetcher:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Error to connect to the gRPC server: %v", err)
 	}
+
+	defer conn.Close()
+
+	// Create the context.
+	c := pb.NewAssetsServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+
+	defer cancel()
+
+	// Get a given champion for testing.
+	champion, err := c.RevalidateChampionCache(ctx, &pb.ChampionId{Id: "62"})
+	if err != nil {
+		log.Fatalf("Error at revalidation: %v", err)
+	}
+
+	jsonChamp, err := json.Marshal(champion)
+	if err != nil {
+		log.Fatalf("Error formating the json: %v", err)
+	}
+	fmt.Println(string(jsonChamp))
 }

@@ -1,25 +1,46 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"goleague/pkg/config"
-	"goleague/pkg/redis"
+	pb "goleague/pkg/grpc"
 	"log"
-	"time"
+	"net"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func main() {
 	config.LoadEnv()
-	client := redis.GetClient()
-	client.Set(context.Background(), "teste", "batata", time.Hour)
-	fmt.Println(config.Database.Port)
-	_, err := gorm.Open(postgres.Open(config.Database.URL), &gorm.Config{})
+
+	fmt.Println("Starting grpcServer...")
+	// Start the gRPC server for
+	startgrpcServer()
+}
+
+// Start the grpc server for handling cache on demand.
+func startgrpcServer() {
+	// Start a TPC listener.
+	list, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		log.Fatalf("Failed to connect %v", err)
+		log.Fatalf("Couldn't start the tcp server: %v", err)
 	}
-	fmt.Println("Connected")
+
+	// Create the server, register it and serve.
+	grpcServer := grpc.NewServer()
+	pb.RegisterAssetsServiceServer(grpcServer, &server{})
+
+	// Register the health check.
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+
+	// Set the serving status as serving.
+	healthServer.SetServingStatus("goleague.AssetService", grpc_health_v1.HealthCheckResponse_SERVING)
+
+	if err := grpcServer.Serve(list); err != nil {
+		log.Fatalf("Failed to server grpc: %v", err)
+	}
+	log.Println("Succsfully started the grpc server.")
 }

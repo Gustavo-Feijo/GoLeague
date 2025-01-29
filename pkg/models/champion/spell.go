@@ -4,7 +4,7 @@ import "goleague/pkg/models/image"
 
 // Struct for holding a champion spell.
 type Spell struct {
-	ID          uint16 `json:"id"`
+	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Cooldown    string `json:"cooldown"`

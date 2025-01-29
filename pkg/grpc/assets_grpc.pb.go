@@ -27,9 +27,11 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Service for revalidanting the Redis cache.
-// Will be called when the champion or item is not found on the Redis.
-// Return the given champion or item for the id so we don't need to do redundant calls to Redis.
+// Service to revalidate a item or champion cache.
+// Only will be fired if the item or champion are missing on the cache.
+// The most probable situation would be on new champion releases and item releases.
+// Since the cache will be revalidated once a day.
+// The API will call on the fetcher if the item or champion was choosen on a match.
 type AssetsServiceClient interface {
 	RevalidateChampionCache(ctx context.Context, in *ChampionId, opts ...grpc.CallOption) (*Champion, error)
 	RevalidateItemCache(ctx context.Context, in *ItemId, opts ...grpc.CallOption) (*Item, error)
@@ -67,9 +69,11 @@ func (c *assetsServiceClient) RevalidateItemCache(ctx context.Context, in *ItemI
 // All implementations must embed UnimplementedAssetsServiceServer
 // for forward compatibility.
 //
-// Service for revalidanting the Redis cache.
-// Will be called when the champion or item is not found on the Redis.
-// Return the given champion or item for the id so we don't need to do redundant calls to Redis.
+// Service to revalidate a item or champion cache.
+// Only will be fired if the item or champion are missing on the cache.
+// The most probable situation would be on new champion releases and item releases.
+// Since the cache will be revalidated once a day.
+// The API will call on the fetcher if the item or champion was choosen on a match.
 type AssetsServiceServer interface {
 	RevalidateChampionCache(context.Context, *ChampionId) (*Champion, error)
 	RevalidateItemCache(context.Context, *ItemId) (*Item, error)

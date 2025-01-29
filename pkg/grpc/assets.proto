@@ -38,9 +38,10 @@ message Spell{
   string id = 1;
   string name = 2;
   string description = 3;
-  string cooldown = 4;
-  string cost = 5;
+  optional string cooldown = 4;
+  optional string cost = 5;
   Image image = 6;
+  string ChampionId = 7;
 }
 
 // Champion data that we need to display.

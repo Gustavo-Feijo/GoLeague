@@ -10,6 +10,9 @@ RUN go mod download
 COPY /fetcher ./fetcher
 COPY /pkg ./pkg
 
+RUN wget -O /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.37/grpc_health_probe-linux-amd64 && \
+  chmod +x /bin/grpc_health_probe
+
 # Run the build.
 RUN go build -o fetcher ./fetcher
 
