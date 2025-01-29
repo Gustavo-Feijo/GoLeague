@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"goleague/fetcher/assets"
 	"goleague/pkg/config"
 	"log"
@@ -14,4 +15,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Couldn't fetch the data from the ddragon to revalidate the cache")
 	}
+
+	item, err := assets.RevalidateItemCache("en_US", "1001")
+	fmt.Println(item)
 }

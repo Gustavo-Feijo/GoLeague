@@ -3,6 +3,7 @@ package assets
 import (
 	"goleague/pkg/models/champion"
 	"goleague/pkg/models/image"
+	"goleague/pkg/models/item"
 )
 
 // Convert the default map from the DDragon to a image type.
@@ -33,6 +34,18 @@ func mapToSpell(spellData map[string]interface{}, championID string) champion.Sp
 	}
 
 	return spell
+}
+
+// Convert the gold of the item to a gold type.
+func mapToGold(goldData map[string]interface{}) item.Gold {
+	gold := item.Gold{
+		Base:        uint16(goldData["base"].(float64)),
+		Total:       uint16(goldData["total"].(float64)),
+		Sell:        uint16(goldData["sell"].(float64)),
+		Purchasable: goldData["purchasable"].(bool),
+	}
+
+	return gold
 }
 
 // Return the string if it's available, else returns a empty string.

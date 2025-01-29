@@ -42,4 +42,16 @@ func main() {
 		log.Fatalf("Error formating the json: %v", err)
 	}
 	fmt.Println(string(jsonChamp))
+
+	// Get a given champion for testing.
+	item, err := c.RevalidateItemCache(ctx, &pb.ItemId{Id: "3158"})
+	if err != nil {
+		log.Fatalf("Error at revalidation: %v", err)
+	}
+
+	jsonItem, err := json.Marshal(item)
+	if err != nil {
+		log.Fatalf("Error formating the json: %v", err)
+	}
+	fmt.Println(string(jsonItem))
 }

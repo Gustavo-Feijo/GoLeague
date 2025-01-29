@@ -1,20 +1,12 @@
 package assets
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"goleague/fetcher/requests"
 	"goleague/pkg/redis"
 )
-
-const (
-	ddragon    = "https://ddragon.leagueoflegends.com/"
-	versionKey = "ddragon:versions"
-)
-
-var ctx = context.Background()
 
 // Get the latest version of the data from the ddragon.
 func GetLatestVersion() (string, error) {

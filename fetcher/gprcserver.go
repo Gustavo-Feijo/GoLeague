@@ -6,6 +6,7 @@ import (
 	pb "goleague/pkg/grpc"
 	"goleague/pkg/models/champion"
 	"goleague/pkg/models/image"
+	"goleague/pkg/models/item"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -42,6 +43,16 @@ func spellToPB(spell champion.Spell) *pb.Spell {
 	}
 }
 
+// Util function to get the PB definition for the gold.
+func goldToPB(gold item.Gold) pb.Gold {
+	return pb.Gold{
+		Base:        int32(gold.Base),
+		Total:       int32(gold.Total),
+		Sell:        int32(gold.Sell),
+		Purchasable: bool(gold.Purchasable),
+	}
+}
+
 // Revalidate the entire champion cache and return a champion if a valid id is provided.
 func (s *server) RevalidateChampionCache(context context.Context, srv *pb.ChampionId) (*pb.Champion, error) {
 	// Get the champion.
@@ -72,6 +83,23 @@ func (s *server) RevalidateChampionCache(context context.Context, srv *pb.Champi
 	}, nil
 }
 
-func (s *server) RevalidateItemCache(context.Context, *pb.ItemId) (*pb.Item, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RevalidateItemCache not implemented")
+func (s *server) RevalidateItemCache(ctx context.Context, srv *pb.ItemId) (*pb.Item, error) {
+	// Get the champion.
+	item, err := assets.RevalidateItemCache("en_US", srv.Id)
+	if err != nil || item == nil {
+		return nil, status.Errorf(codes.Internal, "can't get the champion from the cache: %v", err)
+	}
+
+	// Get the protobuff definition for the image.
+	itemImage := imageToPB(item.Image)
+	itemGold := goldToPB(item.Gold)
+
+	return &pb.Item{
+		Id:          item.ID,
+		Name:        item.Name,
+		Description: item.Description,
+		Plaintext:   item.Plaintext,
+		Image:       &itemImage,
+		Gold:        &itemGold,
+	}, nil
 }

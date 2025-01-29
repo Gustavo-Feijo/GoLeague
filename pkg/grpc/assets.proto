@@ -60,6 +60,7 @@ message Gold{
   int32 base = 1;
   int32 total = 2;
   int32 sell = 3;
+  bool purchasable = 4;
 }
 
 // Item data that we need to display.

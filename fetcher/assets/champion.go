@@ -10,15 +10,6 @@ import (
 	"sync"
 )
 
-const (
-	championPrefix = "ddragon:champion:"
-	workerCount    = 10
-)
-
-type fullChampion struct {
-	Data map[string]interface{} `json:"data"`
-}
-
 // Get the champion from the datadragon based on it's key.
 // If a champion key is passed, also return the given champion.
 func RevalidateChampionCache(language string, championId string) (*champion.Champion, error) {
