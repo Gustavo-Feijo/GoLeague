@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"goleague/pkg/config"
 	"sync"
 	"time"
 )
@@ -22,22 +23,22 @@ type RateLimiter struct {
 }
 
 // Create a instance of the rate limiter.
-func CreateRateLimiter(fetchInterval time.Duration) *RateLimiter {
+func CreateRateLimiter() *RateLimiter {
 	return &RateLimiter{
 		// Hardcoded values for now.
 		windows: []*RiotLimit{
 			{
-				limit:         20,
-				resetInterval: time.Second,
+				limit:         config.Limits.Lower.Count,
+				resetInterval: config.Limits.Lower.ResetInterval,
 				lastReset:     time.Now(),
 			},
 			{
-				limit:         100,
-				resetInterval: 2 * time.Minute,
+				limit:         config.Limits.Higher.Count,
+				resetInterval: config.Limits.Higher.ResetInterval,
 				lastReset:     time.Now(),
 			},
 		},
-		fetchInterval: fetchInterval,
+		fetchInterval: config.Limits.SlowInterval,
 		lastFetch:     time.Now(),
 	}
 }
