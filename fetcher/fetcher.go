@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"goleague/pkg/config"
 	pb "goleague/pkg/grpc"
 	"log"
@@ -15,7 +14,7 @@ import (
 func main() {
 	config.LoadEnv()
 
-	fmt.Println("Starting grpcServer...")
+	log.Println("Starting grpcServer...")
 	// Start the gRPC server for
 	startgrpcServer()
 }
@@ -42,5 +41,4 @@ func startgrpcServer() {
 	if err := grpcServer.Serve(list); err != nil {
 		log.Fatalf("Failed to server grpc: %v", err)
 	}
-	log.Println("Succsfully started the grpc server.")
 }

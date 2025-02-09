@@ -1,4 +1,4 @@
-package queue
+package requests
 
 import (
 	"goleague/pkg/config"
@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Single riot rate limiting.
 type RiotLimit struct {
 	limit         int
 	resetInterval time.Duration
@@ -13,13 +14,17 @@ type RiotLimit struct {
 	lastReset     time.Time
 }
 
+// Full riot rate limit, containing all the constraints.
 type RateLimiter struct {
-	windows       []*RiotLimit
+	windows []*RiotLimit
+
+	// Fetch interval for the background job.
+	// Will be the slowest interval that let all requests be consumed before reseting.
 	fetchInterval time.Duration
 
+	// Last fetch and the mutex.
 	lastFetch time.Time
-
-	mu sync.Mutex
+	mu        sync.Mutex
 }
 
 // Create a instance of the rate limiter.

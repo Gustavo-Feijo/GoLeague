@@ -28,7 +28,6 @@ func RevalidateItemCache(language string, itemId string) (*item.Item, error) {
 
 	// Format the champion api url.
 	url := fmt.Sprintf("%scdn/%s/data/%s/item.json", ddragon, latestVersion, language)
-	fmt.Println(url)
 	resp, err := requests.Request(url, "GET")
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the current version: %v", err)
