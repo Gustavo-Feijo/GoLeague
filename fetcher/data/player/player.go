@@ -21,7 +21,12 @@ func CreatePlayerFetcher(limiter *requests.RateLimiter, region string) *Player_f
 	}
 }
 
-func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset int) ([]string, error) {
+func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset int, onDemand bool) ([]string, error) {
+	if onDemand {
+		p.limiter.WaitApi()
+	} else {
+		p.limiter.WaitJob()
+	}
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/match/v5/matches/by-puuid/%s/ids", p.region, puuid)
 	params := map[string]string{

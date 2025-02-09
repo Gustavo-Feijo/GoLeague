@@ -80,8 +80,64 @@ func (r *RateLimiter) incrementCounts() {
 	}
 }
 
+// Wait until the next refresh.
+func (r *RateLimiter) WaitApi() {
+	// Verify if can run the API.
+	if r.canRunApi() {
+		return
+	}
+
+	// Verify if the windows limit wasn't reached.
+	r.waitWindowsReset()
+
+	// Verify again the API.
+	r.WaitApi()
+}
+
+// Wait until next job refresh.
+func (r *RateLimiter) WaitJob() {
+	// Verify if can run the job.
+	if r.canRunJob() {
+		return
+	}
+
+	// Verify if the elapsed time until the next job fetch was reached.
+	if time.Since(r.lastFetch) > r.fetchInterval {
+		waitTill := r.fetchInterval - time.Since(r.lastFetch)
+		time.Sleep(waitTill)
+	}
+
+	// Verify if the general limit wasn't already reached.
+	r.waitWindowsReset()
+	// Verify again for the job.
+	r.WaitJob()
+}
+
+// Wait until all the rate limit windows are met.
+func (r *RateLimiter) waitWindowsReset() {
+	// If can't run, see how many time must wait.
+	var waitTime time.Duration
+	waitTime = 0
+	for _, window := range r.windows {
+		// If it's not this window that is limited, just continue.
+		if window.count < window.limit {
+			continue
+		}
+
+		// See how many time has elapsed since the last reset.
+		elapsed := time.Since(window.lastReset)
+		// See how many time till the next reset.
+		waitTill := window.resetInterval - elapsed
+		if waitTill > waitTime {
+			waitTime = waitTill
+		}
+	}
+	// Wait till next reset.
+	time.Sleep(waitTime)
+}
+
 // Verify if can run the job/background request.
-func (r *RateLimiter) CanRunJob() bool {
+func (r *RateLimiter) canRunJob() bool {
 	// Locks the limiter.
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -105,7 +161,7 @@ func (r *RateLimiter) CanRunJob() bool {
 }
 
 // Verify if can run the API.
-func (r *RateLimiter) CanRunApi() bool {
+func (r *RateLimiter) canRunApi() bool {
 	// Locks the limiter.
 	r.mu.Lock()
 	defer r.mu.Unlock()
