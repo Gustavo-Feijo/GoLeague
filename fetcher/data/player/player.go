@@ -2,7 +2,6 @@ package player_fetcher
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"goleague/fetcher/requests"
 	"strconv"
@@ -46,11 +45,6 @@ func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset 
 	var matches []string
 	if err := json.NewDecoder(resp.Body).Decode(&matches); err != nil {
 		return nil, err
-	}
-
-	// Verify if any match was found.
-	if len(matches) == 0 {
-		return nil, errors.New("couldn't find any match")
 	}
 
 	// Return the matches.
