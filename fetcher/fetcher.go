@@ -1,10 +1,16 @@
 package main
 
 import (
+	"context"
+	"goleague/fetcher/data"
 	"goleague/pkg/config"
 	pb "goleague/pkg/grpc"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -14,13 +20,22 @@ import (
 func main() {
 	config.LoadEnv()
 
+	_, stop := context.WithCancel(context.Background())
+
+	defer stop()
 	log.Println("Starting grpcServer...")
-	// Start the gRPC server for
-	startgrpcServer()
+
+	// Start the gRPC server.
+	grpcServer, healthServer := startGRPCServer()
+
+	fetcher := data.CreateMainFetcher("americas")
+	fetcher.Match.GetMatchData("BR1_3065330844", true)
+	// Shutdown everything.
+	handleShutdown(grpcServer, healthServer, stop)
 }
 
 // Start the grpc server for handling cache on demand.
-func startgrpcServer() {
+func startGRPCServer() (*grpc.Server, *health.Server) {
 	// Start a TPC listener.
 	list, err := net.Listen("tcp", ":50051")
 	if err != nil {
@@ -38,7 +53,43 @@ func startgrpcServer() {
 	// Set the serving status as serving.
 	healthServer.SetServingStatus("goleague.AssetService", grpc_health_v1.HealthCheckResponse_SERVING)
 
-	if err := grpcServer.Serve(list); err != nil {
-		log.Fatalf("Failed to server grpc: %v", err)
-	}
+	// Run a go routine for the grpc server.
+	go func() {
+		log.Println("Running gRPC server.")
+		if err := grpcServer.Serve(list); err != nil {
+			log.Fatalf("Failed to server grpc: %v", err)
+		}
+	}()
+
+	//  Return the grpc and health server.
+	return grpcServer, healthServer
+}
+
+// Handle the shutdown of the whole server.
+func handleShutdown(grpcServer *grpc.Server, healthServer *health.Server, cancel context.CancelFunc) {
+	// Create the signal channel.
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
+	<-signalChannel
+
+	// Set it to not serving.
+	healthServer.SetServingStatus("goleague.AssetService", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		grpcServer.GracefulStop()
+	}()
+
+	done := make(chan struct{})
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	cancel()
 }
