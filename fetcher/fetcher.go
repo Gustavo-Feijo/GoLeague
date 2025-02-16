@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"goleague/fetcher/data"
 	"goleague/pkg/config"
 	pb "goleague/pkg/grpc"
 	"log"
@@ -28,8 +27,6 @@ func main() {
 	// Start the gRPC server.
 	grpcServer, healthServer := startGRPCServer()
 
-	fetcher := data.CreateMainFetcher("americas")
-	fetcher.Match.GetMatchData("BR1_3065330844", true)
 	// Shutdown everything.
 	handleShutdown(grpcServer, healthServer, stop)
 }
