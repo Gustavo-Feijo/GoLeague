@@ -1,6 +1,7 @@
 package data
 
 import (
+	league_fetcher "goleague/fetcher/data/league"
 	match_fetcher "goleague/fetcher/data/match"
 	player_fetcher "goleague/fetcher/data/player"
 	"goleague/fetcher/requests"
@@ -10,6 +11,7 @@ import (
 type MainFetcher struct {
 	Player *player_fetcher.Player_fetcher
 	Match  *match_fetcher.Match_fetcher
+	League *league_fetcher.League_Fetcher
 }
 
 // Function to instanciate the main fetcher.
@@ -21,5 +23,6 @@ func CreateMainFetcher(region string) *MainFetcher {
 	return &MainFetcher{
 		Player: player_fetcher.CreatePlayerFetcher(limiter, region),
 		Match:  match_fetcher.CreateMatchFetcher(limiter, region),
+		League: league_fetcher.CreateLeagueFetcher(limiter, region),
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"goleague/fetcher/requests"
+	"net/http"
 	"strconv"
 	"time"
 )
@@ -39,15 +40,20 @@ func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset 
 
 	resp, err := requests.AuthRequest(url, "GET", params)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("API request failed: %w", err)
 	}
 
 	defer resp.Body.Close()
 
+	// Check the status code.
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
+	}
+
 	// Parse the matches list.
 	var matches []string
 	if err := json.NewDecoder(resp.Body).Decode(&matches); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse API response: %w", err)
 	}
 
 	// Return the matches.
@@ -64,17 +70,23 @@ func (p *Player_fetcher) GetSummonerData(puuid string, onDemand bool) (*Summoner
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/%s", p.region, puuid)
 
+	// Make the request with proper auth.
 	resp, err := requests.AuthRequest(url, "GET", map[string]string{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("API request failed: %w", err)
 	}
 
 	defer resp.Body.Close()
 
+	// Check the status code.
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
+	}
+
 	// Parse the matches list.
 	var summonerData SummonerByPuuid
 	if err := json.NewDecoder(resp.Body).Decode(&summonerData); err != nil {
-		fmt.Println(err)
+		return nil, fmt.Errorf("failed to parse API response: %w", err)
 	}
 
 	// Return the matches.

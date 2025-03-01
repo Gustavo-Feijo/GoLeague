@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"goleague/fetcher/requests"
+	"net/http"
 	"time"
 )
 
@@ -60,15 +61,19 @@ func (m *Match_fetcher) GetMatchData(matchId string, onDemand bool) (*MatchData,
 
 	resp, err := requests.AuthRequest(url, "GET", map[string]string{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("API request failed: %w", err)
 	}
 
 	defer resp.Body.Close()
 
+	// Check the status code.
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
+	}
 	// Parse the matches list.
 	var matchData MatchData
 	if err := json.NewDecoder(resp.Body).Decode(&matchData); err != nil {
-		fmt.Println(err)
+		return nil, fmt.Errorf("failed to parse API response: %w", err)
 	}
 
 	// Return the matches.
