@@ -20,8 +20,11 @@ type RegionManager struct {
 	// Get which sub regions are children of the main region.
 	mainToSub map[MainRegion][]SubRegion
 
-	// Get the fetcher for a given region.
-	fetcher map[string]*data.MainFetcher
+	// List of fetchers the main regions.
+	mainFetcher map[MainRegion]*data.MainFetcher
+
+	// List of fetchers the sub regions.
+	subFetcher map[SubRegion]*data.SubFetcher
 
 	mu sync.RWMutex
 }
@@ -30,9 +33,10 @@ type RegionManager struct {
 func CreateRegionManager() *RegionManager {
 	// Create the region manager.
 	manager := &RegionManager{
-		subToMain: make(map[SubRegion]MainRegion),
-		mainToSub: make(map[MainRegion][]SubRegion),
-		fetcher:   make(map[string]*data.MainFetcher),
+		subToMain:   make(map[SubRegion]MainRegion),
+		mainToSub:   make(map[MainRegion][]SubRegion),
+		mainFetcher: make(map[MainRegion]*data.MainFetcher),
+		subFetcher:  make(map[SubRegion]*data.SubFetcher),
 	}
 
 	// Each region available at the riot API.
@@ -49,14 +53,14 @@ func CreateRegionManager() *RegionManager {
 		manager.mainToSub[mainRegion] = subRegions
 
 		// Create each main region fetcher.
-		manager.fetcher[string(mainRegion)] = data.CreateMainFetcher(string(mainRegion))
+		manager.mainFetcher[mainRegion] = data.CreateMainFetcher(string(mainRegion))
 
 		for _, subRegion := range subRegions {
 			// Save the parent of this sub regions.
 			manager.subToMain[subRegion] = mainRegion
 
 			// Create the sub regions fetchers.
-			manager.fetcher[string(subRegion)] = data.CreateMainFetcher(string(subRegion))
+			manager.subFetcher[subRegion] = data.CreateSubFetcher(string(subRegion))
 		}
 	}
 
@@ -64,15 +68,30 @@ func CreateRegionManager() *RegionManager {
 }
 
 // Get the fetcher for a given region
-func (m *RegionManager) GetFetcher(region string) (*data.MainFetcher, error) {
+func (m *RegionManager) GetMainFetcher(region MainRegion) (*data.MainFetcher, error) {
 	// Lock for reading.
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	// Verify if the fetcher exists and get it.
-	fetcher, exists := m.fetcher[region]
+	fetcher, exists := m.mainFetcher[region]
 	if !exists {
-		return nil, fmt.Errorf("the region %s doesn't exist", region)
+		return nil, fmt.Errorf("the main region %s doesn't exist", region)
+	}
+
+	return fetcher, nil
+}
+
+// Get the fetcher for a given region
+func (m *RegionManager) GetSubFetcher(region SubRegion) (*data.SubFetcher, error) {
+	// Lock for reading.
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// Verify if the fetcher exists and get it.
+	fetcher, exists := m.subFetcher[region]
+	if !exists {
+		return nil, fmt.Errorf("the sub region %s doesn't exist", region)
 	}
 
 	return fetcher, nil

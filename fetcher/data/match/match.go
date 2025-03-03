@@ -14,9 +14,23 @@ type Match_fetcher struct {
 	region  string
 }
 
+// The match fetcher with it's limiter and region.
+type Sub_match_fetcher struct {
+	limiter *requests.RateLimiter
+	region  string
+}
+
 // Create a instance of the match fetcher.
 func CreateMatchFetcher(limiter *requests.RateLimiter, region string) *Match_fetcher {
 	return &Match_fetcher{
+		limiter,
+		region,
+	}
+}
+
+// Create a instance of the match fetcher.
+func CreateSubMatchFetcher(limiter *requests.RateLimiter, region string) *Sub_match_fetcher {
+	return &Sub_match_fetcher{
 		limiter,
 		region,
 	}

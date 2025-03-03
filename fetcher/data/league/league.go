@@ -14,6 +14,11 @@ type League_Fetcher struct {
 	region  string
 }
 
+type Sub_league_Fetcher struct {
+	limiter *requests.RateLimiter // Pointer to the fetcher, since it's shared.
+	region  string
+}
+
 // Create a league fetcher.
 func CreateLeagueFetcher(limiter *requests.RateLimiter, region string) *League_Fetcher {
 	return &League_Fetcher{
@@ -22,9 +27,17 @@ func CreateLeagueFetcher(limiter *requests.RateLimiter, region string) *League_F
 	}
 }
 
+// Create a league fetcher.
+func CreateSubLeagueFetcher(limiter *requests.RateLimiter, region string) *Sub_league_Fetcher {
+	return &Sub_league_Fetcher{
+		limiter,
+		region,
+	}
+}
+
 // Get a given high elo league page.
 // Used only for  job  requests, since it would not be necessary to get a given page at demand.
-func (l *League_Fetcher) GetHighEloLeagueEntries(division string, queue string) (*HighEloLeagueEntry, error) {
+func (l *Sub_league_Fetcher) GetHighEloLeagueEntries(division string, queue string) (*HighEloLeagueEntry, error) {
 	// Wait for job.
 	l.limiter.WaitJob()
 
@@ -55,7 +68,7 @@ func (l *League_Fetcher) GetHighEloLeagueEntries(division string, queue string) 
 }
 
 // Get a given player entries for each queue.
-func (l *League_Fetcher) GetLeagueByPuuid(puuid string, onDemand bool) ([]LeagueEntry, error) {
+func (l *Sub_league_Fetcher) GetLeagueByPuuid(puuid string, onDemand bool) ([]LeagueEntry, error) {
 	// Verify the type of request.
 	if onDemand {
 		l.limiter.WaitApi()
@@ -91,7 +104,7 @@ func (l *League_Fetcher) GetLeagueByPuuid(puuid string, onDemand bool) ([]League
 
 // Get a given league page.
 // Used only for  job  requests, since it would not be necessary to get a given page at demand.
-func (l *League_Fetcher) GetLeagueEntries(tier string, division string, queue string, page int) ([]LeagueEntry, error) {
+func (l *Sub_league_Fetcher) GetLeagueEntries(tier string, division string, queue string, page int) ([]LeagueEntry, error) {
 	// Wait for job.
 	l.limiter.WaitJob()
 

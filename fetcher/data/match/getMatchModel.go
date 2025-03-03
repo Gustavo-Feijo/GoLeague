@@ -67,7 +67,7 @@ type MatchPlayer struct {
 	VisionScore                    uint16     `json:"visionScore"`
 	WardsKilled                    uint16     `json:"wardsKilled"`
 	WardsPlaced                    uint16     `json:"wardsPlaced"`
-	Win                            uint16     `json:"win"`
+	Win                            bool       `json:"win"`
 }
 
 // Challenges of the player for this match.

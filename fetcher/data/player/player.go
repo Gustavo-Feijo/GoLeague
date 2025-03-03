@@ -15,9 +15,23 @@ type Player_fetcher struct {
 	region  string
 }
 
+// The player fetcher with it's limit and region.
+type Sub_player_fetcher struct {
+	limiter *requests.RateLimiter // Pointer to the fetcher, since it's shared.
+	region  string
+}
+
 // Create a player fetcher.
 func CreatePlayerFetcher(limiter *requests.RateLimiter, region string) *Player_fetcher {
 	return &Player_fetcher{
+		limiter,
+		region,
+	}
+}
+
+// Create a player fetcher.
+func CreateSubPlayerFetcher(limiter *requests.RateLimiter, region string) *Sub_player_fetcher {
+	return &Sub_player_fetcher{
 		limiter,
 		region,
 	}
@@ -61,7 +75,7 @@ func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset 
 }
 
 // Get a players summoner data.
-func (p *Player_fetcher) GetSummonerData(puuid string, onDemand bool) (*SummonerByPuuid, error) {
+func (p *Sub_player_fetcher) GetSummonerData(puuid string, onDemand bool) (*SummonerByPuuid, error) {
 	if onDemand {
 		p.limiter.WaitApi()
 	} else {
