@@ -6,6 +6,11 @@ import (
 	"sync"
 )
 
+var (
+	regionManagerInstance *RegionManager
+	regionManagerOnce     sync.Once
+)
+
 // Create the types for clarity.
 type (
 	MainRegion string
@@ -30,41 +35,44 @@ type RegionManager struct {
 }
 
 // Create a region manager for the RiotAPI and populate it.
-func CreateRegionManager() *RegionManager {
-	// Create the region manager.
-	manager := &RegionManager{
-		subToMain:   make(map[SubRegion]MainRegion),
-		mainToSub:   make(map[MainRegion][]SubRegion),
-		mainFetcher: make(map[MainRegion]*data.MainFetcher),
-		subFetcher:  make(map[SubRegion]*data.SubFetcher),
-	}
-
-	// Each region available at the riot API.
-	regions := map[MainRegion][]SubRegion{
-		"AMERICAS": {"BR1", "LA1", "LA2", "NA1"},
-		"EUROPE":   {"EUN1", "EUW1", "TR1", "ME1", "RU"},
-		"ASIA":     {"KR", "JP1"},
-		"SEA":      {"OC1", "SG2", "TW2", "VN2"},
-	}
-
-	// Loop through each region and populate it.
-	for mainRegion, subRegions := range regions {
-		// Create the relationship between the main regions and the subregions.
-		manager.mainToSub[mainRegion] = subRegions
-
-		// Create each main region fetcher.
-		manager.mainFetcher[mainRegion] = data.CreateMainFetcher(string(mainRegion))
-
-		for _, subRegion := range subRegions {
-			// Save the parent of this sub regions.
-			manager.subToMain[subRegion] = mainRegion
-
-			// Create the sub regions fetchers.
-			manager.subFetcher[subRegion] = data.CreateSubFetcher(string(subRegion))
+func GetRegionManager() *RegionManager {
+	// Singleton for creating only one region manager.
+	regionManagerOnce.Do(func() {
+		// Create the region manager.
+		regionManagerInstance = &RegionManager{
+			subToMain:   make(map[SubRegion]MainRegion),
+			mainToSub:   make(map[MainRegion][]SubRegion),
+			mainFetcher: make(map[MainRegion]*data.MainFetcher),
+			subFetcher:  make(map[SubRegion]*data.SubFetcher),
 		}
-	}
 
-	return manager
+		// Each region available at the riot API.
+		regions := map[MainRegion][]SubRegion{
+			"AMERICAS": {"BR1", "LA1", "LA2", "NA1"},
+			"EUROPE":   {"EUN1", "EUW1", "TR1", "ME1", "RU"},
+			"ASIA":     {"KR", "JP1"},
+			"SEA":      {"OC1", "SG2", "TW2", "VN2"},
+		}
+
+		// Loop through each region and populate it.
+		for mainRegion, subRegions := range regions {
+			// Create the relationship between the main regions and the subregions.
+			regionManagerInstance.mainToSub[mainRegion] = subRegions
+
+			// Create each main region fetcher.
+			regionManagerInstance.mainFetcher[mainRegion] = data.CreateMainFetcher(string(mainRegion))
+
+			for _, subRegion := range subRegions {
+				// Save the parent of this sub regions.
+				regionManagerInstance.subToMain[subRegion] = mainRegion
+
+				// Create the sub regions fetchers.
+				regionManagerInstance.subFetcher[subRegion] = data.CreateSubFetcher(string(subRegion))
+			}
+		}
+	})
+
+	return regionManagerInstance
 }
 
 // Get the fetcher for a given region

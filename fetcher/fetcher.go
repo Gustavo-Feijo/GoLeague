@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"goleague/fetcher/regions"
 	"goleague/pkg/config"
 	pb "goleague/pkg/grpc"
 	"log"
@@ -24,15 +25,19 @@ func main() {
 	defer stop()
 	log.Println("Starting grpcServer...")
 
+	// Create the manager that will be used to handle all the regions fetching.
+	// Will be passed by reference to any place that make requests.
+	manager := regions.GetRegionManager()
+
 	// Start the gRPC server.
-	grpcServer, healthServer := startGRPCServer()
+	grpcServer, healthServer := startGRPCServer(manager)
 
 	// Shutdown everything.
 	handleShutdown(grpcServer, healthServer, stop)
 }
 
 // Start the grpc server for handling cache on demand.
-func startGRPCServer() (*grpc.Server, *health.Server) {
+func startGRPCServer(regionManager *regions.RegionManager) (*grpc.Server, *health.Server) {
 	// Start a TPC listener.
 	list, err := net.Listen("tcp", ":50051")
 	if err != nil {
@@ -41,7 +46,8 @@ func startGRPCServer() (*grpc.Server, *health.Server) {
 
 	// Create the server, register it and serve.
 	grpcServer := grpc.NewServer()
-	pb.RegisterAssetsServiceServer(grpcServer, &server{})
+	srv := &server{regionManager: regionManager}
+	pb.RegisterAssetsServiceServer(grpcServer, srv)
 
 	// Register the health check.
 	healthServer := health.NewServer()

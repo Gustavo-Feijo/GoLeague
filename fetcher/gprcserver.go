@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"goleague/fetcher/assets"
+	"goleague/fetcher/regions"
 	pb "goleague/pkg/grpc"
 	"goleague/pkg/models/champion"
 	"goleague/pkg/models/image"
@@ -15,6 +16,7 @@ import (
 // Server definition.
 type server struct {
 	pb.UnimplementedAssetsServiceServer
+	regionManager *regions.RegionManager
 }
 
 // Util function to get the PB definition from the image.
@@ -83,6 +85,7 @@ func (s *server) RevalidateChampionCache(context context.Context, srv *pb.Champi
 	}, nil
 }
 
+// Revalidate a item cache.
 func (s *server) RevalidateItemCache(ctx context.Context, srv *pb.ItemId) (*pb.Item, error) {
 	// Get the champion.
 	item, err := assets.RevalidateItemCache("en_US", srv.Id)
