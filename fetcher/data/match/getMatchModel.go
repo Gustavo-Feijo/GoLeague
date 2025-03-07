@@ -29,7 +29,7 @@ type MatchPlayer struct {
 	GameEndedInEarlySurrender      bool       `json:"gameEndedInEarlySurrender"`
 	GameEndedInSurrender           bool       `json:"gameEndedInSurrender"`
 	GetBackPings                   uint16     `json:"getBackPings"`
-	GoldEarned                     uint32     `json:"GoldEarned"`
+	GoldEarned                     uint32     `json:"goldEarned"`
 	GoldSpent                      uint32     `json:"goldSpent"`
 	HoldPings                      uint16     `json:"holdPings"`
 	Item0                          uint16     `json:"item0"`
