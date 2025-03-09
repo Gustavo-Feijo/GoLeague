@@ -7,6 +7,7 @@ type MatchInfo struct {
 	GameDuration    int           `json:"gameDuration"`
 	GameVersion     string        `json:"gameVersion"`
 	Participants    []MatchPlayer `json:"participants"`
+	PlatformId      string        `json:"platformId"`
 	QueueId         int           `json:"queueId"`
 	Teams           []TeamInfo    `json:"teams"`
 }
@@ -20,14 +21,14 @@ type MatchPlayer struct {
 	BasicPings                     uint16     `json:"basicPings"`
 	ChampionLevel                  uint8      `json:"champLevel"`
 	ChampionId                     uint16     `json:"championId"`
-	Challenges                     Challenges `json:"challenges"`
+	Challenges                     Challenges `json:"challenges" gorm:"embedded"`
 	CommandPings                   uint16     `json:"commandPings"`
 	DangerPings                    uint16     `json:"dangerPings"`
 	Deaths                         uint16     `json:"deaths"`
 	EnemyMissingPings              uint16     `json:"enemyMissingPings"`
 	EnemyVisionPings               uint16     `json:"enemyVisionPings"`
-	GameEndedInEarlySurrender      bool       `json:"gameEndedInEarlySurrender"`
-	GameEndedInSurrender           bool       `json:"gameEndedInSurrender"`
+	GameEndedInEarlySurrender      bool       `json:"gameEndedInEarlySurrender" gorm:"-"`
+	GameEndedInSurrender           bool       `json:"gameEndedInSurrender" gorm:"-"`
 	GetBackPings                   uint16     `json:"getBackPings"`
 	GoldEarned                     uint32     `json:"goldEarned"`
 	GoldSpent                      uint32     `json:"goldSpent"`
@@ -46,14 +47,14 @@ type MatchPlayer struct {
 	OnMyWayPings                   uint16     `json:"onMyWayPings"`
 	PhysicalDamageDealtToChampions uint32     `json:"physicalDamageDealtToChampions"`
 	PhysicalDamageTaken            uint32     `json:"physicalDamageTaken"`
-	ProfileIcon                    uint16     `json:"profileIcon"`
+	ProfileIcon                    uint16     `json:"profileIcon" gorm:"-"`
 	PushPings                      uint16     `json:"pushPings"`
-	Puuid                          string     `json:"puuid"`
+	Puuid                          string     `json:"puuid" gorm:"-"`
 	RetreatPings                   uint16     `json:"retreatPings"`
-	RiotIdGameName                 string     `json:"riotIdGameName"`
-	RiotIdTagline                  string     `json:"riotIdTagline"`
-	SummonerId                     string     `json:"summonerId"`
-	SummonerLevel                  uint16     `json:"summonerLevel"`
+	RiotIdGameName                 string     `json:"riotIdGameName" gorm:"-"`
+	RiotIdTagline                  string     `json:"riotIdTagline" gorm:"-"`
+	SummonerId                     string     `json:"summonerId" gorm:"-"`
+	SummonerLevel                  uint16     `json:"summonerLevel" gorm:"-"`
 	LongestTimeSpentLiving         uint16     `json:"longestTimeSpentLiving"`
 	MagicDamageDealt               uint32     `json:"magicDamageDealt"`
 	TeamId                         uint16     `json:"teamId"`
