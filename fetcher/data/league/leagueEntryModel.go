@@ -18,4 +18,5 @@ type LeagueEntry struct {
 // Only having some outer keys.
 type HighEloLeagueEntry struct {
 	Entries []LeagueEntry `json:"entries"`
+	Tier    string        `json:"tier"`
 }

@@ -17,6 +17,14 @@ type (
 	SubRegion  string
 )
 
+// List of regions.
+var RegionList = map[MainRegion][]SubRegion{
+	"AMERICAS": {"BR1", "LA1", "LA2", "NA1"},
+	"EUROPE":   {"EUN1", "EUW1", "TR1", "ME1", "RU"},
+	"ASIA":     {"KR", "JP1"},
+	"SEA":      {"OC1", "SG2", "TW2", "VN2"},
+}
+
 // Define the region manager.
 type RegionManager struct {
 	// Get which main region is the parent of the sub region.
@@ -46,16 +54,8 @@ func GetRegionManager() *RegionManager {
 			subFetcher:  make(map[SubRegion]*data.SubFetcher),
 		}
 
-		// Each region available at the riot API.
-		regions := map[MainRegion][]SubRegion{
-			"AMERICAS": {"BR1", "LA1", "LA2", "NA1"},
-			"EUROPE":   {"EUN1", "EUW1", "TR1", "ME1", "RU"},
-			"ASIA":     {"KR", "JP1"},
-			"SEA":      {"OC1", "SG2", "TW2", "VN2"},
-		}
-
 		// Loop through each region and populate it.
-		for mainRegion, subRegions := range regions {
+		for mainRegion, subRegions := range RegionList {
 			// Create the relationship between the main regions and the subregions.
 			regionManagerInstance.mainToSub[mainRegion] = subRegions
 

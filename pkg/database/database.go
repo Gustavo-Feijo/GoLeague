@@ -8,6 +8,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var (
@@ -22,7 +23,9 @@ func GetConnection() (*gorm.DB, error) {
 	once.Do(
 		func() {
 			// Create the database instance.
-			db, err = gorm.Open(postgres.Open(config.Database.URL), &gorm.Config{})
+			db, err = gorm.Open(postgres.Open(config.Database.URL), &gorm.Config{
+				Logger: logger.Default.LogMode(logger.Silent),
+			})
 			if err != nil {
 				// Can't run without connection to the database.
 				log.Fatalf("Failed to connect to database: %v", err)

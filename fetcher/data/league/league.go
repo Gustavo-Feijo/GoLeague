@@ -42,7 +42,7 @@ func (l *Sub_league_Fetcher) GetHighEloLeagueEntries(division string, queue stri
 	l.limiter.WaitJob()
 
 	// Format the URL and create the params.
-	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league/v4/%s/by-queue/%s",
+	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league/v4/%sleagues/by-queue/%s",
 		l.region, strings.ToLower(division), queue)
 
 	resp, err := requests.AuthRequest(url, "GET", map[string]string{})
@@ -54,7 +54,7 @@ func (l *Sub_league_Fetcher) GetHighEloLeagueEntries(division string, queue stri
 
 	// Check the status code.
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status code %d on URL %s", resp.StatusCode, url)
 	}
 
 	// Parse the league entries.
