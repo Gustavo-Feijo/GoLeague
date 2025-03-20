@@ -59,13 +59,13 @@ func (rs *RatingService) CreateRatingEntry(
 		Wins:         entry.Wins,
 	}
 
-	// Handle Tier and Division if they are not nil.
+	// Handle Tier and Rank if they are not nil.
 	if entry.Tier != nil {
 		insertEntry.Tier = *entry.Tier
 	}
 
-	if entry.Division != nil {
-		insertEntry.Rank = *entry.Division
+	if entry.Rank != nil {
+		insertEntry.Rank = *entry.Rank
 	} else {
 		// If it's high elo, it will be nil, just set the ranking as I.
 		insertEntry.Rank = "I"

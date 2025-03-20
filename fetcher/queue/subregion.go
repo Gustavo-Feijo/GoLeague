@@ -12,7 +12,7 @@ import (
 
 // The configuration for the queues we will be executing.
 type SubRegionConfig struct {
-	Divisions     []string
+	Ranks         []string
 	HighElos      []string
 	Queues        []string
 	SleepDuration time.Duration
@@ -31,7 +31,7 @@ type SubRegionProcessor struct {
 // Return a default configuration for the sub region.
 func CreateDefaultQueueConfig() *SubRegionConfig {
 	return &SubRegionConfig{
-		Divisions:     []string{"I", "II", "III", "IV"},
+		Ranks:         []string{"I", "II", "III", "IV"},
 		HighElos:      []string{"challenger", "grandmaster", "master"},
 		Queues:        []string{"RANKED_SOLO_5x5", "RANKED_FLEX_SR"},
 		SleepDuration: 10 * time.Minute,
@@ -122,24 +122,24 @@ func (p *SubRegionProcessor) processHighElo(queue string) {
 	}
 }
 
-// Process each league and sub division.
+// Process each league and sub rank.
 func (p *SubRegionProcessor) processLeagues(queue string) {
 	// Loop through each available tier.
 	for _, tier := range p.config.Tiers {
-		// Loop through each available division.
-		for _, division := range p.config.Divisions {
+		// Loop through each available rank.
+		for _, rank := range p.config.Ranks {
 			// Starting page that will be fetched.
 			page := 1
 
 			// Infinite loop that will run until the return of rating is a empty array.
 			for {
-				rating, err := p.fetcher.League.GetLeagueEntries(tier, division, queue, page)
+				rating, err := p.fetcher.League.GetLeagueEntries(tier, rank, queue, page)
 				if err != nil {
-					log.Printf("Couldn't get the tier %v on the division %v: %v", tier, division, err)
+					log.Printf("Couldn't get the tier %v on the rank %v: %v", tier, rank, err)
 					break
 				}
 
-				// If no entry is found, we just break and go to the next division.
+				// If no entry is found, we just break and go to the next rank.
 				if len(rating) == 0 {
 					break
 				}

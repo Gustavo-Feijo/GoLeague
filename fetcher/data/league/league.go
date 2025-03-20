@@ -37,13 +37,13 @@ func CreateSubLeagueFetcher(limiter *requests.RateLimiter, region string) *Sub_l
 
 // Get a given high elo league page.
 // Used only for  job  requests, since it would not be necessary to get a given page at demand.
-func (l *Sub_league_Fetcher) GetHighEloLeagueEntries(division string, queue string) (*HighEloLeagueEntry, error) {
+func (l *Sub_league_Fetcher) GetHighEloLeagueEntries(tier string, queue string) (*HighEloLeagueEntry, error) {
 	// Wait for job.
 	l.limiter.WaitJob()
 
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league/v4/%sleagues/by-queue/%s",
-		l.region, strings.ToLower(division), queue)
+		l.region, strings.ToLower(tier), queue)
 
 	resp, err := requests.AuthRequest(url, "GET", map[string]string{})
 	if err != nil {
@@ -104,14 +104,14 @@ func (l *Sub_league_Fetcher) GetLeagueByPuuid(puuid string, onDemand bool) ([]Le
 
 // Get a given league page.
 // Used only for  job  requests, since it would not be necessary to get a given page at demand.
-func (l *Sub_league_Fetcher) GetLeagueEntries(tier string, division string, queue string, page int) ([]LeagueEntry, error) {
+func (l *Sub_league_Fetcher) GetLeagueEntries(tier string, rank string, queue string, page int) ([]LeagueEntry, error) {
 	// Wait for job.
 	l.limiter.WaitJob()
 
 	// Format the URL and create the params.
 	// Riot only accept upper case on this entries.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league/v4/entries/%s/%s/%s?page=%d",
-		l.region, queue, strings.ToUpper(tier), strings.ToUpper(division), page)
+		l.region, queue, strings.ToUpper(tier), strings.ToUpper(rank), page)
 
 	resp, err := requests.AuthRequest(url, "GET", map[string]string{})
 	if err != nil {

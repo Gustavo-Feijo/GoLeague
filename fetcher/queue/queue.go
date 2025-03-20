@@ -6,21 +6,6 @@ import (
 	"sync"
 )
 
-var (
-	highElos  = []string{"challenger", "grandmaster", "master"}
-	baseTiers = []string{
-		"DIAMOND",
-		"EMERALD",
-		"PLATINUM",
-		"GOLD",
-		"SILVER",
-		"BRONZE",
-		"IRON",
-	}
-	division = []string{"1", "2", "3", ""}
-	queues   = []string{"RANKED_SOLO_5x5", "RANKED_FLEX_SR"}
-)
-
 func StartQueue(rm *regions.RegionManager) {
 	var wg sync.WaitGroup
 	// Loop through each main region and start it's queue.
