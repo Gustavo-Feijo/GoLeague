@@ -89,7 +89,7 @@ func (l *Sub_league_Fetcher) GetLeagueByPuuid(puuid string, onDemand bool) ([]Le
 
 	// Check the status code.
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status code %d on URL %s", resp.StatusCode, url)
 	}
 
 	// Parse the league entries.
@@ -122,7 +122,7 @@ func (l *Sub_league_Fetcher) GetLeagueEntries(tier string, division string, queu
 
 	// Check the status code.
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status code %d on URL %s", resp.StatusCode, url)
 	}
 
 	// Parse the league entries.
