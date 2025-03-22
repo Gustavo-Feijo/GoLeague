@@ -111,14 +111,19 @@ func (p *SubRegionProcessor) processHighElo(queue string) {
 			continue
 		}
 
+		// Array for the batch insert.
+		entries := make([]league_fetcher.LeagueEntry, len(highRating.Entries))
+
 		// Process each rating entry.
 		// If more resources available, can be converted to use Goroutines.
-		for _, entry := range highRating.Entries {
+		for i, entry := range highRating.Entries {
 			// For high elo we don't have the tier inside the entries array, so we set manually.
 			entry.Tier = &highRating.Tier
-
-			p.processEntry(entry, queue)
+			entry.QueueType = &queue
+			entries[i] = entry
 		}
+
+		p.processBatchEntry(entries, queue)
 	}
 }
 
@@ -144,13 +149,16 @@ func (p *SubRegionProcessor) processLeagues(queue string) {
 					break
 				}
 
+				// Array for the batch insert.
+				entries := make([]league_fetcher.LeagueEntry, len(rating))
+
 				// Process each rating entry.
 				// If more resources available, can be converted to use Goroutines.
-				for _, entry := range rating {
-					// Just process the entry.
-					p.processEntry(entry, queue)
+				for i, entry := range rating {
+					entry.QueueType = &queue
+					entries[i] = entry
 				}
-
+				p.processBatchEntry(entries, queue)
 				page += 1
 			}
 		}
@@ -158,47 +166,124 @@ func (p *SubRegionProcessor) processLeagues(queue string) {
 }
 
 // Process a single league entry.
-func (p *SubRegionProcessor) processEntry(entry league_fetcher.LeagueEntry, queue string) {
-	player, err := p.playerService.GetPlayerByPuuid(entry.Puuid)
-	if err != nil {
-		log.Printf("Couldn't get the player with PUUID: %v", entry.Puuid)
+func (p *SubRegionProcessor) processBatchEntry(entries []league_fetcher.LeagueEntry, queue string) {
+	// If empty just return.
+	if len(entries) == 0 {
 		return
 	}
 
-	// The player doesn't exist.
-	if player == nil {
-		// Reassign the player to the newly created one.
-		player, err = p.playerService.CreatePlayerFromRating(entry, p.subRegion)
-		if err != nil {
-			log.Printf("Couldn't create the player with PUUID %v on the region %v: %v", entry.Puuid, p.subRegion, err)
+	// Get each puuid from the entry.
+	puuids := make([]string, len(entries))
+	entryByPuuid := make(map[string]league_fetcher.LeagueEntry)
+
+	// Fill the map for faster lookup.
+	for i, entry := range entries {
+		puuids[i] = entry.Puuid
+		entryByPuuid[entry.Puuid] = entry
+	}
+
+	// Fetch all the players from those puuids.
+	existingPlayers, err := p.playerService.GetPlayersByPuuids(puuids)
+	if err != nil {
+		log.Printf("Error fetching the puuids on the entries: %v", err)
+		return
+	}
+
+	var playersToCreate []*models.PlayerInfo
+
+	// Loop through each entry and verify if the player exists.
+	// If doesn't, add to the current batch.
+	for _, entry := range entries {
+
+		_, exists := existingPlayers[entry.Puuid]
+		// The player doesn't exist.
+		if !exists {
+			playersToCreate = append(playersToCreate, &models.PlayerInfo{
+				SummonerId: entry.SummonerId,
+				Puuid:      entry.Puuid,
+				Region:     string(p.subRegion),
+			})
+		}
+
+	}
+
+	// Creates the list of players.
+	if len(playersToCreate) > 0 {
+		if err := p.playerService.CreatePlayersBatch(playersToCreate); err != nil {
+			log.Printf("Error inserting %v new players: %v", len(playersToCreate), err)
+			return
+		}
+		// Add newly created players to the existing players map
+		for _, player := range playersToCreate {
+			existingPlayers[player.Puuid] = player
+		}
+
+		log.Printf("Created %d new players for region %v", len(playersToCreate), p.subRegion)
+	}
+
+	// Get the player IDs from the inserted results.
+	playerIDs := make([]uint, 0, len(existingPlayers))
+	playerByID := make(map[uint]*models.PlayerInfo)
+
+	// Loop through each player and set the value as the database model.
+	for _, player := range existingPlayers {
+		playerIDs = append(playerIDs, player.ID)
+		playerByID[player.ID] = player
+	}
+
+	// Get the rating for each player.
+	lastRatings, err := p.ratingService.GetLastRatingEntryByPlayerIdsAndQueue(playerIDs, queue)
+	if err != nil {
+		log.Printf("Error fetching last ratings: %v", err)
+		return
+	}
+
+	var ratingsToCreate []models.RatingEntry
+
+	for _, player := range existingPlayers {
+		// Get the corresponding entry for the player, as well as the last rating.
+		entry := entryByPuuid[player.Puuid]
+		lastRating, exists := lastRatings[player.ID]
+
+		// If the last rating doesn't exist or it changed, then c reate a new rating.
+		if !exists || p.ratingService.RatingNeedsUpdate(lastRating, entry) {
+			newRating := models.RatingEntry{
+				PlayerId:     player.ID,
+				Region:       p.subRegion,
+				Queue:        queue,
+				LeaguePoints: entry.LeaguePoints,
+				Wins:         entry.Wins,
+				Losses:       entry.Losses,
+			}
+
+			// Handle Tier and Rank if they are not nil.
+			if entry.Tier != nil {
+				newRating.Tier = *entry.Tier
+			}
+
+			if entry.Rank != nil {
+				newRating.Rank = *entry.Rank
+			} else {
+				// If it's high elo, it will be nil, just set the ranking as I.
+				newRating.Rank = "I"
+			}
+
+			ratingsToCreate = append(ratingsToCreate, newRating)
+		}
+	}
+
+	// Create the ratings.
+	if len(ratingsToCreate) > 0 {
+		if err := p.ratingService.CreateBatchRating(ratingsToCreate); err != nil {
+			log.Printf("Error creating rating entries: %v", err)
 			return
 		}
 
-		log.Printf("Created player with id %v and PUUID %v in region %v", player.ID, player.Puuid, p.subRegion)
-	}
+		// Extract the tier for printing.
+		tier := ratingsToCreate[0].Tier
+		rank := ratingsToCreate[0].Rank
 
-	p.updatePlayerRating(player, entry, queue)
-}
-
-// Update the player rating if needed.
-func (p *SubRegionProcessor) updatePlayerRating(player *models.PlayerInfo, entry league_fetcher.LeagueEntry, queue string) {
-	// Get the last rating of this player.
-	// Used to verify if the player has played a match recently.
-	lastRating, err := p.ratingService.GetLastRatingEntryByPlayerIdAndQueue(player.ID, queue)
-	if err != nil {
-		log.Printf("Couldn't get the last rating for the player %v: %v", player.ID, err)
-		return
-	}
-
-	// Finally create the rating entry.
-	newRating, err := p.ratingService.CreateRatingEntry(entry, player.ID, p.subRegion, queue, lastRating)
-	if err != nil {
-		log.Printf("Couldn't insert the new rating entry for the player %v: %v", player.ID, err)
-		return
-	}
-
-	// Verify if something changed.
-	if newRating != nil {
-		log.Printf("Created rating entry for the player %v on the region %v", player.ID, p.subRegion)
+		log.Printf("Created: %d - Queue: %s - Region: %v - Tier: %v - Rank: %v",
+			len(ratingsToCreate), queue, p.subRegion, tier, rank)
 	}
 }

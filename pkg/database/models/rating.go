@@ -93,6 +93,17 @@ func (rs *RatingService) CreateRatingEntry(
 	return insertEntry, nil
 }
 
+// Create a list of entries.
+func (rs *RatingService) CreateBatchRating(
+	entries []RatingEntry,
+) error {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	return rs.db.CreateInBatches(&entries, 1000).Error
+}
+
 // Get the last rating entry for a given player id.
 func (rs *RatingService) GetLastRatingEntryByPlayerIdAndQueue(playerId uint, queue string) (*RatingEntry, error) {
 	// Retrieve the latest rating entry for the player
@@ -106,4 +117,46 @@ func (rs *RatingService) GetLastRatingEntryByPlayerIdAndQueue(playerId uint, que
 	}
 
 	return &rating, nil
+}
+
+// Return a list of ratings.
+func (rs *RatingService) GetLastRatingEntryByPlayerIdsAndQueue(ids []uint, queue string) (map[uint]*RatingEntry, error) {
+
+	// Empty list, just return nil.
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	// Get the ratings.
+	var ratings []RatingEntry
+	result := rs.db.Where("player_id IN (?)", ids).Find(&ratings)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// Convert to make it faster.
+	ratingMap := make(map[uint]*RatingEntry, len(ratings))
+	for i := range ratings {
+		ratingMap[ratings[i].PlayerId] = &ratings[i]
+	}
+
+	return ratingMap, nil
+}
+
+// Helper function to determine if a rating needs to be updated
+func (rs *RatingService) RatingNeedsUpdate(lastRating *RatingEntry, entry league_fetcher.LeagueEntry) bool {
+	if lastRating == nil {
+		return true // No previous rating, needs update
+	}
+
+	// Check if any important fields have changed
+	if lastRating.LeaguePoints != entry.LeaguePoints ||
+		lastRating.Wins != entry.Wins ||
+		lastRating.Losses != entry.Losses ||
+		(entry.Tier != nil && lastRating.Tier != *entry.Tier) ||
+		(entry.Tier != nil && lastRating.Rank != *entry.Rank) {
+		return true
+	}
+
+	return false
 }

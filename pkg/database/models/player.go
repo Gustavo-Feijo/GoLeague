@@ -15,12 +15,12 @@ import (
 type PlayerInfo struct {
 	ID             uint `gorm:"primaryKey"`
 	ProfileIcon    uint16
-	Puuid          string `gorm:"index;uniqueIndex:idx_player;type:char(78)"` // Unique identifier.
-	RiotIdGameName string `gorm:"type:varchar(30)"`                           // Shouldn't have more than 16.
+	Puuid          string `gorm:"index;uniqueIndex:idx_player_region;type:char(78)"` // Unique identifier.
+	RiotIdGameName string `gorm:"type:varchar(30)"`                                  // Shouldn't have more than 16.
 	RiotIdTagline  string `gorm:"type:varchar(5)"`
 	SummonerId     string `gorm:"type:char(63)"`
 	SummonerLevel  uint16
-	Region         string `gorm:"type:varchar(5)"`
+	Region         string `gorm:"type:varchar(5);uniqueIndex:idx_player_region"` // Sometimes the same player can be found on other leagues.
 	UnfetchedMatch bool
 
 	// Last time the user match was fetched.
@@ -39,6 +39,16 @@ func CreatePlayerService() (*PlayerService, error) {
 		return nil, fmt.Errorf("couldn't get database connection: %w", err)
 	}
 	return &PlayerService{db: db}, nil
+}
+
+// Create multiple passed players.
+func (ps *PlayerService) CreatePlayersBatch(players []*PlayerInfo) error {
+	if len(players) == 0 {
+		return nil
+	}
+
+	// Creates in batches of 1000.
+	return ps.db.CreateInBatches(&players, 1000).Error
 }
 
 // Create a basic player structure.
@@ -73,4 +83,27 @@ func (ps *PlayerService) GetPlayerByPuuid(puuid string) (*PlayerInfo, error) {
 	}
 
 	return &player, nil
+}
+
+// Get a list of players by a list of passed PUUIDs.
+func (s *PlayerService) GetPlayersByPuuids(puuids []string) (map[string]*PlayerInfo, error) {
+	// Empty list, just return nil.
+	if len(puuids) == 0 {
+		return nil, nil
+	}
+
+	// Get the players.
+	var players []PlayerInfo
+	result := s.db.Where("puuid IN (?)", puuids).Find(&players)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// Convert to make it faster.
+	playersMap := make(map[string]*PlayerInfo, len(players))
+	for i := range players {
+		playersMap[players[i].Puuid] = &players[i]
+	}
+
+	return playersMap, nil
 }

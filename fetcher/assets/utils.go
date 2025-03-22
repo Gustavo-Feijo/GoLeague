@@ -21,10 +21,11 @@ func mapToImage(imgData map[string]interface{}) image.Image {
 // Convert the default map from the DDragon to a spell type.
 func mapToSpell(spellData map[string]interface{}, championID string) champion.Spell {
 	spell := champion.Spell{
+		ID:          getStringOrDefault(spellData, "id"),
 		Name:        spellData["name"].(string),
 		Description: spellData["description"].(string),
-		Cooldown:    getStringOrDefault(spellData, "cooldown"),
-		Cost:        getStringOrDefault(spellData, "cost"),
+		Cooldown:    getStringOrDefault(spellData, "cooldownBurn"),
+		Cost:        getStringOrDefault(spellData, "costBurn"),
 		ChampionID:  championID,
 	}
 
