@@ -19,6 +19,16 @@ type server struct {
 	regionManager *regions.RegionManager
 }
 
+// Util function to get the PB definition for the gold.
+func goldToPB(gold item.Gold) pb.Gold {
+	return pb.Gold{
+		Base:        int32(gold.Base),
+		Total:       int32(gold.Total),
+		Sell:        int32(gold.Sell),
+		Purchasable: bool(gold.Purchasable),
+	}
+}
+
 // Util function to get the PB definition from the image.
 func imageToPB(image image.Image) pb.Image {
 	return pb.Image{
@@ -42,16 +52,6 @@ func spellToPB(spell champion.Spell) *pb.Spell {
 		Cost:        &spell.Cost,
 		Image:       &spellImage,
 		ChampionId:  spell.ChampionID,
-	}
-}
-
-// Util function to get the PB definition for the gold.
-func goldToPB(gold item.Gold) pb.Gold {
-	return pb.Gold{
-		Base:        int32(gold.Base),
-		Total:       int32(gold.Total),
-		Sell:        int32(gold.Sell),
-		Purchasable: bool(gold.Purchasable),
 	}
 }
 

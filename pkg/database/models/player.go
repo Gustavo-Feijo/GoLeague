@@ -55,21 +55,6 @@ func (ps *PlayerService) CreatePlayersBatch(players []*PlayerInfo) error {
 	return ps.db.CreateInBatches(&players, 1000).Error
 }
 
-// Update or create multiple players.
-// Only update if the data is newer.
-func (ps *PlayerService) UpsertPlayerBatch(players []*PlayerInfo) error {
-	return ps.db.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "puuid"}, {Name: "region"}},
-		DoUpdates: clause.Assignments(map[string]interface{}{
-			"profile_icon":      gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.profile_icon ELSE player_infos.profile_icon END"),
-			"riot_id_game_name": gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_game_name ELSE player_infos.riot_id_game_name END"),
-			"riot_id_tagline":   gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_tagline ELSE player_infos.riot_id_tagline END"),
-			"summoner_level":    gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.summoner_level ELSE player_infos.summoner_level END"),
-			"updated_at":        gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.updated_at ELSE player_infos.updated_at END"),
-		}),
-	}).CreateInBatches(&players, 100).Error
-}
-
 // Create a basic player structure.
 func (ps *PlayerService) CreatePlayerFromRating(rating league_fetcher.LeagueEntry, region regions.SubRegion) (*PlayerInfo, error) {
 	insertEntry := &PlayerInfo{
@@ -138,4 +123,38 @@ func (ps *PlayerService) GetUnfetchedBySubRegions(subRegion regions.SubRegion) (
 	}
 
 	return &unfetchedPlayer, nil
+}
+
+// Set the date of the last time fetch to the previous + 1 day.
+func (ps *PlayerService) SetDelayedLastFetch(playerId uint) error {
+	return ps.db.Model(&PlayerInfo{}).
+		Where("id = ?", playerId).
+		UpdateColumn("last_match_fetch", gorm.Expr("last_match_fetch + interval '1 day'")).Error
+}
+
+// Set the date of the last time fetch.
+func (ps *PlayerService) SetFetched(playerId uint) error {
+	return ps.db.Model(&PlayerInfo{}).
+		Where("id = ?", playerId).
+		Updates(
+			map[string]interface{}{
+				"last_match_fetch": time.Now().UTC(),
+				"unfetched_match":  false,
+			},
+		).Error
+}
+
+// Update or create multiple players.
+// Only update if the data is newer.
+func (ps *PlayerService) UpsertPlayerBatch(players []*PlayerInfo) error {
+	return ps.db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "puuid"}, {Name: "region"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"profile_icon":      gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.profile_icon ELSE player_infos.profile_icon END"),
+			"riot_id_game_name": gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_game_name ELSE player_infos.riot_id_game_name END"),
+			"riot_id_tagline":   gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_tagline ELSE player_infos.riot_id_tagline END"),
+			"summoner_level":    gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.summoner_level ELSE player_infos.summoner_level END"),
+			"updated_at":        gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.updated_at ELSE player_infos.updated_at END"),
+		}),
+	}).CreateInBatches(&players, 100).Error
 }

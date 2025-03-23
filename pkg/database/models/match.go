@@ -59,7 +59,7 @@ func CreateMatchService() (*MatchService, error) {
 	return &MatchService{db: db}, nil
 }
 
-// Simply craete the bans of a given match.
+// Simply create the bans of a given match.
 func (ms *MatchService) CreateMatchBans(bans []*MatchBans) error {
 	return ms.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "match_id"}, {Name: "pick_turn"}}, // Use the composite key columns
@@ -72,7 +72,7 @@ func (ms *MatchService) CreateMatchInfo(match *MatchInfo) error {
 	return ms.db.Create(&match).Error
 }
 
-// Simply craete the stats of a given match.
+// Simply create the stats of a given match.
 func (ms *MatchService) CreateMatchStats(stats []*MatchStats) error {
 	return ms.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "match_id"}, {Name: "player_id"}}, // Use the composite key columns

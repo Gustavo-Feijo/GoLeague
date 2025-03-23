@@ -42,6 +42,17 @@ func CreateRatingService() (*RatingService, error) {
 	return &RatingService{db: db}, nil
 }
 
+// Create a list of entries.
+func (rs *RatingService) CreateBatchRating(
+	entries []RatingEntry,
+) error {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	return rs.db.CreateInBatches(&entries, 1000).Error
+}
+
 // Create a rating entry to be saved.
 func (rs *RatingService) CreateRatingEntry(
 	entry league_fetcher.LeagueEntry,
@@ -93,17 +104,6 @@ func (rs *RatingService) CreateRatingEntry(
 	return insertEntry, nil
 }
 
-// Create a list of entries.
-func (rs *RatingService) CreateBatchRating(
-	entries []RatingEntry,
-) error {
-	if len(entries) == 0 {
-		return nil
-	}
-
-	return rs.db.CreateInBatches(&entries, 1000).Error
-}
-
 // Get the last rating entry for a given player id.
 func (rs *RatingService) GetLastRatingEntryByPlayerIdAndQueue(playerId uint, queue string) (*RatingEntry, error) {
 	// Retrieve the latest rating entry for the player
@@ -119,7 +119,7 @@ func (rs *RatingService) GetLastRatingEntryByPlayerIdAndQueue(playerId uint, que
 	return &rating, nil
 }
 
-// Return a list of ratings.
+// Return a map of ratings by the playerID.
 func (rs *RatingService) GetLastRatingEntryByPlayerIdsAndQueue(ids []uint, queue string) (map[uint]*RatingEntry, error) {
 
 	// Empty list, just return nil.
@@ -129,7 +129,14 @@ func (rs *RatingService) GetLastRatingEntryByPlayerIdsAndQueue(ids []uint, queue
 
 	// Get the ratings.
 	var ratings []RatingEntry
-	result := rs.db.Where("player_id IN (?)", ids).Find(&ratings)
+	result := rs.db.Raw(`
+        SELECT DISTINCT ON (player_id) * 
+        FROM rating_entries
+        WHERE player_id IN (?)
+        AND queue = ?
+        ORDER BY player_id, fetch_time DESC
+    `, ids, queue).Scan(&ratings)
+
 	if result.Error != nil {
 		return nil, result.Error
 	}
