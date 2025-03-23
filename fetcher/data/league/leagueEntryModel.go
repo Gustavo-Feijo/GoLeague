@@ -7,9 +7,9 @@ type LeagueEntry struct {
 	Tier         *string `json:"tier,omitempty"`
 	Rank         *string `json:"rank,omitempty"`
 	QueueType    *string `json:"queueType,omitempty"`
-	LeaguePoints uint16  `json:"leaguePoints"`
-	Wins         uint16  `json:"wins"`
-	Losses       uint16  `json:"losses"`
+	LeaguePoints int     `json:"leaguePoints"`
+	Wins         int     `json:"wins"`
+	Losses       int     `json:"losses"`
 	FreshBlood   bool    `json:"freshBlood"`
 	HotStreak    bool    `json:"hotStreak"`
 }

@@ -14,60 +14,60 @@ type MatchInfo struct {
 
 // Player results.
 type MatchPlayer struct {
-	Assists                        uint16     `json:"assists"`
-	AllInPings                     uint16     `json:"allInPings"`
-	AssistMePing                   uint16     `json:"assistMePing"`
-	BaronKills                     uint16     `json:"baronKills"`
-	BasicPings                     uint16     `json:"basicPings"`
-	ChampionLevel                  uint8      `json:"champLevel"`
-	ChampionId                     uint16     `json:"championId"`
+	Assists                        int        `json:"assists"`
+	AllInPings                     int        `json:"allInPings"`
+	AssistMePing                   int        `json:"assistMePing"`
+	BaronKills                     int        `json:"baronKills"`
+	BasicPings                     int        `json:"basicPings"`
+	ChampionLevel                  int        `json:"champLevel"`
+	ChampionId                     int        `json:"championId"`
 	Challenges                     Challenges `json:"challenges" gorm:"embedded"`
-	CommandPings                   uint16     `json:"commandPings"`
-	DangerPings                    uint16     `json:"dangerPings"`
-	Deaths                         uint16     `json:"deaths"`
-	EnemyMissingPings              uint16     `json:"enemyMissingPings"`
-	EnemyVisionPings               uint16     `json:"enemyVisionPings"`
+	CommandPings                   int        `json:"commandPings"`
+	DangerPings                    int        `json:"dangerPings"`
+	Deaths                         int        `json:"deaths"`
+	EnemyMissingPings              int        `json:"enemyMissingPings"`
+	EnemyVisionPings               int        `json:"enemyVisionPings"`
 	GameEndedInEarlySurrender      bool       `json:"gameEndedInEarlySurrender" gorm:"-"`
 	GameEndedInSurrender           bool       `json:"gameEndedInSurrender" gorm:"-"`
-	GetBackPings                   uint16     `json:"getBackPings"`
-	GoldEarned                     uint32     `json:"goldEarned"`
-	GoldSpent                      uint32     `json:"goldSpent"`
-	HoldPings                      uint16     `json:"holdPings"`
-	Item0                          uint32     `json:"item0"`
-	Item1                          uint32     `json:"item1"`
-	Item2                          uint32     `json:"item2"`
-	Item3                          uint32     `json:"item3"`
-	Item4                          uint32     `json:"item4"`
-	Item5                          uint32     `json:"item5"`
-	Kills                          uint16     `json:"kills"`
-	MagicDamageDealtToChampions    uint32     `json:"magicDamageDealtToChampions"`
-	MagicDamageTaken               uint32     `json:"magicDamageTaken"`
-	NeedVisionPings                uint16     `json:"needVisionPings"`
-	NeutralMinionsKilled           uint16     `json:"neutralMinionsKilled"`
-	OnMyWayPings                   uint16     `json:"onMyWayPings"`
-	PhysicalDamageDealtToChampions uint32     `json:"physicalDamageDealtToChampions"`
-	PhysicalDamageTaken            uint32     `json:"physicalDamageTaken"`
-	ProfileIcon                    uint16     `json:"profileIcon" gorm:"-"`
-	PushPings                      uint16     `json:"pushPings"`
+	GetBackPings                   int        `json:"getBackPings"`
+	GoldEarned                     int        `json:"goldEarned"`
+	GoldSpent                      int        `json:"goldSpent"`
+	HoldPings                      int        `json:"holdPings"`
+	Item0                          int        `json:"item0"`
+	Item1                          int        `json:"item1"`
+	Item2                          int        `json:"item2"`
+	Item3                          int        `json:"item3"`
+	Item4                          int        `json:"item4"`
+	Item5                          int        `json:"item5"`
+	Kills                          int        `json:"kills"`
+	MagicDamageDealtToChampions    int        `json:"magicDamageDealtToChampions"`
+	MagicDamageTaken               int        `json:"magicDamageTaken"`
+	NeedVisionPings                int        `json:"needVisionPings"`
+	NeutralMinionsKilled           int        `json:"neutralMinionsKilled"`
+	OnMyWayPings                   int        `json:"onMyWayPings"`
+	PhysicalDamageDealtToChampions int        `json:"physicalDamageDealtToChampions"`
+	PhysicalDamageTaken            int        `json:"physicalDamageTaken"`
+	ProfileIcon                    int        `json:"profileIcon" gorm:"-"`
+	PushPings                      int        `json:"pushPings"`
 	Puuid                          string     `json:"puuid" gorm:"-"`
-	RetreatPings                   uint16     `json:"retreatPings"`
+	RetreatPings                   int        `json:"retreatPings"`
 	RiotIdGameName                 string     `json:"riotIdGameName" gorm:"-"`
 	RiotIdTagline                  string     `json:"riotIdTagline" gorm:"-"`
 	SummonerId                     string     `json:"summonerId" gorm:"-"`
-	SummonerLevel                  uint16     `json:"summonerLevel" gorm:"-"`
-	LongestTimeSpentLiving         uint16     `json:"longestTimeSpentLiving"`
-	MagicDamageDealt               uint32     `json:"magicDamageDealt"`
-	TeamId                         uint16     `json:"teamId"`
+	SummonerLevel                  int        `json:"summonerLevel" gorm:"-"`
+	LongestTimeSpentLiving         int        `json:"longestTimeSpentLiving"`
+	MagicDamageDealt               int        `json:"magicDamageDealt"`
+	TeamId                         int        `json:"teamId"`
 	TeamPosition                   string     `json:"teamPosition"`
-	TimeCCingOthers                uint16     `json:"timeCCingOthers"`
-	TotalDamageDealtToChampions    uint32     `json:"totalDamageDealtToChampions"`
-	TotalMinionsKilled             uint16     `json:"totalMinionsKilled"`
-	TotalTimeSpentDead             uint16     `json:"totalTimeSpentDead"`
-	TrueDamageDealtToChampions     uint32     `json:"trueDamageDealtToChampions"`
-	VisionClearedPings             uint16     `json:"visionClearedPings"`
-	VisionScore                    uint16     `json:"visionScore"`
-	WardsKilled                    uint16     `json:"wardsKilled"`
-	WardsPlaced                    uint16     `json:"wardsPlaced"`
+	TimeCCingOthers                int        `json:"timeCCingOthers"`
+	TotalDamageDealtToChampions    int        `json:"totalDamageDealtToChampions"`
+	TotalMinionsKilled             int        `json:"totalMinionsKilled"`
+	TotalTimeSpentDead             int        `json:"totalTimeSpentDead"`
+	TrueDamageDealtToChampions     int        `json:"trueDamageDealtToChampions"`
+	VisionClearedPings             int        `json:"visionClearedPings"`
+	VisionScore                    int        `json:"visionScore"`
+	WardsKilled                    int        `json:"wardsKilled"`
+	WardsPlaced                    int        `json:"wardsPlaced"`
 	Win                            bool       `json:"win"`
 }
 
@@ -75,21 +75,21 @@ type MatchPlayer struct {
 // Some entries like KDA and GoldPerMinute can be fetched here.
 // However we can calculate at runtime without storing it.
 type Challenges struct {
-	AbilityUses        uint16 `json:"abilityUses"`
-	ControlWardsPlaced uint16 `json:"controlWardsPlaced"`
-	SkillshotsDodged   uint16 `json:"skillshotsDodged"`
-	SkillshotsHit      uint16 `json:"skillshotsHit"`
+	AbilityUses        int `json:"abilityUses"`
+	ControlWardsPlaced int `json:"controlWardsPlaced"`
+	SkillshotsDodged   int `json:"skillshotsDodged"`
+	SkillshotsHit      int `json:"skillshotsHit"`
 }
 
 // Team information.
 type TeamInfo struct {
-	Bans   []Ban  `json:"bans"`
-	TeamId uint16 `json:"teamId"`
-	Win    bool   `json:"win"`
+	Bans   []Ban `json:"bans"`
+	TeamId int   `json:"teamId"`
+	Win    bool  `json:"win"`
 }
 
 // Ban information.
 type Ban struct {
-	ChampionId int16 `json:"championId"`
-	PickTurn   uint8 `json:"pickTurn"`
+	ChampionId int `json:"championId"`
+	PickTurn   int `json:"pickTurn"`
 }

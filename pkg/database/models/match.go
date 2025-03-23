@@ -40,9 +40,9 @@ type MatchStats struct {
 
 // Database model for saving the match bans.
 type MatchBans struct {
-	MatchId    uint  `gorm:"primaryKey;autoIncrement:false"`
-	PickTurn   uint8 `gorm:"primaryKey;autoIncrement:false"`
-	ChampionId int16
+	MatchId    uint `gorm:"primaryKey;autoIncrement:false"`
+	PickTurn   int  `gorm:"primaryKey;autoIncrement:false"`
+	ChampionId int
 }
 
 // Match service structure.

@@ -15,12 +15,12 @@ import (
 // Create the player into the database.
 type PlayerInfo struct {
 	ID             uint `gorm:"primaryKey"`
-	ProfileIcon    uint16
+	ProfileIcon    int
 	Puuid          string `gorm:"index;uniqueIndex:idx_player_region;type:char(78)"` // Unique identifier.
 	RiotIdGameName string `gorm:"type:varchar(30)"`                                  // Shouldn't have more than 16.
 	RiotIdTagline  string `gorm:"type:varchar(5)"`
 	SummonerId     string `gorm:"type:char(63)"`
-	SummonerLevel  uint16
+	SummonerLevel  int
 	Region         string `gorm:"type:varchar(5);uniqueIndex:idx_player_region"` // Sometimes the same player can be found on other leagues.
 	UnfetchedMatch bool   `gorm:"default:true"`
 

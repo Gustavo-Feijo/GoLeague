@@ -6,5 +6,5 @@ type SummonerByPuuid struct {
 	AccountId     string `json:"accountId"`
 	Puuid         string `json:"puuid"`
 	ProfileIconId int    `json:"profileIconId"`
-	SummonerLevel uint16 `json:"summonerLevel"`
+	SummonerLevel int    `json:"summonerLevel"`
 }
