@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Database model for the match information.
@@ -19,6 +20,7 @@ type MatchInfo struct {
 	MatchWinner    bool
 	MatchSurrender bool
 	MatchRemake    bool
+	FullyFetched   bool
 	QueueId        int `gorm:"index"`
 }
 
@@ -55,4 +57,55 @@ func CreateMatchService() (*MatchService, error) {
 		return nil, fmt.Errorf("couldn't get database connection: %w", err)
 	}
 	return &MatchService{db: db}, nil
+}
+
+// Simply craete the bans of a given match.
+func (ms *MatchService) CreateMatchBans(bans []*MatchBans) error {
+	return ms.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "match_id"}, {Name: "pick_turn"}}, // Use the composite key columns
+		DoNothing: true,
+	}).Create(&bans).Error
+}
+
+// Simply create a match information.
+func (ms *MatchService) CreateMatchInfo(match *MatchInfo) error {
+	return ms.db.Create(&match).Error
+}
+
+// Simply craete the stats of a given match.
+func (ms *MatchService) CreateMatchStats(stats []*MatchStats) error {
+	return ms.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "match_id"}, {Name: "player_id"}}, // Use the composite key columns
+		DoNothing: true,
+	}).Create(&stats).Error
+}
+
+// Get all the already existing matches.
+func (ms *MatchService) GetAlreadyFetchedMatches(ids []string) ([]MatchInfo, error) {
+	const batchSize = 1000
+	var allMatches []MatchInfo
+
+	for i := 0; i < len(ids); i += batchSize {
+		end := i + batchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+
+		var batchMatches []MatchInfo
+		result := ms.db.Where("match_id IN (?)", ids[i:end]).Find(&batchMatches)
+		if result.Error != nil {
+			return nil, result.Error
+		}
+
+		allMatches = append(allMatches, batchMatches...)
+	}
+
+	return allMatches, nil
+}
+
+// Set a match as fully fetched.
+func (ms *MatchService) SetFullyFetched(match_id uint) error {
+	return ms.db.Model(&MatchInfo{}).
+		Where("id = ?", match_id).
+		Update("fully_fetched", true).Error
 }

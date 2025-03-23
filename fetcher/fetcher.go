@@ -44,11 +44,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = database.CreateTriggers(db)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// Automigrate the models.
 	err = db.AutoMigrate(
 		&models.MatchInfo{},
@@ -57,6 +52,11 @@ func main() {
 		&models.RatingEntry{},
 		&models.MatchStats{},
 	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = database.CreateTriggers(db)
 	if err != nil {
 		log.Fatal(err)
 	}

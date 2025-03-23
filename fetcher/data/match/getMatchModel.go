@@ -33,12 +33,12 @@ type MatchPlayer struct {
 	GoldEarned                     uint32     `json:"goldEarned"`
 	GoldSpent                      uint32     `json:"goldSpent"`
 	HoldPings                      uint16     `json:"holdPings"`
-	Item0                          uint16     `json:"item0"`
-	Item1                          uint16     `json:"item1"`
-	Item2                          uint16     `json:"item2"`
-	Item3                          uint16     `json:"item3"`
-	Item4                          uint16     `json:"item4"`
-	Item5                          uint16     `json:"item5"`
+	Item0                          uint32     `json:"item0"`
+	Item1                          uint32     `json:"item1"`
+	Item2                          uint32     `json:"item2"`
+	Item3                          uint32     `json:"item3"`
+	Item4                          uint32     `json:"item4"`
+	Item5                          uint32     `json:"item5"`
 	Kills                          uint16     `json:"kills"`
 	MagicDamageDealtToChampions    uint32     `json:"magicDamageDealtToChampions"`
 	MagicDamageTaken               uint32     `json:"magicDamageTaken"`

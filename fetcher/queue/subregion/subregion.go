@@ -1,4 +1,4 @@
-package queue
+package subregion_queue
 
 import (
 	"errors"
@@ -11,7 +11,7 @@ import (
 )
 
 // The configuration for the queues we will be executing.
-type SubRegionConfig struct {
+type subRegionConfig struct {
 	Ranks         []string
 	HighElos      []string
 	Queues        []string
@@ -20,8 +20,8 @@ type SubRegionConfig struct {
 }
 
 // Type for the sub region main process.
-type SubRegionProcessor struct {
-	config        SubRegionConfig
+type subRegionProcessor struct {
+	config        subRegionConfig
 	fetcher       data.SubFetcher
 	playerService models.PlayerService
 	ratingService models.RatingService
@@ -29,12 +29,12 @@ type SubRegionProcessor struct {
 }
 
 // Return a default configuration for the sub region.
-func CreateDefaultQueueConfig() *SubRegionConfig {
-	return &SubRegionConfig{
+func CreateDefaultQueueConfig() *subRegionConfig {
+	return &subRegionConfig{
 		Ranks:         []string{"I", "II", "III", "IV"},
 		HighElos:      []string{"challenger", "grandmaster", "master"},
 		Queues:        []string{"RANKED_SOLO_5x5", "RANKED_FLEX_SR"},
-		SleepDuration: 10 * time.Minute,
+		SleepDuration: 60 * time.Minute,
 		Tiers: []string{
 			"DIAMOND",
 			"EMERALD",
@@ -48,7 +48,7 @@ func CreateDefaultQueueConfig() *SubRegionConfig {
 }
 
 // Create the sub region processor.
-func CreateSubRegionProcessor(fetcher *data.SubFetcher, region regions.SubRegion) (*SubRegionProcessor, error) {
+func CreatesubRegionProcessor(fetcher *data.SubFetcher, region regions.SubRegion) (*subRegionProcessor, error) {
 	// Create the services.
 	ratingService, err := models.CreateRatingService()
 	if err != nil {
@@ -61,7 +61,7 @@ func CreateSubRegionProcessor(fetcher *data.SubFetcher, region regions.SubRegion
 	}
 
 	// Return the new region processor.
-	return &SubRegionProcessor{
+	return &subRegionProcessor{
 		config:        *CreateDefaultQueueConfig(),
 		fetcher:       *fetcher,
 		playerService: *playerService,
@@ -72,7 +72,7 @@ func CreateSubRegionProcessor(fetcher *data.SubFetcher, region regions.SubRegion
 
 // Run the sub region queue.
 // Mainly responsible for getting the ratings for each player on the region.
-func runSubRegionQueue(region regions.SubRegion, rm *regions.RegionManager) {
+func RunSubRegionQueue(region regions.SubRegion, rm *regions.RegionManager) {
 	fetcher, err := rm.GetSubFetcher(region)
 	if err != nil {
 		log.Printf("Failed to get main region fetcher for %v: %v", region, err)
@@ -80,7 +80,7 @@ func runSubRegionQueue(region regions.SubRegion, rm *regions.RegionManager) {
 	}
 
 	// Start the processor for the sub region.
-	processor, err := CreateSubRegionProcessor(fetcher, region)
+	processor, err := CreatesubRegionProcessor(fetcher, region)
 	if err != nil {
 		log.Printf("Failed to start the sub region processor for the region %v: %v", region, err)
 		return
@@ -93,7 +93,7 @@ func runSubRegionQueue(region regions.SubRegion, rm *regions.RegionManager) {
 }
 
 // Process the high elo and the other leagues for each queue.
-func (p *SubRegionProcessor) processQueues() {
+func (p *subRegionProcessor) processQueues() {
 	for _, queue := range p.config.Queues {
 		p.processHighElo(queue)
 		p.processLeagues(queue)
@@ -101,7 +101,7 @@ func (p *SubRegionProcessor) processQueues() {
 }
 
 // Process the high elo league.
-func (p *SubRegionProcessor) processHighElo(queue string) {
+func (p *subRegionProcessor) processHighElo(queue string) {
 	// Go through each high elo entry.
 	for _, highElo := range p.config.HighElos {
 		// Get the data on the Riot API.
@@ -128,7 +128,7 @@ func (p *SubRegionProcessor) processHighElo(queue string) {
 }
 
 // Process each league and sub rank.
-func (p *SubRegionProcessor) processLeagues(queue string) {
+func (p *subRegionProcessor) processLeagues(queue string) {
 	// Loop through each available tier.
 	for _, tier := range p.config.Tiers {
 		// Loop through each available rank.
@@ -166,7 +166,7 @@ func (p *SubRegionProcessor) processLeagues(queue string) {
 }
 
 // Process a single league entry.
-func (p *SubRegionProcessor) processBatchEntry(entries []league_fetcher.LeagueEntry, queue string) {
+func (p *subRegionProcessor) processBatchEntry(entries []league_fetcher.LeagueEntry, queue string) {
 	// If empty just return.
 	if len(entries) == 0 {
 		return
@@ -213,12 +213,13 @@ func (p *SubRegionProcessor) processBatchEntry(entries []league_fetcher.LeagueEn
 			log.Printf("Error inserting %v new players: %v", len(playersToCreate), err)
 			return
 		}
+
 		// Add newly created players to the existing players map
 		for _, player := range playersToCreate {
 			existingPlayers[player.Puuid] = player
 		}
 
-		log.Printf("Created %d new players for region %v", len(playersToCreate), p.subRegion)
+		log.Printf("Created: %d Players - Region: %v", len(playersToCreate), p.subRegion)
 	}
 
 	// Get the player IDs from the inserted results.

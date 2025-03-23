@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Create the player into the database.
@@ -21,10 +22,13 @@ type PlayerInfo struct {
 	SummonerId     string `gorm:"type:char(63)"`
 	SummonerLevel  uint16
 	Region         string `gorm:"type:varchar(5);uniqueIndex:idx_player_region"` // Sometimes the same player can be found on other leagues.
-	UnfetchedMatch bool
+	UnfetchedMatch bool   `gorm:"default:true"`
 
 	// Last time the user match was fetched.
 	LastMatchFetch time.Time
+
+	// Last time the player data was changed.
+	UpdatedAt time.Time
 }
 
 // Player service structure.
@@ -49,6 +53,21 @@ func (ps *PlayerService) CreatePlayersBatch(players []*PlayerInfo) error {
 
 	// Creates in batches of 1000.
 	return ps.db.CreateInBatches(&players, 1000).Error
+}
+
+// Update or create multiple players.
+// Only update if the data is newer.
+func (ps *PlayerService) UpsertPlayerBatch(players []*PlayerInfo) error {
+	return ps.db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "puuid"}, {Name: "region"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"profile_icon":      gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.profile_icon ELSE player_infos.profile_icon END"),
+			"riot_id_game_name": gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_game_name ELSE player_infos.riot_id_game_name END"),
+			"riot_id_tagline":   gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_tagline ELSE player_infos.riot_id_tagline END"),
+			"summoner_level":    gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.summoner_level ELSE player_infos.summoner_level END"),
+			"updated_at":        gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.updated_at ELSE player_infos.updated_at END"),
+		}),
+	}).CreateInBatches(&players, 100).Error
 }
 
 // Create a basic player structure.
@@ -86,7 +105,7 @@ func (ps *PlayerService) GetPlayerByPuuid(puuid string) (*PlayerInfo, error) {
 }
 
 // Get a list of players by a list of passed PUUIDs.
-func (s *PlayerService) GetPlayersByPuuids(puuids []string) (map[string]*PlayerInfo, error) {
+func (ps *PlayerService) GetPlayersByPuuids(puuids []string) (map[string]*PlayerInfo, error) {
 	// Empty list, just return nil.
 	if len(puuids) == 0 {
 		return nil, nil
@@ -94,7 +113,7 @@ func (s *PlayerService) GetPlayersByPuuids(puuids []string) (map[string]*PlayerI
 
 	// Get the players.
 	var players []PlayerInfo
-	result := s.db.Where("puuid IN (?)", puuids).Find(&players)
+	result := ps.db.Where("puuid IN (?)", puuids).Find(&players)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -106,4 +125,17 @@ func (s *PlayerService) GetPlayersByPuuids(puuids []string) (map[string]*PlayerI
 	}
 
 	return playersMap, nil
+}
+
+// Get the players with unfetched matches.
+func (ps *PlayerService) GetUnfetchedBySubRegions(subRegion regions.SubRegion) (*PlayerInfo, error) {
+	var unfetchedPlayer PlayerInfo
+	result := ps.db.Where("unfetched_match = ? AND region = ?", true, subRegion).Order("last_match_fetch ASC").First(&unfetchedPlayer)
+
+	// Verify if there is any error.
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &unfetchedPlayer, nil
 }
