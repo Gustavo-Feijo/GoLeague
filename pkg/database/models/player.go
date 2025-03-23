@@ -25,10 +25,19 @@ type PlayerInfo struct {
 	UnfetchedMatch bool   `gorm:"default:true"`
 
 	// Last time the user match was fetched.
-	LastMatchFetch time.Time
+	LastMatchFetch time.Time `gorm:"default:CURRENT_TIMESTAMP"`
 
 	// Last time the player data was changed.
-	UpdatedAt time.Time
+	UpdatedAt time.Time `gorm:"autoUpdateTime:false"`
+}
+
+// Set the last time of a metch fetch as 3 months ago.
+// That way, will not get too old matches.
+func (p *PlayerInfo) BeforeCreate(tx *gorm.DB) (err error) {
+	if p.LastMatchFetch.IsZero() { // If LastChecked is not set
+		p.LastMatchFetch = time.Now().Add(-3 * 30 * 24 * time.Hour) // 3 months ago
+	}
+	return nil
 }
 
 // Player service structure.
