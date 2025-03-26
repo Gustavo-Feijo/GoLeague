@@ -84,7 +84,7 @@ func (m *Match_fetcher) GetMatchData(matchId string, onDemand bool) (*MatchData,
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
 	}
-	// Parse the matches list.
+	// Parse the matches data.
 	var matchData MatchData
 	if err := json.NewDecoder(resp.Body).Decode(&matchData); err != nil {
 		return nil, fmt.Errorf("failed to parse API response: %w", err)
@@ -92,4 +92,37 @@ func (m *Match_fetcher) GetMatchData(matchId string, onDemand bool) (*MatchData,
 
 	// Return the matches.
 	return &matchData, nil
+}
+
+// Get a given match timeline.
+func (m *Match_fetcher) GetMatchTimelineData(matchId string, onDemand bool) (*MatchTimeline, error) {
+	// Verify if it's onDemand.
+	if onDemand {
+		m.limiter.WaitApi()
+	} else {
+		m.limiter.WaitJob()
+	}
+
+	// Format the URL and create the params.
+	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/match/v5/matches/%s/timeline", m.region, matchId)
+
+	resp, err := requests.AuthRequest(url, "GET", map[string]string{})
+	if err != nil {
+		return nil, fmt.Errorf("API request failed: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	// Check the status code.
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
+	}
+	// Parse the match timeline.
+	var matchTimeline MatchTimeline
+	if err := json.NewDecoder(resp.Body).Decode(&matchTimeline); err != nil {
+		return nil, fmt.Errorf("failed to parse API response: %w", err)
+	}
+
+	// Return the timeline.
+	return &matchTimeline, nil
 }
