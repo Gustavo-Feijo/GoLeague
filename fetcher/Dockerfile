@@ -1,4 +1,4 @@
-FROM golang:1.23
+FROM golang:1.24 AS builder
 
 WORKDIR /app
 
@@ -10,10 +10,16 @@ RUN go mod download
 COPY /fetcher ./fetcher
 COPY /pkg ./pkg
 
+# Run the build.
+RUN go build -o fetcher ./fetcher
+
 RUN wget -O /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.37/grpc_health_probe-linux-amd64 && \
   chmod +x /bin/grpc_health_probe
 
-# Run the build.
-RUN go build -o fetcher ./fetcher
+FROM golang:1.24-alpine
+
+WORKDIR /app
+COPY --from=builder /app/fetcher /app/fetcher
+COPY --from=builder /bin/grpc_health_probe /bin/grpc_health_probe
 
 CMD ["./fetcher/fetcher"]

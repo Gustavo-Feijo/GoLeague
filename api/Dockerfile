@@ -1,4 +1,4 @@
-FROM golang:1.23
+FROM golang:1.24 AS builder
 
 WORKDIR /app
 
@@ -12,5 +12,10 @@ COPY /pkg ./pkg
 
 # Run the build.
 RUN go build -o api ./api
+
+FROM golang:1.24-alpine
+
+WORKDIR /app
+COPY --from=builder /app/api /app/api
 
 CMD ["./api/api"]
