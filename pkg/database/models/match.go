@@ -20,15 +20,17 @@ type MatchInfo struct {
 	MatchWinner    bool
 	MatchSurrender bool
 	MatchRemake    bool
+	FrameInterval  int64
 	FullyFetched   bool
 	QueueId        int `gorm:"index"`
 }
 
 // Database model for saving a player perfomance in a given match.
 type MatchStats struct {
-	// Composite primary key, since the same player can't be twice on the same match.
-	MatchId  uint `gorm:"primaryKey;autoIncrement:false"`
-	PlayerId uint `gorm:"primaryKey;autoIncrement:false"`
+	// Ids and identifiers for the match stats.
+	ID       uint64 `gorm:"primaryKey"`
+	MatchId  uint   `gorm:"not null;index:idx_match_player,unique"`
+	PlayerId uint   `gorm:"not null;index:idx_match_player,unique"`
 
 	// Foreign keys.
 	Match  MatchInfo  `gorm:"MatchId"`
@@ -101,6 +103,13 @@ func (ms *MatchService) GetAlreadyFetchedMatches(ids []string) ([]MatchInfo, err
 	}
 
 	return allMatches, nil
+}
+
+// Set the frame interval for the match timeline.
+func (ms *MatchService) SetFrameInterval(match_id uint, interval int64) error {
+	return ms.db.Model(&MatchInfo{}).
+		Where("id = ?", match_id).
+		Update("frame_interval", interval).Error
 }
 
 // Set a match as fully fetched.

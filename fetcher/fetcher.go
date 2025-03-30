@@ -51,6 +51,14 @@ func main() {
 		&models.PlayerInfo{},
 		&models.RatingEntry{},
 		&models.MatchStats{},
+		&models.EventItem{},
+		&models.EventKillStruct{},
+		&models.EventLevelUp{},
+		&models.EventMonsterKill{},
+		&models.EventPlayerKill{},
+		&models.EventSkillLevelUp{},
+		&models.EventWard{},
+		&models.ParticipantFrame{},
 	)
 	if err != nil {
 		log.Fatal(err)

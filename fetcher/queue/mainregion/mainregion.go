@@ -79,7 +79,7 @@ func (q *MainRegionQueue) Run() {
 func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
 	player, err := q.processor.PlayerService.GetUnfetchedBySubRegions(subRegion)
 	if err != nil {
-		log.Printf("Couldn't get any unfetched player: %v", err)
+		log.Printf("Couldn't get any unfetched player on regions %v: %v", subRegion, err)
 
 		// Could be the first fetch, wait to the sub regions to start filling the database.
 		time.Sleep(5 * time.Second)
@@ -102,8 +102,28 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 		}
 
 		// Process the match data.
-		if err := q.processor.ProcessMatchData(matchData, matchId, subRegion); err != nil {
+		matchInfo, _, matchStats, err := q.processor.ProcessMatchData(matchData, matchId, subRegion)
+		if err != nil {
 			log.Printf("Couldn't process the data for the match %s: %v", matchId, err)
+			return player, err
+		}
+
+		// Create a map of each inserted stat id by the puuid.
+		statByPuuid := make(map[string]uint64)
+		for _, stat := range matchStats {
+			statByPuuid[stat.PlayerData.Puuid] = stat.ID
+		}
+
+		matchTimeline, err := q.processor.GetMatchTimeline(matchId)
+		if err != nil {
+			log.Printf("Couldn't get the match timeline for the match %s: %v", matchId, err)
+			// Set the date of the last fetch of the player to 1 day in the future, so the queue doesn't stay stuck.
+			return player, err
+		}
+
+		// Process the match timeline.
+		if err := q.processor.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo, subRegion); err != nil {
+			log.Printf("Couldn't process the timeline data for the match %s: %v", matchId, err)
 			return player, err
 		}
 	}

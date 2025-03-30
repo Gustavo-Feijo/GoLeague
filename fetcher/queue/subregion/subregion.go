@@ -67,10 +67,12 @@ func CreateSubRegionQueue(region regions.SubRegion, rm *regions.RegionManager) (
 // Run the sub region queue.
 // Mainly responsible for getting the ratings for each player on the region.
 func (q *SubRegionQueue) Run() {
-	q.processQueues()
+	for {
+		q.processQueues()
 
-	// Sleep to wait new matches to happen.
-	time.Sleep(q.config.SleepDuration)
+		// Sleep to wait new matches to happen.
+		time.Sleep(q.config.SleepDuration)
+	}
 }
 
 // Process the high elo and the other leagues for each queue.

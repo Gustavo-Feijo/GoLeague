@@ -21,27 +21,30 @@ type MatchTimelineFrame struct {
 
 // Frame with the events.
 type EventFrame struct {
-	CreatorId     *int             `json:"creatorId,omitempty"`
-	FeatType      *int             `json:"featType,omitempty"`
-	FeatValue     *int             `json:"featValue,omitempty"`
-	ItemId        *int             `json:"itemId,omitempty"`
-	KillerId      *int             `json:"killerId,omitempty"`
-	Level         *int             `json:"level,omitempty"`
-	LevelUpType   *string          `json:"levelUpType,omitempty"`
-	RealTimestamp int64            `json:"realTimestamp"`
-	Position      map[string]int64 `json:"position,omitempty"`
-	SkillSlot     *int             `json:"skillSlot,omitempty"`
-	TeamId        *int             `json:"teamId,omitempty"`
-	Timestamp     int64            `json:"timestamp"`
-	Type          string           `json:"type"`
-	VictimId      *int             `json:"victimId,omitempty"`
-	WardType      *string          `json:"wardType,omitempty"`
+	CreatorId     *int           `json:"creatorId,omitempty"`
+	FeatType      *int           `json:"featType,omitempty"`
+	FeatValue     *int           `json:"featValue,omitempty"`
+	ItemId        *int           `json:"itemId,omitempty"`
+	KillerId      *int           `json:"killerId,omitempty"`
+	Level         *int           `json:"level,omitempty"`
+	LevelUpType   *string        `json:"levelUpType,omitempty"`
+	RealTimestamp int64          `json:"realTimestamp"`
+	Position      map[string]int `json:"position,omitempty"`
+	SkillSlot     *int           `json:"skillSlot,omitempty"`
+	TeamId        *int           `json:"teamId,omitempty"`
+	Timestamp     int64          `json:"timestamp"`
+	Type          string         `json:"type"`
+	VictimId      *int           `json:"victimId,omitempty"`
+	WardType      *string        `json:"wardType,omitempty"`
+	BuildingType  *string        `json:"buildingType,omitempty"`
+	LaneType      *string        `json:"laneType,omitempty"`
+	TowerType     *string        `json:"towerType,omitempty"`
 }
 
 // Frame for each participant.
 type ParticipantFrames struct {
 	CurrentGold         int         `json:"currentGold"`
-	DamageStats         DamageStats `json:"damageStats"`
+	DamageStats         DamageStats `json:"damageStats" gorm:"embedded"`
 	JungleMinionsKilled int         `json:"jungleMinionsKilled"`
 	Level               int         `json:"level"`
 	MinionsKilled       int         `json:"minionsKilled"`
