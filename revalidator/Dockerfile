@@ -8,9 +8,10 @@ RUN go mod download
 
 # Copy the used code.
 COPY /fetcher ./fetcher
+COPY /revalidator ./revalidator
 COPY /pkg ./pkg
 
 # Run the build.
-RUN go build -o revalidate ./fetcher/revalidator
+RUN go build -o revalidate ./revalidator
 
 CMD ["./revalidate"]
