@@ -83,18 +83,15 @@ func (ms *MatchService) CreateMatchStats(stats []*MatchStats) error {
 }
 
 // Get all the already existing matches.
-func (ms *MatchService) GetAlreadyFetchedMatches(ids []string) ([]MatchInfo, error) {
+func (ms *MatchService) GetAlreadyFetchedMatches(riot_match_ids []string) ([]MatchInfo, error) {
 	const batchSize = 1000
 	var allMatches []MatchInfo
 
-	for i := 0; i < len(ids); i += batchSize {
-		end := i + batchSize
-		if end > len(ids) {
-			end = len(ids)
-		}
+	for i := 0; i < len(riot_match_ids); i += batchSize {
+		end := min(i+batchSize, len(riot_match_ids))
 
 		var batchMatches []MatchInfo
-		result := ms.db.Where("match_id IN (?)", ids[i:end]).Find(&batchMatches)
+		result := ms.db.Where("match_id IN (?)", riot_match_ids[i:end]).Find(&batchMatches)
 		if result.Error != nil {
 			return nil, result.Error
 		}
