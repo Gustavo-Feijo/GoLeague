@@ -7,14 +7,23 @@ import (
 	"goleague/pkg/config"
 	pb "goleague/pkg/grpc"
 	"log"
+	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Simple testing for the Redis.
 func main() {
+	if os.Getenv("ENVIRONMENT") != "docker" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal("Error loading .env file")
+		}
+	}
+
 	config.LoadEnv()
 
 	// Connect to the fetcher grpc.

@@ -15,12 +15,20 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func main() {
+	if os.Getenv("ENVIRONMENT") != "docker" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal("Error loading .env file")
+		}
+	}
+
 	config.LoadEnv()
 
 	_, stop := context.WithCancel(context.Background())
