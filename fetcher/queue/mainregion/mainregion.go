@@ -94,7 +94,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 
 	// Loop through each match.
 	for _, matchId := range trueMatchList {
-		processStart := time.Now()
+		matchfetchStart := time.Now()
 		matchData, err := q.processor.GetMatchData(matchId)
 		if err != nil {
 			log.Printf("Couldn't get the match data for the match %s: %v", matchId, err)
@@ -102,6 +102,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 			return player, err
 		}
 
+		matchParseStart := time.Now()
 		// Process the match data.
 		matchInfo, _, matchStats, err := q.processor.ProcessMatchData(matchData, matchId, subRegion)
 		if err != nil {
@@ -115,6 +116,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 			statByPuuid[stat.PlayerData.Puuid] = stat.ID
 		}
 
+		timelineFetchStart := time.Now()
 		matchTimeline, err := q.processor.GetMatchTimeline(matchId)
 		if err != nil {
 			log.Printf("Couldn't get the match timeline for the match %s: %v", matchId, err)
@@ -122,6 +124,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 			return player, err
 		}
 
+		timelineParseStart := time.Now()
 		// Process the match timeline.
 		if err := q.processor.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo, subRegion); err != nil {
 			log.Printf("Couldn't process the timeline data for the match %s: %v", matchId, err)
@@ -129,7 +132,12 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 		}
 
 		// Log the complete creation of a given match and the elapsed time for verifying performance.
-		log.Printf("Fully created match %s on %v seconds.", matchId, time.Since(processStart))
+		log.Printf("Created match %-15s on %1.2f seconds: FetchTime (%1.2f) - ParsingTime(%1.2f)",
+			matchId,
+			time.Since(matchfetchStart).Seconds(),
+			matchParseStart.Sub(matchfetchStart).Seconds()+timelineParseStart.Sub(timelineFetchStart).Seconds(),
+			timelineFetchStart.Sub(matchParseStart).Seconds()+time.Since(timelineParseStart).Seconds(),
+		)
 	}
 
 	// Set the last fetch.

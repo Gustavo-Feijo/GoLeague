@@ -344,7 +344,6 @@ func (p *MainRegionProcessor) ProcessMatchData(match *match_fetcher.MatchData, m
 		return nil, nil, nil, err
 	}
 
-	log.Printf("Created: Match: %s - ID: %v", matchId, matchInfo.ID)
 	return matchInfo, bans, stats, nil
 }
 
@@ -425,7 +424,7 @@ func (p *MainRegionProcessor) processEvent(
 	case "FEAT_UPDATE":
 		err = p.processFeatUpdateEvent(event, matchInfo)
 
-	case "ITEM_DESTROYED", "ITEM_PURCHASED", "ITEM_SOLD", "ITEM_UNDO":
+	case "ITEM_DESTROYED", "ITEM_PURCHASED", "ITEM_SOLD":
 		err = p.processItemEvent(event, statIdByParticipantId)
 
 	case "LEVEL_UP":
