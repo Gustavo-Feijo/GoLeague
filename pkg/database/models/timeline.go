@@ -49,7 +49,7 @@ type EventSkillLevelUp struct {
 
 // Event of a player doing something with an item.
 type EventItem struct {
-	MatchStatId uint64 `gorm:"index"`
+	MatchStatId *uint64 `gorm:"index"`
 	Timestamp   int64
 
 	// Foreign Key
@@ -86,6 +86,16 @@ type EventKillStruct struct {
 	TowerType    *string
 	X            int
 	Y            int
+}
+
+type EventFeatUpdate struct {
+	MatchId uint `gorm:"index"`
+
+	Timestamp int64
+
+	FeatType  int
+	FeatValue int
+	TeamId    int
 }
 
 // Event of a player kill.
@@ -135,12 +145,32 @@ func (ts *TimelineService) CreateParticipantFrame(frame *ParticipantFrame) error
 	return ts.db.Create(frame).Error
 }
 
-// Simply create a participant frame.
+// Simply create a struct kill event.
 func (ts *TimelineService) CreateStructKill(event *EventKillStruct) error {
 	return ts.db.Create(event).Error
 }
 
-// Simply create a participant frame.
+// Simply create a item event.
+func (ts *TimelineService) CreateItemEvent(event *EventItem) error {
+	return ts.db.Create(event).Error
+}
+
+// Simply create a ward frame.
 func (ts *TimelineService) CreateWardEvent(event *EventWard) error {
+	return ts.db.Create(event).Error
+}
+
+// Simply create a skill level up event.
+func (ts *TimelineService) CreateSkillLevelUpEvent(event *EventSkillLevelUp) error {
+	return ts.db.Create(event).Error
+}
+
+// Simply create a level up event.
+func (ts *TimelineService) CreateLevelUpEvent(event *EventLevelUp) error {
+	return ts.db.Create(event).Error
+}
+
+// Simply create a feat update event.
+func (ts *TimelineService) CreateFeatUpdateEvent(event *EventFeatUpdate) error {
 	return ts.db.Create(event).Error
 }

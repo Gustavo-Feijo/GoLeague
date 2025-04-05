@@ -30,6 +30,7 @@ type EventFrame struct {
 	LevelUpType   *string        `json:"levelUpType,omitempty"`
 	RealTimestamp int64          `json:"realTimestamp"`
 	Position      map[string]int `json:"position,omitempty"`
+	ParticipantId *int           `json:"participantId,omitempty"`
 	SkillSlot     *int           `json:"skillSlot,omitempty"`
 	TeamId        *int           `json:"teamId,omitempty"`
 	Timestamp     int64          `json:"timestamp"`

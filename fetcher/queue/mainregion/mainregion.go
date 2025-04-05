@@ -94,6 +94,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 
 	// Loop through each match.
 	for _, matchId := range trueMatchList {
+		processStart := time.Now()
 		matchData, err := q.processor.GetMatchData(matchId)
 		if err != nil {
 			log.Printf("Couldn't get the match data for the match %s: %v", matchId, err)
@@ -126,6 +127,9 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 			log.Printf("Couldn't process the timeline data for the match %s: %v", matchId, err)
 			return player, err
 		}
+
+		// Log the complete creation of a given match and the elapsed time for verifying performance.
+		log.Printf("Fully created match %s on %v seconds.", matchId, time.Since(processStart))
 	}
 
 	// Set the last fetch.

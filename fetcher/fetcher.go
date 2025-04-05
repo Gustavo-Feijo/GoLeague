@@ -54,11 +54,12 @@ func main() {
 
 	// Automigrate the models.
 	err = db.AutoMigrate(
+		&models.PlayerInfo{},
 		&models.MatchInfo{},
 		&models.MatchBans{},
-		&models.PlayerInfo{},
 		&models.RatingEntry{},
 		&models.MatchStats{},
+		&models.EventFeatUpdate{},
 		&models.EventItem{},
 		&models.EventKillStruct{},
 		&models.EventLevelUp{},
