@@ -7,19 +7,19 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy the used code.
-COPY /fetcher ./fetcher
-COPY /pkg ./pkg
+COPY fetcher ./fetcher
+COPY pkg ./pkg
 
 # Run the build.
-RUN go build -o fetcher ./fetcher
+RUN CGO_ENABLED=0 GOOS=linux go build -o fetcher ./fetcher
 
 RUN wget -O /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.37/grpc_health_probe-linux-amd64 && \
   chmod +x /bin/grpc_health_probe
 
-FROM golang:1.24-alpine
+FROM alpine:latest
 
 WORKDIR /app
-COPY --from=builder /app/fetcher /app/fetcher
+COPY --from=builder /app/fetcher/fetcher /app/fetcher
 COPY --from=builder /bin/grpc_health_probe /bin/grpc_health_probe
 
-CMD ["./fetcher/fetcher"]
+CMD ["./fetcher"]

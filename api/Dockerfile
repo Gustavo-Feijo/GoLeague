@@ -11,11 +11,11 @@ COPY /api ./api
 COPY /pkg ./pkg
 
 # Run the build.
-RUN go build -o api ./api
+RUN CGO_ENABLED=0 GOOS=linux  go build -o api ./api
 
-FROM golang:1.24-alpine
+FROM alpine:latest
 
 WORKDIR /app
-COPY --from=builder /app/api /app/api
+COPY --from=builder /app/api/api /app/api
 
-CMD ["./api/api"]
+CMD ["./api"]

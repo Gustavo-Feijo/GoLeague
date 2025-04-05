@@ -7,16 +7,16 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy the used code.
-COPY /fetcher ./fetcher
-COPY /revalidator ./revalidator
-COPY /pkg ./pkg
+COPY fetcher ./fetcher
+COPY revalidator ./revalidator
+COPY pkg ./pkg
 
 # Run the build.
-RUN go build -o revalidate ./revalidator
+RUN CGO_ENABLED=0 GOOS=linux go build -o revalidate ./revalidator
 
-FROM golang:1.24-alpine
+FROM alpine:latest
 
 WORKDIR /app
-COPY --from=builder /app/revalidator /app/revalidator
+COPY --from=builder /app/revalidate /app/revalidator
 
-CMD ["./revalidate"]
+CMD ["./revalidator"]
