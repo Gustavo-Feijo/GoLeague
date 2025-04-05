@@ -45,7 +45,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 		case "BUILDING_KILL", "TURRET_PLATE_DESTROYED":
 			modelList := make([]*models.EventKillStruct, 0, len(events))
 			for _, event := range events {
-				if model, ok := event.(*models.EventKillStruct); ok {
+				if model, ok := event.(*models.EventKillStruct); ok && model != nil {
 					modelList = append(modelList, model)
 				}
 			}
@@ -58,7 +58,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 		case "FEAT_UPDATE":
 			modelList := make([]*models.EventFeatUpdate, 0, len(events))
 			for _, event := range events {
-				if model, ok := event.(*models.EventFeatUpdate); ok {
+				if model, ok := event.(*models.EventFeatUpdate); ok && model != nil {
 					modelList = append(modelList, model)
 				}
 			}
@@ -69,7 +69,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 		case "ITEM_DESTROYED", "ITEM_PURCHASED", "ITEM_SOLD":
 			modelList := make([]*models.EventItem, 0, len(events))
 			for _, event := range events {
-				if model, ok := event.(*models.EventItem); ok {
+				if model, ok := event.(*models.EventItem); ok && model != nil {
 					modelList = append(modelList, model)
 				}
 			}
@@ -80,7 +80,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 		case "LEVEL_UP":
 			modelList := make([]*models.EventLevelUp, 0, len(events))
 			for _, event := range events {
-				if model, ok := event.(*models.EventLevelUp); ok {
+				if model, ok := event.(*models.EventLevelUp); ok && model != nil {
 					modelList = append(modelList, model)
 				}
 			}
@@ -91,7 +91,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 		case "SKILL_LEVEL_UP":
 			modelList := make([]*models.EventSkillLevelUp, 0, len(events))
 			for _, event := range events {
-				if model, ok := event.(*models.EventSkillLevelUp); ok {
+				if model, ok := event.(*models.EventSkillLevelUp); ok && model != nil {
 					modelList = append(modelList, model)
 				}
 			}
@@ -102,7 +102,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 		case "WARD_KILL", "WARD_PLACED":
 			modelList := make([]*models.EventWard, 0, len(events))
 			for _, event := range events {
-				if model, ok := event.(*models.EventWard); ok {
+				if model, ok := event.(*models.EventWard); ok && model != nil {
 					modelList = append(modelList, model)
 				}
 			}
