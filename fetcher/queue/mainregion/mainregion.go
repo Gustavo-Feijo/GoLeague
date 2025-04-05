@@ -132,7 +132,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 		}
 
 		// Log the complete creation of a given match and the elapsed time for verifying performance.
-		log.Printf("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ParsingTime(%1.2f)",
+		log.Printf("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
 			matchId,
 			time.Since(matchfetchStart).Seconds(),
 			matchParseStart.Sub(matchfetchStart).Seconds()+timelineParseStart.Sub(timelineFetchStart).Seconds(),
