@@ -367,6 +367,12 @@ func (p *MainRegionProcessor) ProcessMatchTimeline(
 		return fmt.Errorf("couldn't save the frame interval: %v", err)
 	}
 
+	// Create the frames slice and the event collector for handling batch insert.
+	// Currently creating the batches for the entire matches.
+	// Can be changed to running one batch for each frame.
+	var framesToInsert []*models.ParticipantFrame
+	eventCollector := createBatchCollector()
+
 	// Loop through each available frame.
 	for frameIndex, frame := range matchTimeline.Info.Frames {
 		// Loop through the map of participants.
@@ -375,25 +381,32 @@ func (p *MainRegionProcessor) ProcessMatchTimeline(
 			// Get the stat id based on the participant id.
 			matchStatId := statIdByParticipantId[participantId]
 
-			// Process the participant frame.
-			_, err := p.processParticipantsFrames(frameData, matchStatId, frameIndex)
-			if err != nil {
-				return fmt.Errorf("couldn't  save the participant frame with index %d for the participant %s: %v", frameIndex, participantId, err)
-			}
+			// Append the participant frame to the list to batch insert.
+			framesToInsert = append(framesToInsert, p.processParticipantsFrames(frameData, matchStatId, frameIndex))
 		}
 
 		// Loop through each event frame available.
 		for _, event := range frame.Event {
-			if err := p.processEvent(event, matchInfo, statIdByParticipantId); err != nil {
+			if err := p.processEvent(event, matchInfo, statIdByParticipantId, eventCollector); err != nil {
 				log.Printf("Couldn't insert event %s on timestamp %d on match %s: %v", event.Type, event.Timestamp, matchInfo.MatchId, err)
 			}
 		}
 	}
+
+	// Insert the participant frames in a batch.
+	if err := p.TimelineService.CreateBatchParticipantFrame(framesToInsert); err != nil {
+		log.Printf("Couldn't insert the participant frames on  match %s: %v", matchInfo.MatchId, err)
+		return err
+	}
+
+	// Process the events.
+	eventCollector.processBatches(p.TimelineService)
+
 	return nil
 }
 
 // Process each participant frame.
-func (p *MainRegionProcessor) processParticipantsFrames(frame match_fetcher.ParticipantFrames, matchStatId uint64, frameId int) (*models.ParticipantFrame, error) {
+func (p *MainRegionProcessor) processParticipantsFrames(frame match_fetcher.ParticipantFrames, matchStatId uint64, frameId int) *models.ParticipantFrame {
 	// Create the participant to be inserted in the database.
 	participant := &models.ParticipantFrame{
 		MatchStatId:       matchStatId,
@@ -401,7 +414,7 @@ func (p *MainRegionProcessor) processParticipantsFrames(frame match_fetcher.Part
 		ParticipantFrames: frame,
 	}
 
-	return participant, p.TimelineService.CreateParticipantFrame(participant)
+	return participant
 }
 
 // Process each event.
@@ -410,45 +423,59 @@ func (p *MainRegionProcessor) processEvent(
 	event match_fetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 	statIdByParticipantId map[string]uint64,
+	batchCollector *batchCollector,
 ) error {
 	// Use a default error variable.
 	var err error
+
+	// Interface for handling the batch collection.
+	var eventData any
+
 	// Handle multiple event types in different ways.
 	switch event.Type {
 
 	case "BUILDING_KILL", "TURRET_PLATE_DESTROYED":
-		err = p.processStructKillEvent(event, matchInfo, statIdByParticipantId)
+		eventData, err = p.prepareStructKillEvent(event, matchInfo, statIdByParticipantId)
 
 	case "CHAMPION_KILL":
 
 	case "FEAT_UPDATE":
-		err = p.processFeatUpdateEvent(event, matchInfo)
+		eventData, err = p.prepareFeatUpdateEvent(event, matchInfo)
 
 	case "ITEM_DESTROYED", "ITEM_PURCHASED", "ITEM_SOLD":
-		err = p.processItemEvent(event, statIdByParticipantId)
+		eventData, err = p.prepareItemEvent(event, statIdByParticipantId)
 
 	case "LEVEL_UP":
-		err = p.processLevelUpEvent(event, statIdByParticipantId)
+		eventData, err = p.prepareLevelUpEvent(event, statIdByParticipantId)
 
 	case "SKILL_LEVEL_UP":
-		err = p.processSkillLevelUpEvent(event, statIdByParticipantId)
+		eventData, err = p.prepareSkillLevelUpEvent(event, statIdByParticipantId)
 
 	case "WARD_KILL", "WARD_PLACED":
-		err = p.processWardEvent(event, statIdByParticipantId)
+		eventData, err = p.prepareWardEvent(event, statIdByParticipantId)
 
 	default:
-		log.Printf("Missing event type %s:", event.Type)
+		//log.Printf("Missing event type %s:", event.Type)
 	}
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Add the generated event data.
+	if eventData != nil {
+		batchCollector.Add(event.Type, eventData)
+	}
+
+	return nil
 }
 
-// Process a struct kill event.
-func (p *MainRegionProcessor) processStructKillEvent(
+// Prepare a struct kill event.
+func (p *MainRegionProcessor) prepareStructKillEvent(
 	event match_fetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 	statIdByParticipantId map[string]uint64,
-) error {
+) (*models.EventKillStruct, error) {
 	// Get the killer id as string if setted.
 	var killerId string
 	if event.KillerId != nil {
@@ -468,7 +495,7 @@ func (p *MainRegionProcessor) processStructKillEvent(
 		teamId = *event.TeamId
 	} else {
 		// Shouldn't happen.
-		return errors.New("missing team ID on a struct kill")
+		return nil, errors.New("missing team ID on a struct kill")
 	}
 
 	// Validate the positions existence for caution.
@@ -495,25 +522,20 @@ func (p *MainRegionProcessor) processStructKillEvent(
 		Y:            y,
 	}
 
-	// Insert the struct kill.
-	if err := p.TimelineService.CreateStructKill(eventInsert); err != nil {
-		return fmt.Errorf("error creating a struct kill: %v", err)
-	}
-
-	return nil
+	return eventInsert, nil
 }
 
-// Process a item event.
-func (p *MainRegionProcessor) processItemEvent(
+// Prepare a item event.
+func (p *MainRegionProcessor) prepareItemEvent(
 	event match_fetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
-) error {
+) (*models.EventItem, error) {
 	// Get the killer id as string if setted.
 	var participantId string
 	if event.ParticipantId != nil {
 		participantId = strconv.Itoa(*event.ParticipantId)
 	} else {
-		return errors.New("the participant ID was not defined for a item event")
+		return nil, errors.New("the participant ID was not defined for a item event")
 	}
 
 	// Get a pointer to the match statId.
@@ -527,7 +549,7 @@ func (p *MainRegionProcessor) processItemEvent(
 	if event.ItemId != nil {
 		itemId = *event.ItemId
 	} else {
-		return errors.New("no item ID found for item event")
+		return nil, errors.New("no item ID found for item event")
 	}
 
 	eventInsert := &models.EventItem{
@@ -537,19 +559,14 @@ func (p *MainRegionProcessor) processItemEvent(
 		Action:      event.Type,
 	}
 
-	// Insert the item event.
-	if err := p.TimelineService.CreateItemEvent(eventInsert); err != nil {
-		return fmt.Errorf("error creating item event for item %d: %v", itemId, err)
-	}
-
-	return nil
+	return eventInsert, nil
 }
 
-// Process a ward event.
-func (p *MainRegionProcessor) processWardEvent(
+// Prepare a ward event.
+func (p *MainRegionProcessor) prepareWardEvent(
 	event match_fetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
-) error {
+) (*models.EventWard, error) {
 	var actorId string
 	var actorIdPtr *int
 
@@ -580,29 +597,24 @@ func (p *MainRegionProcessor) processWardEvent(
 			WardType:    event.WardType,
 		}
 
-		// Insert the ward event.
-		if err := p.TimelineService.CreateWardEvent(eventInsert); err != nil {
-			return fmt.Errorf("couldn't save ward event for stat id %v: %v", matchStatId, err)
-		}
-
-		return nil
+		return eventInsert, nil
 	}
 
 	// Can't have a ward without creator or killer.
-	return errors.New("couldn't find the actor of the ward event")
+	return nil, errors.New("couldn't find the actor of the ward event")
 }
 
-// Process a skill level up.
-func (p *MainRegionProcessor) processSkillLevelUpEvent(
+// Prepare a skill level up.
+func (p *MainRegionProcessor) prepareSkillLevelUpEvent(
 	event match_fetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
-) error {
+) (*models.EventSkillLevelUp, error) {
 	// Get the participant that leveled up.
 	var participantId string
 	if event.ParticipantId != nil {
 		participantId = strconv.Itoa(*event.ParticipantId)
 	} else {
-		return errors.New("the participant ID was not defined for the skill level up event")
+		return nil, errors.New("the participant ID was not defined for the skill level up event")
 	}
 
 	// Get a pointer to the match statId.
@@ -610,7 +622,7 @@ func (p *MainRegionProcessor) processSkillLevelUpEvent(
 	if val, exists := statIdByParticipantId[participantId]; exists {
 		matchStatId = &val
 	} else {
-		return fmt.Errorf("coulnd't find the stat entry for the participant %s", participantId)
+		return nil, fmt.Errorf("coulnd't find the stat entry for the participant %s", participantId)
 	}
 
 	// Get the skill that was leveled up.
@@ -618,7 +630,7 @@ func (p *MainRegionProcessor) processSkillLevelUpEvent(
 	if event.SkillSlot != nil {
 		skillSlot = *event.SkillSlot
 	} else {
-		return errors.New("the skill slot was not defined for the level up")
+		return nil, errors.New("the skill slot was not defined for the level up")
 	}
 
 	eventInsert := &models.EventSkillLevelUp{
@@ -628,30 +640,25 @@ func (p *MainRegionProcessor) processSkillLevelUpEvent(
 		LevelUpType: *event.LevelUpType,
 	}
 
-	// Insert the skill level up event.
-	if err := p.TimelineService.CreateSkillLevelUpEvent(eventInsert); err != nil {
-		return fmt.Errorf("couldn't save skill level up event for stat id %d on skill %d: %v", matchStatId, skillSlot, err)
-	}
-
-	return nil
+	return eventInsert, nil
 }
 
 // Process a level up event.
-func (p *MainRegionProcessor) processLevelUpEvent(
+func (p *MainRegionProcessor) prepareLevelUpEvent(
 	event match_fetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
-) error {
+) (*models.EventLevelUp, error) {
 	// Get the participant that level up.
 	var participantId string
 	if event.ParticipantId != nil {
 		participantId = strconv.Itoa(*event.ParticipantId)
 	} else {
-		return errors.New("the participant ID was not defined for the level up event")
+		return nil, errors.New("the participant ID was not defined for the level up event")
 	}
 
 	// Arena and Aram start with level 3 and don't return the participant ID in those cases.
 	if participantId == "0" {
-		return nil
+		return nil, nil
 	}
 
 	// Get a pointer to the match statId.
@@ -660,7 +667,7 @@ func (p *MainRegionProcessor) processLevelUpEvent(
 	if val, exists := statIdByParticipantId[participantId]; exists {
 		matchStatId = &val
 	} else {
-		return fmt.Errorf("coulnd't find the stat entry for the participant %s", participantId)
+		return nil, fmt.Errorf("coulnd't find the stat entry for the participant %s", participantId)
 	}
 
 	eventInsert := &models.EventLevelUp{
@@ -669,19 +676,14 @@ func (p *MainRegionProcessor) processLevelUpEvent(
 		Level:       *event.Level,
 	}
 
-	// Insert the level up event.
-	if err := p.TimelineService.CreateLevelUpEvent(eventInsert); err != nil {
-		return fmt.Errorf("couldn't save level up event for stat id %v on participant %s: %v", matchStatId, participantId, err)
-	}
-
-	return nil
+	return eventInsert, nil
 }
 
-// Process a feat update event.
-func (p *MainRegionProcessor) processFeatUpdateEvent(
+// Prepare a feat update event.
+func (p *MainRegionProcessor) prepareFeatUpdateEvent(
 	event match_fetcher.EventFrame,
 	matchInfo *models.MatchInfo,
-) error {
+) (*models.EventFeatUpdate, error) {
 	var (
 		featType  int
 		featValue int
@@ -692,19 +694,19 @@ func (p *MainRegionProcessor) processFeatUpdateEvent(
 	if event.FeatType != nil {
 		featType = *event.FeatType
 	} else {
-		return errors.New("missing feat type")
+		return nil, errors.New("missing feat type")
 	}
 
 	if event.FeatValue != nil {
 		featValue = *event.FeatValue
 	} else {
-		return errors.New("missing feat value")
+		return nil, errors.New("missing feat value")
 	}
 
 	if event.TeamId != nil {
 		teamId = *event.TeamId
 	} else {
-		return errors.New("missing team ID")
+		return nil, errors.New("missing team ID")
 	}
 
 	eventInsert := &models.EventFeatUpdate{
@@ -715,9 +717,5 @@ func (p *MainRegionProcessor) processFeatUpdateEvent(
 		TeamId:    teamId,
 	}
 
-	if err := p.TimelineService.CreateFeatUpdateEvent(eventInsert); err != nil {
-		return fmt.Errorf("couldn't save feat event %d with value %d for team %d: %v", featType, featValue, teamId, err)
-	}
-
-	return nil
+	return eventInsert, nil
 }

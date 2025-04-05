@@ -140,37 +140,58 @@ func CreateTimelineService() (*TimelineService, error) {
 	return &TimelineService{db: db}, nil
 }
 
-// Simply create a participant frame.
-func (ts *TimelineService) CreateParticipantFrame(frame *ParticipantFrame) error {
-	return ts.db.Create(frame).Error
+// Create the participant frames in batches.
+func (ts *TimelineService) CreateBatchParticipantFrame(frames []*ParticipantFrame) error {
+	if len(frames) == 0 {
+		return nil
+	}
+	return ts.db.CreateInBatches(&frames, 1000).Error
 }
 
-// Simply create a struct kill event.
-func (ts *TimelineService) CreateStructKill(event *EventKillStruct) error {
-	return ts.db.Create(event).Error
+// Create the struct kills events in batches.
+func (ts *TimelineService) CreateBatchStructKill(events []*EventKillStruct) error {
+	if len(events) == 0 {
+		return nil
+	}
+	return ts.db.CreateInBatches(&events, 1000).Error
 }
 
-// Simply create a item event.
-func (ts *TimelineService) CreateItemEvent(event *EventItem) error {
-	return ts.db.Create(event).Error
+// Create the item events in batches.
+func (ts *TimelineService) CreateBatchItemEvent(events []*EventItem) error {
+	if len(events) == 0 {
+		return nil
+	}
+	return ts.db.CreateInBatches(&events, 1000).Error
 }
 
-// Simply create a ward frame.
-func (ts *TimelineService) CreateWardEvent(event *EventWard) error {
-	return ts.db.Create(event).Error
+// Create the ward events in batches.
+func (ts *TimelineService) CreateBatchWardEvent(events []*EventWard) error {
+	if len(events) == 0 {
+		return nil
+	}
+	return ts.db.CreateInBatches(&events, 1000).Error
 }
 
-// Simply create a skill level up event.
-func (ts *TimelineService) CreateSkillLevelUpEvent(event *EventSkillLevelUp) error {
-	return ts.db.Create(event).Error
+// Create the skill level up events in batches.
+func (ts *TimelineService) CreateBatchSkillLevelUpEvent(events []*EventSkillLevelUp) error {
+	if len(events) == 0 {
+		return nil
+	}
+	return ts.db.CreateInBatches(&events, 1000).Error
 }
 
-// Simply create a level up event.
-func (ts *TimelineService) CreateLevelUpEvent(event *EventLevelUp) error {
-	return ts.db.Create(event).Error
+// Create the level up events in batches.
+func (ts *TimelineService) CreateBatchLevelUpEvent(events []*EventLevelUp) error {
+	if len(events) == 0 {
+		return nil
+	}
+	return ts.db.CreateInBatches(&events, 1000).Error
 }
 
-// Simply create a feat update event.
-func (ts *TimelineService) CreateFeatUpdateEvent(event *EventFeatUpdate) error {
-	return ts.db.Create(event).Error
+// Create the feat updates events in batches.
+func (ts *TimelineService) CreateBatchFeatUpdateEvent(events []*EventFeatUpdate) error {
+	if len(events) == 0 {
+		return nil
+	}
+	return ts.db.CreateInBatches(&events, 1000).Error
 }
