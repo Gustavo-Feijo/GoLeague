@@ -131,6 +131,9 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 			return player, err
 		}
 
+		// Set as fully fetched.
+		q.processor.MatchService.SetFullyFetched(matchInfo.ID)
+
 		// Log the complete creation of a given match and the elapsed time for verifying performance.
 		log.Printf("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
 			matchId,
