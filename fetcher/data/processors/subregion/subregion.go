@@ -7,7 +7,7 @@ import (
 	league_fetcher "goleague/fetcher/data/league"
 	"goleague/fetcher/regions"
 	"goleague/pkg/database/models"
-	"log"
+	"goleague/pkg/logger"
 )
 
 // Type for the default configuration.
@@ -19,6 +19,7 @@ type subRegionConfig struct {
 type SubRegionProcessor struct {
 	config        subRegionConfig
 	fetcher       data.SubFetcher
+	Logger        *logger.NewLogger
 	PlayerService models.PlayerService
 	RatingService models.RatingService
 	SubRegion     regions.SubRegion
@@ -44,10 +45,17 @@ func CreateSubRegionProcessor(fetcher *data.SubFetcher, region regions.SubRegion
 		return nil, errors.New("failed to start the player service")
 	}
 
+	// Create the logger used to save the logs in a bucket.
+	logger, err := logger.CreateLogger()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start the logger on sub region %s: %v", region, err)
+	}
+
 	// Return the new region processor.
 	return &SubRegionProcessor{
 		config:        *createSubRegionConfig(),
 		fetcher:       *fetcher,
+		Logger:        logger,
 		PlayerService: *PlayerService,
 		RatingService: *ratingService,
 		SubRegion:     region,
@@ -264,7 +272,9 @@ func (p *SubRegionProcessor) processBatchEntry(entries []league_fetcher.LeagueEn
 		return fmt.Errorf("couldn't create t he players from the entries: %v", err)
 	}
 
-	log.Printf("Created: %d Players - Region: %v", len(playersToCreate), p.SubRegion)
+	if len(playersToCreate) > 0 {
+		p.Logger.Infof("Created: %d Players - Region: %v", len(playersToCreate), p.SubRegion)
+	}
 
 	// Get the player IDs from the inserted results.
 	playerIDs := make([]uint, 0, len(existingPlayers))
@@ -291,7 +301,7 @@ func (p *SubRegionProcessor) processBatchEntry(entries []league_fetcher.LeagueEn
 		tier := createdRatings[0].Tier
 		rank := createdRatings[0].Rank
 
-		log.Printf("Created: %d - Queue: %s - Region: %v - Tier: %v - Rank: %v",
+		p.Logger.Infof("Created: %d - Queue: %s - Region: %v - Tier: %v - Rank: %v",
 			len(createdRatings), queue, p.SubRegion, tier, rank)
 	}
 

@@ -8,7 +8,16 @@ import (
 	"time"
 )
 
-// Database configuration structure.
+// Bucket configuration struct.
+type BucketConfig struct {
+	AccessKey    string
+	AccessSecret string
+	Endpoint     string
+	LogBucket    string
+	Region       string
+}
+
+// Database configuration struct.
 type DatabaseConfiguration struct {
 	Database string
 	Host     string
@@ -46,6 +55,7 @@ const (
 
 var (
 	ApiKey   string
+	Bucket   BucketConfig
 	Database DatabaseConfiguration
 	Redis    RedisConfiguration
 	Limits   RiotLimiterConfiguration
@@ -68,6 +78,13 @@ func LoadEnv() {
 
 	// Get the Riot API Key.
 	ApiKey = os.Getenv("API_KEY")
+
+	// Configure the bucket.
+	Bucket.AccessKey = os.Getenv("BUCKET_ACCESS_KEY")
+	Bucket.AccessSecret = os.Getenv("BUCKET_ACCESS_SECRET")
+	Bucket.Endpoint = os.Getenv("BUCKET_ENDPOINT")
+	Bucket.LogBucket = os.Getenv("BUCKET_LOGGER_NAME")
+	Bucket.Region = os.Getenv("BUCKET_REGION")
 
 	// Get the API Limits.
 	// Load lower limit settings
