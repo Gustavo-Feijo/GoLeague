@@ -66,6 +66,8 @@ func (l *NewLogger) CleanFile() {
 	defer l.mu.Unlock()
 
 	l.logFile.Truncate(0)
+
+	l.logFile.Seek(0, 0)
 }
 
 // Upload the log to a s3 bucket.
