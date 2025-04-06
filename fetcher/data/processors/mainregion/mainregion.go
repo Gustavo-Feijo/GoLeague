@@ -36,7 +36,10 @@ func createMainRegionConfig() *mainRegionConfig {
 }
 
 // Create the main region processor.
-func CreateMainRegionProcessor(fetcher *data.MainFetcher, region regions.MainRegion) (*MainRegionProcessor, error) {
+func CreateMainRegionProcessor(
+	fetcher *data.MainFetcher,
+	region regions.MainRegion,
+) (*MainRegionProcessor, error) {
 	// Create the services.
 	RatingService, err := models.CreateRatingService()
 	if err != nil {
@@ -71,7 +74,9 @@ func CreateMainRegionProcessor(fetcher *data.MainFetcher, region regions.MainReg
 }
 
 // Get the full match list of a given player.
-func (p *MainRegionProcessor) getFullMatchList(player *models.PlayerInfo) ([]string, error) {
+func (p *MainRegionProcessor) getFullMatchList(
+	player *models.PlayerInfo,
+) ([]string, error) {
 	var matchList []string
 
 	// Go through each page of the match history.
@@ -108,7 +113,9 @@ func (p *MainRegionProcessor) getFullMatchList(player *models.PlayerInfo) ([]str
 }
 
 // Get the data of the match from the Riot API.
-func (p *MainRegionProcessor) GetMatchData(matchId string) (*match_fetcher.MatchData, error) {
+func (p *MainRegionProcessor) GetMatchData(
+	matchId string,
+) (*match_fetcher.MatchData, error) {
 	var matchData *match_fetcher.MatchData
 	var err error
 
@@ -134,7 +141,9 @@ func (p *MainRegionProcessor) GetMatchData(matchId string) (*match_fetcher.Match
 }
 
 // Get the data of the match timeline from the Riot API.
-func (p *MainRegionProcessor) GetMatchTimeline(matchId string) (*match_fetcher.MatchTimeline, error) {
+func (p *MainRegionProcessor) GetMatchTimeline(
+	matchId string,
+) (*match_fetcher.MatchTimeline, error) {
 	var matchData *match_fetcher.MatchTimeline
 	var err error
 
@@ -161,7 +170,9 @@ func (p *MainRegionProcessor) GetMatchTimeline(matchId string) (*match_fetcher.M
 
 // Get the matches that need to be fetched for a given player.
 // Remove all matches that were already fetched.
-func (p *MainRegionProcessor) GetTrueMatchList(player *models.PlayerInfo) ([]string, error) {
+func (p *MainRegionProcessor) GetTrueMatchList(
+	player *models.PlayerInfo,
+) ([]string, error) {
 	var trueMatchList []string
 
 	matchList, err := p.getFullMatchList(player)
@@ -193,8 +204,11 @@ func (p *MainRegionProcessor) GetTrueMatchList(player *models.PlayerInfo) ([]str
 	return trueMatchList, nil
 }
 
-// Process to insert the match info.
-func (p *MainRegionProcessor) processMatchInfo(match *match_fetcher.MatchData, matchId string) (*models.MatchInfo, error) {
+// Retrieve the match info from the received payload, parse it and insert into the database.
+func (p *MainRegionProcessor) processMatchInfo(
+	match *match_fetcher.MatchData,
+	matchId string,
+) (*models.MatchInfo, error) {
 	// Create a match to be inserted.
 	matchInfo := &models.MatchInfo{
 		GameVersion:    match.Info.GameVersion,
@@ -212,8 +226,11 @@ func (p *MainRegionProcessor) processMatchInfo(match *match_fetcher.MatchData, m
 	return matchInfo, p.MatchService.CreateMatchInfo(matchInfo)
 }
 
-// Process to insert the match info.
-func (p *MainRegionProcessor) processMatchBans(matchTeams []match_fetcher.TeamInfo, matchInfo *models.MatchInfo) ([]*models.MatchBans, error) {
+// Retrieve the bans and create them.
+func (p *MainRegionProcessor) processMatchBans(
+	matchTeams []match_fetcher.TeamInfo,
+	matchInfo *models.MatchInfo,
+) ([]*models.MatchBans, error) {
 	var bans []*models.MatchBans
 
 	// Get all the bans.
@@ -239,16 +256,13 @@ func (p *MainRegionProcessor) processMatchBans(matchTeams []match_fetcher.TeamIn
 	return bans, nil
 }
 
-// Process each player.
-func (p *MainRegionProcessor) processPlayers(
+// Process each player from a given match.
+// Upsert the players, only updating the data if the match data is newer.
+func (p *MainRegionProcessor) processPlayersFromMatch(
 	participants []match_fetcher.MatchPlayer,
 	matchInfo *models.MatchInfo,
 	region regions.SubRegion,
-) (
-	[]*models.PlayerInfo,
-	map[string]match_fetcher.MatchPlayer,
-	error,
-) {
+) ([]*models.PlayerInfo, map[string]match_fetcher.MatchPlayer, error) {
 	// Variables for batching or search.
 	var playersToUpsert []*models.PlayerInfo
 	participantByPuuid := make(map[string]match_fetcher.MatchPlayer)
@@ -279,15 +293,12 @@ func (p *MainRegionProcessor) processPlayers(
 	return playersToUpsert, participantByPuuid, nil
 }
 
-// Process to insert the match stats.
+// Process to insert the match stats for each player.
 func (p *MainRegionProcessor) processMatchStats(
 	playersToUpsert []*models.PlayerInfo,
 	participants map[string]match_fetcher.MatchPlayer,
 	matchInfo *models.MatchInfo,
-) (
-	[]*models.MatchStats,
-	error,
-) {
+) ([]*models.MatchStats, error) {
 	var statsToUpsert []*models.MatchStats
 	for _, player := range playersToUpsert {
 		participant, exists := participants[player.Puuid]
@@ -316,14 +327,20 @@ func (p *MainRegionProcessor) processMatchStats(
 }
 
 // Process the match data to insert it into the database.
-func (p *MainRegionProcessor) ProcessMatchData(match *match_fetcher.MatchData, matchId string, region regions.SubRegion) (*models.MatchInfo, []*models.MatchBans, []*models.MatchStats, error) {
+// Wrapper to call all other necessary functions.
+func (p *MainRegionProcessor) ProcessMatchData(
+	match *match_fetcher.MatchData,
+	matchId string,
+	region regions.SubRegion,
+) (*models.MatchInfo, []*models.MatchBans, []*models.MatchStats, error) {
+	// Process the match infos.
 	matchInfo, err := p.processMatchInfo(match, matchId)
 	if err != nil {
 		log.Printf("Couldn't create the match info for the match %s: %v", matchId, err)
 		return nil, nil, nil, err
 	}
 
-	// For now, the returned bans are not needed.
+	// Process the bans.
 	bans, err := p.processMatchBans(match.Info.Teams, matchInfo)
 	if err != nil {
 		log.Printf("Couldn't create the bans for the match %s: %v", matchInfo.MatchId, err)
@@ -331,7 +348,7 @@ func (p *MainRegionProcessor) ProcessMatchData(match *match_fetcher.MatchData, m
 	}
 
 	// Process each player.
-	playersToUpsert, participantByPuuid, err := p.processPlayers(match.Info.Participants, matchInfo, region)
+	playersToUpsert, participantByPuuid, err := p.processPlayersFromMatch(match.Info.Participants, matchInfo, region)
 	if err != nil {
 		log.Printf("Couldn't create the players for the match %s: %v", matchInfo.MatchId, err)
 		return nil, nil, nil, err
@@ -382,12 +399,12 @@ func (p *MainRegionProcessor) ProcessMatchTimeline(
 			matchStatId := statIdByParticipantId[participantId]
 
 			// Append the participant frame to the list to batch insert.
-			framesToInsert = append(framesToInsert, p.processParticipantsFrames(frameData, matchStatId, frameIndex))
+			framesToInsert = append(framesToInsert, p.prepareParticipantsFrames(frameData, matchStatId, frameIndex))
 		}
 
 		// Loop through each event frame available.
 		for _, event := range frame.Event {
-			if err := p.processEvent(event, matchInfo, statIdByParticipantId, eventCollector); err != nil {
+			if err := p.prepareEvents(event, matchInfo, statIdByParticipantId, eventCollector); err != nil {
 				log.Printf("Couldn't insert event %s on timestamp %d on match %s: %v", event.Type, event.Timestamp, matchInfo.MatchId, err)
 			}
 		}
@@ -405,8 +422,12 @@ func (p *MainRegionProcessor) ProcessMatchTimeline(
 	return nil
 }
 
-// Process each participant frame.
-func (p *MainRegionProcessor) processParticipantsFrames(frame match_fetcher.ParticipantFrames, matchStatId uint64, frameId int) *models.ParticipantFrame {
+// Prepare the participant frame and return it to be later inserted.
+func (p *MainRegionProcessor) prepareParticipantsFrames(
+	frame match_fetcher.ParticipantFrames,
+	matchStatId uint64,
+	frameId int,
+) *models.ParticipantFrame {
 	// Create the participant to be inserted in the database.
 	participant := &models.ParticipantFrame{
 		MatchStatId:       matchStatId,
@@ -417,9 +438,10 @@ func (p *MainRegionProcessor) processParticipantsFrames(frame match_fetcher.Part
 	return participant
 }
 
-// Process each event.
-// Use the event type to define which function will be used for processing the event.
-func (p *MainRegionProcessor) processEvent(
+// Prepare each event to be inserted.
+// Handle the events as any/interface{}
+// Add each event to the batch collector for further batch insertion.
+func (p *MainRegionProcessor) prepareEvents(
 	event match_fetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 	statIdByParticipantId map[string]uint64,
@@ -438,7 +460,7 @@ func (p *MainRegionProcessor) processEvent(
 		eventData, err = p.prepareStructKillEvent(event, matchInfo, statIdByParticipantId)
 
 	case "CHAMPION_KILL":
-
+		//TODO
 	case "FEAT_UPDATE":
 		eventData, err = p.prepareFeatUpdateEvent(event, matchInfo)
 
@@ -454,8 +476,6 @@ func (p *MainRegionProcessor) processEvent(
 	case "WARD_KILL", "WARD_PLACED":
 		eventData, err = p.prepareWardEvent(event, statIdByParticipantId)
 
-	default:
-		//log.Printf("Missing event type %s:", event.Type)
 	}
 
 	if err != nil {
@@ -463,6 +483,7 @@ func (p *MainRegionProcessor) processEvent(
 	}
 
 	// Add the generated event data.
+	// Mostly this verification is not relevant, since nil will still be passed and handled on the processing.
 	if eventData != nil {
 		batchCollector.Add(event.Type, eventData)
 	}
