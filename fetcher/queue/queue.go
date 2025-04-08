@@ -3,12 +3,13 @@ package queue
 import (
 	mainregion_queue "goleague/fetcher/queue/mainregion"
 	subregion_queue "goleague/fetcher/queue/subregion"
+	"goleague/fetcher/regionmanager"
 	"goleague/fetcher/regions"
 	"log"
 	"sync"
 )
 
-func StartQueue(rm *regions.RegionManager) {
+func StartQueue(rm *regionmanager.RegionManager) {
 	var wg sync.WaitGroup
 	// Loop through each main region and start it's queue.
 	for mainRegion, subRegions := range regions.RegionList {

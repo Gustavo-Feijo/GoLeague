@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"goleague/fetcher/queue"
-	"goleague/fetcher/regions"
+	"goleague/fetcher/regionmanager"
 	"goleague/pkg/config"
 	"goleague/pkg/database"
 	"goleague/pkg/database/models"
@@ -34,11 +34,14 @@ func main() {
 	_, stop := context.WithCancel(context.Background())
 
 	defer stop()
-	log.Println("Starting grpcServer...")
+
+	log.Println("Instanciating Region Managers...")
 
 	// Create the manager that will be used to handle all the regions fetching.
 	// Will be passed by reference to any place that make requests.
-	manager := regions.GetRegionManager()
+	manager := regionmanager.GetRegionManager()
+
+	log.Println("Running migration and creating triggers/enums...")
 
 	// Migrate all necessary models.
 	db, err := database.GetConnection()
@@ -78,6 +81,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	log.Println("Starting the queues...")
+
 	// Start the queue.
 	go queue.StartQueue(manager)
 
@@ -89,7 +94,7 @@ func main() {
 }
 
 // Start the grpc server for handling cache on demand.
-func startGRPCServer(regionManager *regions.RegionManager) (*grpc.Server, *health.Server) {
+func startGRPCServer(regionManager *regionmanager.RegionManager) (*grpc.Server, *health.Server) {
 	// Start a TPC listener.
 	list, err := net.Listen("tcp", ":50051")
 	if err != nil {
@@ -110,7 +115,7 @@ func startGRPCServer(regionManager *regions.RegionManager) (*grpc.Server, *healt
 
 	// Run a go routine for the grpc server.
 	go func() {
-		log.Println("Running gRPC server.")
+		log.Println("Starting gRPC server...")
 		if err := grpcServer.Serve(list); err != nil {
 			log.Fatalf("Failed to server grpc: %v", err)
 		}

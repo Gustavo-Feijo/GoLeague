@@ -21,8 +21,8 @@ type PlayerInfo struct {
 	RiotIdTagline  string `gorm:"type:varchar(5);index:idx_name_tag"`
 	SummonerId     string `gorm:"type:char(63)"`
 	SummonerLevel  int
-	Region         string `gorm:"type:varchar(5);uniqueIndex:idx_player_region"` // Sometimes the same player can be found on other leagues.
-	UnfetchedMatch bool   `gorm:"default:true"`
+	Region         regions.SubRegion `gorm:"type:varchar(5);uniqueIndex:idx_player_region"` // Sometimes the same player can be found on other leagues.
+	UnfetchedMatch bool              `gorm:"default:true"`
 
 	// Last time the user match was fetched.
 	LastMatchFetch time.Time `gorm:"default:CURRENT_TIMESTAMP"`
@@ -69,7 +69,7 @@ func (ps *PlayerService) CreatePlayerFromRating(rating league_fetcher.LeagueEntr
 	insertEntry := &PlayerInfo{
 		Puuid:          rating.Puuid,
 		SummonerId:     rating.SummonerId,
-		Region:         string(region),
+		Region:         region,
 		UnfetchedMatch: true,
 	}
 

@@ -25,7 +25,7 @@ type MainRegionProcessor struct {
 	PlayerService   models.PlayerService
 	RatingService   models.RatingService
 	TimelineService models.TimelineService
-	SubRegion       regions.MainRegion
+	MainRegion      regions.MainRegion
 }
 
 // Create the main region default config.
@@ -69,7 +69,7 @@ func CreateMainRegionProcessor(
 		PlayerService:   *PlayerService,
 		RatingService:   *RatingService,
 		TimelineService: *TimelineService,
-		SubRegion:       region,
+		MainRegion:      region,
 	}, nil
 }
 
@@ -276,7 +276,7 @@ func (p *MainRegionProcessor) processPlayersFromMatch(
 			RiotIdTagline:  participant.RiotIdTagline,
 			SummonerId:     participant.SummonerId,
 			SummonerLevel:  participant.SummonerLevel,
-			Region:         string(region),
+			Region:         region,
 			UpdatedAt:      matchInfo.MatchStart,
 		}
 
@@ -369,7 +369,6 @@ func (p *MainRegionProcessor) ProcessMatchTimeline(
 	matchTimeline *match_fetcher.MatchTimeline,
 	statIdByPuuid map[string]uint64,
 	matchInfo *models.MatchInfo,
-	region regions.SubRegion,
 ) error {
 	// Extract the stat ID for each participant entry.
 	statIdByParticipantId := make(map[string]uint64)

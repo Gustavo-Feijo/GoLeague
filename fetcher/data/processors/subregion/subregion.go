@@ -177,7 +177,7 @@ func (p *SubRegionProcessor) processPlayers(
 			playersToCreate = append(playersToCreate, &models.PlayerInfo{
 				SummonerId: entry.SummonerId,
 				Puuid:      entry.Puuid,
-				Region:     string(p.SubRegion),
+				Region:     p.SubRegion,
 			})
 		}
 

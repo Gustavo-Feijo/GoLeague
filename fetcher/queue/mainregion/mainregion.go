@@ -2,6 +2,7 @@ package mainregion_queue
 
 import (
 	mainregion_processor "goleague/fetcher/data/processors/mainregion"
+	"goleague/fetcher/regionmanager"
 	"goleague/fetcher/regions"
 	"goleague/pkg/database/models"
 	"log"
@@ -28,18 +29,11 @@ func CreateDefaultQueueConfig() *MainRegionQueueConfig {
 }
 
 // Create the main region queue.
-func CreateMainRegionQueue(region regions.MainRegion, rm *regions.RegionManager) (*MainRegionQueue, error) {
-	// Create the fetcher.
-	fetcher, err := rm.GetMainFetcher(region)
-	if err != nil {
-		log.Printf("Failed to get sub region fetcher for %v: %v", region, err)
-		return nil, err
-	}
-
+func CreateMainRegionQueue(region regions.MainRegion, rm *regionmanager.RegionManager) (*MainRegionQueue, error) {
 	// Create the processor.
-	processor, err := mainregion_processor.CreateMainRegionProcessor(fetcher, region)
+	processor, err := rm.GetMainProcessor(region)
 	if err != nil {
-		log.Printf("Failed to get sub region fetcher for %v: %v", region, err)
+		log.Printf("Failed to get main processor for %v: %v", region, err)
 		return nil, err
 	}
 
@@ -126,7 +120,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 
 		timelineParseStart := time.Now()
 		// Process the match timeline.
-		if err := q.processor.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo, subRegion); err != nil {
+		if err := q.processor.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo); err != nil {
 			log.Printf("Couldn't process the timeline data for the match %s: %v", matchId, err)
 			return player, err
 		}

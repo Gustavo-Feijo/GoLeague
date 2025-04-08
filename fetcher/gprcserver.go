@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"goleague/fetcher/assets"
-	"goleague/fetcher/regions"
+	"goleague/fetcher/regionmanager"
 	pb "goleague/pkg/grpc"
 	"goleague/pkg/models/champion"
 	"goleague/pkg/models/image"
@@ -16,7 +16,7 @@ import (
 // Server definition.
 type server struct {
 	pb.UnimplementedAssetsServiceServer
-	regionManager *regions.RegionManager
+	regionManager *regionmanager.RegionManager
 }
 
 // Util function to get the PB definition for the gold.

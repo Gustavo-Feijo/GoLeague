@@ -3,6 +3,7 @@ package subregion_queue
 import (
 	"fmt"
 	subregion_processor "goleague/fetcher/data/processors/subregion"
+	"goleague/fetcher/regionmanager"
 	"goleague/fetcher/regions"
 	"log"
 	"time"
@@ -43,16 +44,9 @@ func CreateDefaultQueueConfig() *SubRegionQueueConfig {
 }
 
 // Create the sub region queue.
-func CreateSubRegionQueue(region regions.SubRegion, rm *regions.RegionManager) (*SubRegionQueue, error) {
-	// Create the fetcher.
-	fetcher, err := rm.GetSubFetcher(region)
-	if err != nil {
-		log.Printf("Failed to get sub region fetcher for %v: %v", region, err)
-		return nil, err
-	}
-
+func CreateSubRegionQueue(region regions.SubRegion, rm *regionmanager.RegionManager) (*SubRegionQueue, error) {
 	// Create the processor.
-	processor, err := subregion_processor.CreateSubRegionProcessor(fetcher, region)
+	processor, err := rm.GetSubProcessor(region)
 	if err != nil {
 		log.Printf("Failed to get sub region fetcher for %v: %v", region, err)
 		return nil, err
@@ -106,7 +100,6 @@ func (q *SubRegionQueue) processHighElo(queue string) {
 		q.processor.Logger.EmptyLine()
 		q.processor.Logger.Infof("Starting fetching on %s: Queue(%s)", highElo, queue)
 		q.processor.Logger.EmptyLine()
-
 		if err := q.processor.ProcessHighElo(highElo, queue); err != nil {
 			q.processor.Logger.Errorf("Couldn't process the high elo %s for the queue %s on region %s: %v", highElo, queue, q.processor.SubRegion, err)
 			continue
