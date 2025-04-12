@@ -459,7 +459,8 @@ func (p *MainRegionProcessor) prepareEvents(
 		eventData, err = p.prepareStructKillEvent(event, matchInfo, statIdByParticipantId)
 
 	case "CHAMPION_KILL":
-		//TODO
+		eventData, err = p.prepareChampionKill(event, matchInfo, statIdByParticipantId)
+
 	case "FEAT_UPDATE":
 		eventData, err = p.prepareFeatUpdateEvent(event, matchInfo)
 
@@ -735,6 +736,58 @@ func (p *MainRegionProcessor) prepareFeatUpdateEvent(
 		FeatType:  featType,
 		FeatValue: featValue,
 		TeamId:    teamId,
+	}
+
+	return eventInsert, nil
+}
+
+// Prepare a champion kill event.
+func (p *MainRegionProcessor) prepareChampionKill(
+	event match_fetcher.EventFrame,
+	matchInfo *models.MatchInfo,
+	statIdByParticipantId map[string]uint64,
+) (*models.EventPlayerKill, error) {
+	// Get the killer id as string if setted.
+	var killerId string
+	if event.KillerId != nil {
+		killerId = strconv.Itoa(*event.KillerId)
+	}
+
+	// Get a pointer to the match statId.
+	// Must be nil if the kill was by a minion.
+	var matchStatId *uint64
+	if val, exists := statIdByParticipantId[killerId]; exists {
+		matchStatId = &val
+	}
+
+	var victimId string
+
+	if event.VictimId != nil {
+		victimId = strconv.Itoa(*event.VictimId)
+	}
+
+	var victimMatchStatId *uint64
+	if val, exists := statIdByParticipantId[victimId]; exists {
+		victimMatchStatId = &val
+	}
+
+	// Validate the positions existence for caution.
+	x, xExist := event.Position["x"]
+	y, yExist := event.Position["y"]
+
+	// Default values if not defined.
+	if !xExist || !yExist {
+		x = 0
+		y = 0
+	}
+
+	eventInsert := &models.EventPlayerKill{
+		MatchId:           matchInfo.ID,
+		Timestamp:         event.Timestamp,
+		MatchStatId:       matchStatId,
+		VictimMatchStatId: victimMatchStatId,
+		X:                 x,
+		Y:                 y,
 	}
 
 	return eventInsert, nil

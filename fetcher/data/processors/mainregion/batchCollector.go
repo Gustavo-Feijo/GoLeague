@@ -54,6 +54,15 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 			}
 
 		case "CHAMPION_KILL":
+			modelList := make([]*models.EventPlayerKill, 0, len(events))
+			for _, event := range events {
+				if model, ok := event.(*models.EventPlayerKill); ok && model != nil {
+					modelList = append(modelList, model)
+				}
+			}
+			if err := timelineService.CreateBatchPlayerKillEvent(modelList); err != nil {
+				log.Printf("Error inserting player kills: %v", err)
+			}
 
 		case "FEAT_UPDATE":
 			modelList := make([]*models.EventFeatUpdate, 0, len(events))

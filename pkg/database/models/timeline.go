@@ -102,14 +102,14 @@ type EventFeatUpdate struct {
 type EventPlayerKill struct {
 	// Champions kills not necessary are attached to a player.
 	// A minion can kill a player, so we need to handle differently.
-	MatchId   uint64 `gorm:"index"`
+	MatchId   uint `gorm:"index"`
 	Timestamp int64
 
 	MatchStatId *uint64
 
-	VictimId uint
-	X        int
-	Y        int
+	VictimMatchStatId *uint64
+	X                 int
+	Y                 int
 }
 
 // Event of destroying a monster.
@@ -190,6 +190,14 @@ func (ts *TimelineService) CreateBatchLevelUpEvent(events []*EventLevelUp) error
 
 // Create the feat updates events in batches.
 func (ts *TimelineService) CreateBatchFeatUpdateEvent(events []*EventFeatUpdate) error {
+	if len(events) == 0 {
+		return nil
+	}
+	return ts.db.CreateInBatches(&events, 1000).Error
+}
+
+// Create the player kill events in batches.
+func (ts *TimelineService) CreateBatchPlayerKillEvent(events []*EventPlayerKill) error {
 	if len(events) == 0 {
 		return nil
 	}
