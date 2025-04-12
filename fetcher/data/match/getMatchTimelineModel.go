@@ -21,25 +21,30 @@ type MatchTimelineFrame struct {
 
 // Frame with the events.
 type EventFrame struct {
+	AfterId       *int           `json:"afterId,omitempty"`
+	BeforeId      *int           `json:"beforeId,omitempty"`
+	BuildingType  *string        `json:"buildingType,omitempty"`
 	CreatorId     *int           `json:"creatorId,omitempty"`
 	FeatType      *int           `json:"featType,omitempty"`
 	FeatValue     *int           `json:"featValue,omitempty"`
 	ItemId        *int           `json:"itemId,omitempty"`
 	KillerId      *int           `json:"killerId,omitempty"`
+	KillerTeamId  *int           `json:"killerTeamId,omitempty"`
+	LaneType      *string        `json:"laneType,omitempty"`
 	Level         *int           `json:"level,omitempty"`
 	LevelUpType   *string        `json:"levelUpType,omitempty"`
-	RealTimestamp int64          `json:"realTimestamp"`
-	Position      map[string]int `json:"position,omitempty"`
+	MonsterType   *string        `json:"monsterType,omitempty"`
 	ParticipantId *int           `json:"participantId,omitempty"`
+	Position      map[string]int `json:"position,omitempty"`
+	RealTimestamp int64          `json:"realTimestamp"`
 	SkillSlot     *int           `json:"skillSlot,omitempty"`
 	TeamId        *int           `json:"teamId,omitempty"`
 	Timestamp     int64          `json:"timestamp"`
+	TowerType     *string        `json:"towerType,omitempty"`
 	Type          string         `json:"type"`
 	VictimId      *int           `json:"victimId,omitempty"`
 	WardType      *string        `json:"wardType,omitempty"`
-	BuildingType  *string        `json:"buildingType,omitempty"`
-	LaneType      *string        `json:"laneType,omitempty"`
-	TowerType     *string        `json:"towerType,omitempty"`
+	WinningTeam   *int           `json:"winningTeam,omitempty"`
 }
 
 // Frame for each participant.

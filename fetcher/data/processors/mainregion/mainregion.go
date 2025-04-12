@@ -204,28 +204,6 @@ func (p *MainRegionProcessor) GetTrueMatchList(
 	return trueMatchList, nil
 }
 
-// Retrieve the match info from the received payload, parse it and insert into the database.
-func (p *MainRegionProcessor) processMatchInfo(
-	match *match_fetcher.MatchData,
-	matchId string,
-) (*models.MatchInfo, error) {
-	// Create a match to be inserted.
-	matchInfo := &models.MatchInfo{
-		GameVersion:    match.Info.GameVersion,
-		MatchId:        matchId,
-		MatchStart:     match.Info.GameCreation.Time(),
-		MatchDuration:  match.Info.GameDuration,
-		MatchWinner:    match.Info.Teams[0].Win,
-		MatchSurrender: match.Info.Participants[0].GameEndedInSurrender,
-		MatchRemake:    match.Info.Participants[0].GameEndedInEarlySurrender,
-		QueueId:        match.Info.QueueId,
-	}
-
-	// Create the match.
-	// Return the match that we tried to insert and the error result of the insert (Nil or error)
-	return matchInfo, p.MatchService.CreateMatchInfo(matchInfo)
-}
-
 // Retrieve the bans and create them.
 func (p *MainRegionProcessor) processMatchBans(
 	matchTeams []match_fetcher.TeamInfo,
@@ -254,6 +232,60 @@ func (p *MainRegionProcessor) processMatchBans(
 	}
 
 	return bans, nil
+}
+
+// Retrieve the match info from the received payload, parse it and insert into the database.
+func (p *MainRegionProcessor) processMatchInfo(
+	match *match_fetcher.MatchData,
+	matchId string,
+) (*models.MatchInfo, error) {
+	// Create a match to be inserted.
+	matchInfo := &models.MatchInfo{
+		GameVersion:    match.Info.GameVersion,
+		MatchId:        matchId,
+		MatchStart:     match.Info.GameCreation.Time(),
+		MatchDuration:  match.Info.GameDuration,
+		MatchSurrender: match.Info.Participants[0].GameEndedInSurrender,
+		MatchRemake:    match.Info.Participants[0].GameEndedInEarlySurrender,
+		QueueId:        match.Info.QueueId,
+	}
+
+	// Create the match.
+	// Return the match that we tried to insert and the error result of the insert (Nil or error)
+	return matchInfo, p.MatchService.CreateMatchInfo(matchInfo)
+}
+
+// Process to insert the match stats for each player.
+func (p *MainRegionProcessor) processMatchStats(
+	playersToUpsert []*models.PlayerInfo,
+	participants map[string]match_fetcher.MatchPlayer,
+	matchInfo *models.MatchInfo,
+) ([]*models.MatchStats, error) {
+	var statsToUpsert []*models.MatchStats
+	for _, player := range playersToUpsert {
+		participant, exists := participants[player.Puuid]
+		if !exists {
+			// Should never occur.
+			log.Println("The participant is not present in the map.")
+			return nil, errors.New("the participant is not present in the map")
+		}
+
+		// Create the match stats.
+		newStat := &models.MatchStats{
+			MatchId:    matchInfo.ID,
+			PlayerId:   player.ID,
+			PlayerData: participant,
+		}
+
+		statsToUpsert = append(statsToUpsert, newStat)
+	}
+
+	// Create/update the players.
+	if err := p.MatchService.CreateMatchStats(statsToUpsert); err != nil {
+		return nil, err
+	}
+
+	return statsToUpsert, nil
 }
 
 // Process each player from a given match.
@@ -291,39 +323,6 @@ func (p *MainRegionProcessor) processPlayersFromMatch(
 	}
 
 	return playersToUpsert, participantByPuuid, nil
-}
-
-// Process to insert the match stats for each player.
-func (p *MainRegionProcessor) processMatchStats(
-	playersToUpsert []*models.PlayerInfo,
-	participants map[string]match_fetcher.MatchPlayer,
-	matchInfo *models.MatchInfo,
-) ([]*models.MatchStats, error) {
-	var statsToUpsert []*models.MatchStats
-	for _, player := range playersToUpsert {
-		participant, exists := participants[player.Puuid]
-		if !exists {
-			// Should never occur.
-			log.Println("The participant is not present in the map.")
-			return nil, errors.New("the participant is not present in the map")
-		}
-
-		// Create the match stats.
-		newStat := &models.MatchStats{
-			MatchId:    matchInfo.ID,
-			PlayerId:   player.ID,
-			PlayerData: participant,
-		}
-
-		statsToUpsert = append(statsToUpsert, newStat)
-	}
-
-	// Create/update the players.
-	if err := p.MatchService.CreateMatchStats(statsToUpsert); err != nil {
-		return nil, err
-	}
-
-	return statsToUpsert, nil
 }
 
 // Process the match data to insert it into the database.
@@ -421,20 +420,56 @@ func (p *MainRegionProcessor) ProcessMatchTimeline(
 	return err
 }
 
-// Prepare the participant frame and return it to be later inserted.
-func (p *MainRegionProcessor) prepareParticipantsFrames(
-	frame match_fetcher.ParticipantFrames,
-	matchStatId uint64,
-	frameId int,
-) *models.ParticipantFrame {
-	// Create the participant to be inserted in the database.
-	participant := &models.ParticipantFrame{
-		MatchStatId:       matchStatId,
-		FrameIndex:        frameId,
-		ParticipantFrames: frame,
+// Prepare a champion kill event.
+func (p *MainRegionProcessor) prepareChampionKill(
+	event match_fetcher.EventFrame,
+	matchInfo *models.MatchInfo,
+	statIdByParticipantId map[string]uint64,
+) (*models.EventPlayerKill, error) {
+	// Get the killer id as string if setted.
+	var killerId string
+	if event.KillerId != nil {
+		killerId = strconv.Itoa(*event.KillerId)
 	}
 
-	return participant
+	// Get a pointer to the match statId.
+	// Must be nil if the kill was by a minion.
+	var matchStatId *uint64
+	if val, exists := statIdByParticipantId[killerId]; exists {
+		matchStatId = &val
+	}
+
+	var victimId string
+
+	if event.VictimId != nil {
+		victimId = strconv.Itoa(*event.VictimId)
+	}
+
+	var victimMatchStatId *uint64
+	if val, exists := statIdByParticipantId[victimId]; exists {
+		victimMatchStatId = &val
+	}
+
+	// Validate the positions existence for caution.
+	x, xExist := event.Position["x"]
+	y, yExist := event.Position["y"]
+
+	// Default values if not defined.
+	if !xExist || !yExist {
+		x = 0
+		y = 0
+	}
+
+	eventInsert := &models.EventPlayerKill{
+		MatchId:           matchInfo.ID,
+		Timestamp:         event.Timestamp,
+		MatchStatId:       matchStatId,
+		VictimMatchStatId: victimMatchStatId,
+		X:                 x,
+		Y:                 y,
+	}
+
+	return eventInsert, nil
 }
 
 // Prepare each event to be inserted.
@@ -464,7 +499,7 @@ func (p *MainRegionProcessor) prepareEvents(
 	case "FEAT_UPDATE":
 		eventData, err = p.prepareFeatUpdateEvent(event, matchInfo)
 
-	case "ITEM_DESTROYED", "ITEM_PURCHASED", "ITEM_SOLD":
+	case "ITEM_DESTROYED", "ITEM_PURCHASED", "ITEM_SOLD", "ITEM_UNDO":
 		eventData, err = p.prepareItemEvent(event, statIdByParticipantId)
 
 	case "LEVEL_UP":
@@ -475,6 +510,12 @@ func (p *MainRegionProcessor) prepareEvents(
 
 	case "WARD_KILL", "WARD_PLACED":
 		eventData, err = p.prepareWardEvent(event, statIdByParticipantId)
+
+	case "ELITE_MONSTER_KILL":
+		eventData, err = p.prepareMonsterKill(event, statIdByParticipantId)
+
+	case "GAME_END":
+		err = p.setMatchWinner(event, matchInfo)
 
 	}
 
@@ -489,6 +530,234 @@ func (p *MainRegionProcessor) prepareEvents(
 	}
 
 	return nil
+}
+
+// Prepare a feat update event.
+func (p *MainRegionProcessor) prepareFeatUpdateEvent(
+	event match_fetcher.EventFrame,
+	matchInfo *models.MatchInfo,
+) (*models.EventFeatUpdate, error) {
+	var (
+		featType  int
+		featValue int
+		teamId    int
+	)
+
+	// Verify the values.
+	if event.FeatType != nil {
+		featType = *event.FeatType
+	} else {
+		return nil, errors.New("missing feat type")
+	}
+
+	if event.FeatValue != nil {
+		featValue = *event.FeatValue
+	} else {
+		return nil, errors.New("missing feat value")
+	}
+
+	if event.TeamId != nil {
+		teamId = *event.TeamId
+	} else {
+		return nil, errors.New("missing team ID")
+	}
+
+	eventInsert := &models.EventFeatUpdate{
+		MatchId:   matchInfo.ID,
+		Timestamp: event.Timestamp,
+		FeatType:  featType,
+		FeatValue: featValue,
+		TeamId:    teamId,
+	}
+
+	return eventInsert, nil
+}
+
+// Prepare a item event.
+func (p *MainRegionProcessor) prepareItemEvent(
+	event match_fetcher.EventFrame,
+	statIdByParticipantId map[string]uint64,
+) (*models.EventItem, error) {
+	// Get the killer id as string if setted.
+	var participantId string
+	if event.ParticipantId != nil {
+		participantId = strconv.Itoa(*event.ParticipantId)
+	} else {
+		return nil, errors.New("the participant ID was not defined for a item event")
+	}
+
+	// Get a pointer to the match statId.
+	// Must be nil if the kill was by a minion.
+	var matchStatId *uint64
+	if val, exists := statIdByParticipantId[participantId]; exists {
+		matchStatId = &val
+	}
+
+	var itemId int
+	if event.ItemId != nil {
+		itemId = *event.ItemId
+	} else if event.Type == "ITEM_UNDO" && event.BeforeId != nil {
+		// Handle the ITEM_UNDO case.
+		itemId = *event.BeforeId
+	} else {
+		return nil, errors.New("no item ID found for item event")
+	}
+
+	eventInsert := &models.EventItem{
+		MatchStatId: matchStatId,
+		Timestamp:   event.Timestamp,
+		ItemId:      itemId,
+		AfterId:     event.AfterId,
+		Action:      event.Type,
+	}
+
+	return eventInsert, nil
+}
+
+// Process a level up event.
+func (p *MainRegionProcessor) prepareLevelUpEvent(
+	event match_fetcher.EventFrame,
+	statIdByParticipantId map[string]uint64,
+) (*models.EventLevelUp, error) {
+	// Get the participant that level up.
+	var participantId string
+	if event.ParticipantId != nil {
+		participantId = strconv.Itoa(*event.ParticipantId)
+	} else {
+		return nil, errors.New("the participant ID was not defined for the level up event")
+	}
+
+	// Arena and Aram start with level 3 and don't return the participant ID in those cases.
+	if participantId == "0" {
+		return nil, nil
+	}
+
+	// Get a pointer to the match statId.
+	// Must be nil if the kill was by a minion.
+	var matchStatId *uint64
+	if val, exists := statIdByParticipantId[participantId]; exists {
+		matchStatId = &val
+	} else {
+		return nil, fmt.Errorf("coulnd't find the stat entry for the participant %s", participantId)
+	}
+
+	eventInsert := &models.EventLevelUp{
+		MatchStatId: *matchStatId,
+		Timestamp:   event.Timestamp,
+		Level:       *event.Level,
+	}
+
+	return eventInsert, nil
+}
+
+// Prepare a monster kill event.
+func (p *MainRegionProcessor) prepareMonsterKill(
+	event match_fetcher.EventFrame,
+	statIdByParticipantId map[string]uint64,
+) (*models.EventMonsterKill, error) {
+	// Get the killer id as string if setted.
+	var killerId string
+	if event.KillerId != nil {
+		killerId = strconv.Itoa(*event.KillerId)
+	}
+
+	// Get the match statId.
+	var matchStatId uint64
+	if val, exists := statIdByParticipantId[killerId]; exists {
+		matchStatId = val
+	} else {
+		return nil, errors.New("missing match stat id for monster kill")
+	}
+
+	var team int
+	if event.KillerTeamId != nil {
+		team = *event.KillerTeamId
+	} else {
+		return nil, errors.New("missing team that killed the monster")
+	}
+
+	var monsterType string
+	if event.MonsterType != nil {
+		monsterType = *event.MonsterType
+	} else {
+		return nil, errors.New("monster type not defined")
+	}
+
+	// Validate the positions existence for caution.
+	x, xExist := event.Position["x"]
+	y, yExist := event.Position["y"]
+
+	// Default values if not defined.
+	if !xExist || !yExist {
+		x = 0
+		y = 0
+	}
+
+	eventInsert := &models.EventMonsterKill{
+		MatchStatId: matchStatId,
+		Timestamp:   event.Timestamp,
+		KillerTeam:  team,
+		X:           x,
+		Y:           y,
+		MonsterType: monsterType,
+	}
+
+	return eventInsert, nil
+}
+
+// Prepare the participant frame and return it to be later inserted.
+func (p *MainRegionProcessor) prepareParticipantsFrames(
+	frame match_fetcher.ParticipantFrames,
+	matchStatId uint64,
+	frameId int,
+) *models.ParticipantFrame {
+	// Create the participant to be inserted in the database.
+	participant := &models.ParticipantFrame{
+		MatchStatId:       matchStatId,
+		FrameIndex:        frameId,
+		ParticipantFrames: frame,
+	}
+
+	return participant
+}
+
+// Prepare a skill level up.
+func (p *MainRegionProcessor) prepareSkillLevelUpEvent(
+	event match_fetcher.EventFrame,
+	statIdByParticipantId map[string]uint64,
+) (*models.EventSkillLevelUp, error) {
+	// Get the participant that leveled up.
+	var participantId string
+	if event.ParticipantId != nil {
+		participantId = strconv.Itoa(*event.ParticipantId)
+	} else {
+		return nil, errors.New("the participant ID was not defined for the skill level up event")
+	}
+
+	// Get a pointer to the match statId.
+	var matchStatId *uint64
+	if val, exists := statIdByParticipantId[participantId]; exists {
+		matchStatId = &val
+	} else {
+		return nil, fmt.Errorf("coulnd't find the stat entry for the participant %s", participantId)
+	}
+
+	// Get the skill that was leveled up.
+	var skillSlot int
+	if event.SkillSlot != nil {
+		skillSlot = *event.SkillSlot
+	} else {
+		return nil, errors.New("the skill slot was not defined for the level up")
+	}
+
+	eventInsert := &models.EventSkillLevelUp{
+		MatchStatId: *matchStatId,
+		Timestamp:   event.Timestamp,
+		SkillSlot:   skillSlot,
+		LevelUpType: *event.LevelUpType,
+	}
+
+	return eventInsert, nil
 }
 
 // Prepare a struct kill event.
@@ -546,43 +815,6 @@ func (p *MainRegionProcessor) prepareStructKillEvent(
 	return eventInsert, nil
 }
 
-// Prepare a item event.
-func (p *MainRegionProcessor) prepareItemEvent(
-	event match_fetcher.EventFrame,
-	statIdByParticipantId map[string]uint64,
-) (*models.EventItem, error) {
-	// Get the killer id as string if setted.
-	var participantId string
-	if event.ParticipantId != nil {
-		participantId = strconv.Itoa(*event.ParticipantId)
-	} else {
-		return nil, errors.New("the participant ID was not defined for a item event")
-	}
-
-	// Get a pointer to the match statId.
-	// Must be nil if the kill was by a minion.
-	var matchStatId *uint64
-	if val, exists := statIdByParticipantId[participantId]; exists {
-		matchStatId = &val
-	}
-
-	var itemId int
-	if event.ItemId != nil {
-		itemId = *event.ItemId
-	} else {
-		return nil, errors.New("no item ID found for item event")
-	}
-
-	eventInsert := &models.EventItem{
-		MatchStatId: matchStatId,
-		Timestamp:   event.Timestamp,
-		ItemId:      itemId,
-		Action:      event.Type,
-	}
-
-	return eventInsert, nil
-}
-
 // Prepare a ward event.
 func (p *MainRegionProcessor) prepareWardEvent(
 	event match_fetcher.EventFrame,
@@ -625,170 +857,15 @@ func (p *MainRegionProcessor) prepareWardEvent(
 	return nil, errors.New("couldn't find the actor of the ward event")
 }
 
-// Prepare a skill level up.
-func (p *MainRegionProcessor) prepareSkillLevelUpEvent(
-	event match_fetcher.EventFrame,
-	statIdByParticipantId map[string]uint64,
-) (*models.EventSkillLevelUp, error) {
-	// Get the participant that leveled up.
-	var participantId string
-	if event.ParticipantId != nil {
-		participantId = strconv.Itoa(*event.ParticipantId)
-	} else {
-		return nil, errors.New("the participant ID was not defined for the skill level up event")
-	}
-
-	// Get a pointer to the match statId.
-	var matchStatId *uint64
-	if val, exists := statIdByParticipantId[participantId]; exists {
-		matchStatId = &val
-	} else {
-		return nil, fmt.Errorf("coulnd't find the stat entry for the participant %s", participantId)
-	}
-
-	// Get the skill that was leveled up.
-	var skillSlot int
-	if event.SkillSlot != nil {
-		skillSlot = *event.SkillSlot
-	} else {
-		return nil, errors.New("the skill slot was not defined for the level up")
-	}
-
-	eventInsert := &models.EventSkillLevelUp{
-		MatchStatId: *matchStatId,
-		Timestamp:   event.Timestamp,
-		SkillSlot:   skillSlot,
-		LevelUpType: *event.LevelUpType,
-	}
-
-	return eventInsert, nil
-}
-
-// Process a level up event.
-func (p *MainRegionProcessor) prepareLevelUpEvent(
-	event match_fetcher.EventFrame,
-	statIdByParticipantId map[string]uint64,
-) (*models.EventLevelUp, error) {
-	// Get the participant that level up.
-	var participantId string
-	if event.ParticipantId != nil {
-		participantId = strconv.Itoa(*event.ParticipantId)
-	} else {
-		return nil, errors.New("the participant ID was not defined for the level up event")
-	}
-
-	// Arena and Aram start with level 3 and don't return the participant ID in those cases.
-	if participantId == "0" {
-		return nil, nil
-	}
-
-	// Get a pointer to the match statId.
-	// Must be nil if the kill was by a minion.
-	var matchStatId *uint64
-	if val, exists := statIdByParticipantId[participantId]; exists {
-		matchStatId = &val
-	} else {
-		return nil, fmt.Errorf("coulnd't find the stat entry for the participant %s", participantId)
-	}
-
-	eventInsert := &models.EventLevelUp{
-		MatchStatId: *matchStatId,
-		Timestamp:   event.Timestamp,
-		Level:       *event.Level,
-	}
-
-	return eventInsert, nil
-}
-
-// Prepare a feat update event.
-func (p *MainRegionProcessor) prepareFeatUpdateEvent(
+// Set the match winner.
+func (p *MainRegionProcessor) setMatchWinner(
 	event match_fetcher.EventFrame,
 	matchInfo *models.MatchInfo,
-) (*models.EventFeatUpdate, error) {
-	var (
-		featType  int
-		featValue int
-		teamId    int
-	)
-
-	// Verify the values.
-	if event.FeatType != nil {
-		featType = *event.FeatType
-	} else {
-		return nil, errors.New("missing feat type")
+) error {
+	var teamId int
+	if event.WinningTeam != nil {
+		teamId = *event.WinningTeam
 	}
 
-	if event.FeatValue != nil {
-		featValue = *event.FeatValue
-	} else {
-		return nil, errors.New("missing feat value")
-	}
-
-	if event.TeamId != nil {
-		teamId = *event.TeamId
-	} else {
-		return nil, errors.New("missing team ID")
-	}
-
-	eventInsert := &models.EventFeatUpdate{
-		MatchId:   matchInfo.ID,
-		Timestamp: event.Timestamp,
-		FeatType:  featType,
-		FeatValue: featValue,
-		TeamId:    teamId,
-	}
-
-	return eventInsert, nil
-}
-
-// Prepare a champion kill event.
-func (p *MainRegionProcessor) prepareChampionKill(
-	event match_fetcher.EventFrame,
-	matchInfo *models.MatchInfo,
-	statIdByParticipantId map[string]uint64,
-) (*models.EventPlayerKill, error) {
-	// Get the killer id as string if setted.
-	var killerId string
-	if event.KillerId != nil {
-		killerId = strconv.Itoa(*event.KillerId)
-	}
-
-	// Get a pointer to the match statId.
-	// Must be nil if the kill was by a minion.
-	var matchStatId *uint64
-	if val, exists := statIdByParticipantId[killerId]; exists {
-		matchStatId = &val
-	}
-
-	var victimId string
-
-	if event.VictimId != nil {
-		victimId = strconv.Itoa(*event.VictimId)
-	}
-
-	var victimMatchStatId *uint64
-	if val, exists := statIdByParticipantId[victimId]; exists {
-		victimMatchStatId = &val
-	}
-
-	// Validate the positions existence for caution.
-	x, xExist := event.Position["x"]
-	y, yExist := event.Position["y"]
-
-	// Default values if not defined.
-	if !xExist || !yExist {
-		x = 0
-		y = 0
-	}
-
-	eventInsert := &models.EventPlayerKill{
-		MatchId:           matchInfo.ID,
-		Timestamp:         event.Timestamp,
-		MatchStatId:       matchStatId,
-		VictimMatchStatId: victimMatchStatId,
-		X:                 x,
-		Y:                 y,
-	}
-
-	return eventInsert, nil
+	return p.MatchService.SetMatchWinner(matchInfo.ID, teamId)
 }

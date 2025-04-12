@@ -39,6 +39,8 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 	defer bc.mu.Unlock()
 
 	var errs []error
+	db := timelineService.GetDb()
+
 	// Handle each event type and conversion to the respective model.
 	// Could handle it directly by changing the batch structure to have pre defined model slices.
 	// However that would not give flexibility.
@@ -51,7 +53,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 					modelList = append(modelList, model)
 				}
 			}
-			if err := timelineService.CreateBatchStructKill(modelList); err != nil {
+			if err := models.CreateEventBatch(db, modelList); err != nil {
 				log.Printf("Error inserting struct kills: %v", err)
 				errs = append(errs, err)
 			}
@@ -63,7 +65,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 					modelList = append(modelList, model)
 				}
 			}
-			if err := timelineService.CreateBatchPlayerKillEvent(modelList); err != nil {
+			if err := models.CreateEventBatch(db, modelList); err != nil {
 				log.Printf("Error inserting player kills: %v", err)
 				errs = append(errs, err)
 			}
@@ -75,7 +77,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 					modelList = append(modelList, model)
 				}
 			}
-			if err := timelineService.CreateBatchFeatUpdateEvent(modelList); err != nil {
+			if err := models.CreateEventBatch(db, modelList); err != nil {
 				log.Printf("Error inserting feat updates: %v", err)
 				errs = append(errs, err)
 			}
@@ -87,7 +89,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 					modelList = append(modelList, model)
 				}
 			}
-			if err := timelineService.CreateBatchItemEvent(modelList); err != nil {
+			if err := models.CreateEventBatch(db, modelList); err != nil {
 				log.Printf("Error inserting item events: %v", err)
 				errs = append(errs, err)
 			}
@@ -99,7 +101,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 					modelList = append(modelList, model)
 				}
 			}
-			if err := timelineService.CreateBatchLevelUpEvent(modelList); err != nil {
+			if err := models.CreateEventBatch(db, modelList); err != nil {
 				log.Printf("Error inserting level up event: %v", err)
 				errs = append(errs, err)
 			}
@@ -111,7 +113,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 					modelList = append(modelList, model)
 				}
 			}
-			if err := timelineService.CreateBatchSkillLevelUpEvent(modelList); err != nil {
+			if err := models.CreateEventBatch(db, modelList); err != nil {
 				log.Printf("Error inserting skill level up event:%v", err)
 				errs = append(errs, err)
 			}
@@ -123,7 +125,19 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 					modelList = append(modelList, model)
 				}
 			}
-			if err := timelineService.CreateBatchWardEvent(modelList); err != nil {
+			if err := models.CreateEventBatch(db, modelList); err != nil {
+				log.Printf("Error inserting ward event:%v", err)
+				errs = append(errs, err)
+			}
+
+		case "ELITE_MONSTER_KILL":
+			modelList := make([]*models.EventMonsterKill, 0, len(events))
+			for _, event := range events {
+				if model, ok := event.(*models.EventMonsterKill); ok && model != nil {
+					modelList = append(modelList, model)
+				}
+			}
+			if err := models.CreateEventBatch(db, modelList); err != nil {
 				log.Printf("Error inserting ward event:%v", err)
 				errs = append(errs, err)
 			}

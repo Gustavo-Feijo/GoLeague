@@ -17,7 +17,7 @@ type MatchInfo struct {
 	MatchId        string `gorm:"type:varchar(20);uniqueIndex"`
 	MatchStart     time.Time
 	MatchDuration  int
-	MatchWinner    bool
+	MatchWinner    int
 	MatchSurrender bool
 	MatchRemake    bool
 	FrameInterval  int64
@@ -114,4 +114,11 @@ func (ms *MatchService) SetFullyFetched(match_id uint) error {
 	return ms.db.Model(&MatchInfo{}).
 		Where("id = ?", match_id).
 		Update("fully_fetched", true).Error
+}
+
+// Set the match winner team id.
+func (ms *MatchService) SetMatchWinner(match_id uint, winner int) error {
+	return ms.db.Model(&MatchInfo{}).
+		Where("id = ?", match_id).
+		Update("match_winner", winner).Error
 }
