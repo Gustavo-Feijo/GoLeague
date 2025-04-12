@@ -1,6 +1,7 @@
 package mainregion_processor
 
 import (
+	"errors"
 	"goleague/pkg/database/models"
 	"log"
 	"sync"
@@ -37,6 +38,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
+	var errs []error
 	// Handle each event type and conversion to the respective model.
 	// Could handle it directly by changing the batch structure to have pre defined model slices.
 	// However that would not give flexibility.
@@ -51,6 +53,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 			}
 			if err := timelineService.CreateBatchStructKill(modelList); err != nil {
 				log.Printf("Error inserting struct kills: %v", err)
+				errs = append(errs, err)
 			}
 
 		case "CHAMPION_KILL":
@@ -62,6 +65,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 			}
 			if err := timelineService.CreateBatchPlayerKillEvent(modelList); err != nil {
 				log.Printf("Error inserting player kills: %v", err)
+				errs = append(errs, err)
 			}
 
 		case "FEAT_UPDATE":
@@ -73,6 +77,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 			}
 			if err := timelineService.CreateBatchFeatUpdateEvent(modelList); err != nil {
 				log.Printf("Error inserting feat updates: %v", err)
+				errs = append(errs, err)
 			}
 
 		case "ITEM_DESTROYED", "ITEM_PURCHASED", "ITEM_SOLD":
@@ -84,6 +89,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 			}
 			if err := timelineService.CreateBatchItemEvent(modelList); err != nil {
 				log.Printf("Error inserting item events: %v", err)
+				errs = append(errs, err)
 			}
 
 		case "LEVEL_UP":
@@ -95,6 +101,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 			}
 			if err := timelineService.CreateBatchLevelUpEvent(modelList); err != nil {
 				log.Printf("Error inserting level up event: %v", err)
+				errs = append(errs, err)
 			}
 
 		case "SKILL_LEVEL_UP":
@@ -106,6 +113,7 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 			}
 			if err := timelineService.CreateBatchSkillLevelUpEvent(modelList); err != nil {
 				log.Printf("Error inserting skill level up event:%v", err)
+				errs = append(errs, err)
 			}
 
 		case "WARD_KILL", "WARD_PLACED":
@@ -117,8 +125,14 @@ func (bc *batchCollector) processBatches(timelineService models.TimelineService)
 			}
 			if err := timelineService.CreateBatchWardEvent(modelList); err != nil {
 				log.Printf("Error inserting ward event:%v", err)
+				errs = append(errs, err)
 			}
 		}
+	}
+
+	// Return the errors if any was found.
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
 	return nil

@@ -416,9 +416,9 @@ func (p *MainRegionProcessor) ProcessMatchTimeline(
 	}
 
 	// Process the events.
-	eventCollector.processBatches(p.TimelineService)
+	err := eventCollector.processBatches(p.TimelineService)
 
-	return nil
+	return err
 }
 
 // Prepare the participant frame and return it to be later inserted.
