@@ -6,6 +6,7 @@ import (
 	"goleague/fetcher/regions"
 	"goleague/pkg/database/models"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -69,12 +70,10 @@ func (q *MainRegionQueue) Run() {
 	}
 }
 
-// Process the queue.
 func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
 	player, err := q.processor.PlayerService.GetUnfetchedBySubRegions(subRegion)
 	if err != nil {
 		log.Printf("Couldn't get any unfetched player on regions %v: %v", subRegion, err)
-
 		// Could be the first fetch, wait to the sub regions to start filling the database.
 		time.Sleep(5 * time.Second)
 		return nil, err
@@ -86,61 +85,110 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 		return player, err
 	}
 
-	// Loop through each match.
-	for _, matchId := range trueMatchList {
-		matchfetchStart := time.Now()
-		matchData, err := q.processor.GetMatchData(matchId)
-		if err != nil {
-			log.Printf("Couldn't get the match data for the match %s: %v", matchId, err)
-			// Set the date of the last fetch of the player to 1 day in the future, so the queue doesn't stay stuck.
-			return player, err
-		}
+	// Number of max concurrent workers.
+	// For the queue with a low rate limit, 2 workers are used to avoid the total fetch time of a match to be greater than the interval.
+	const maxWorkers = 2
 
-		matchParseStart := time.Now()
-		// Process the match data.
-		matchInfo, _, matchStats, err := q.processor.ProcessMatchData(matchData, matchId, subRegion)
-		if err != nil {
-			log.Printf("Couldn't process the data for the match %s: %v", matchId, err)
-			return player, err
-		}
+	// WaitGroup and mutex.
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 
-		// Create a map of each inserted stat id by the puuid.
-		statByPuuid := make(map[string]uint64)
-		for _, stat := range matchStats {
-			statByPuuid[stat.PlayerData.Puuid] = stat.ID
-		}
+	jobChan := make(chan string, len(trueMatchList))
+	errChan := make(chan error, len(trueMatchList))
 
-		timelineFetchStart := time.Now()
-		matchTimeline, err := q.processor.GetMatchTimeline(matchId)
-		if err != nil {
-			log.Printf("Couldn't get the match timeline for the match %s: %v", matchId, err)
-			// Set the date of the last fetch of the player to 1 day in the future, so the queue doesn't stay stuck.
-			return player, err
-		}
+	// Start worker goroutines
+	for range maxWorkers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		timelineParseStart := time.Now()
-		// Process the match timeline.
-		if err := q.processor.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo); err != nil {
-			log.Printf("Couldn't process the timeline data for the match %s: %v", matchId, err)
-			return player, err
-		}
+			// Process matches from the matches channel until closed.
+			for matchId := range jobChan {
+				matchfetchStart := time.Now()
+				matchData, err := q.processor.GetMatchData(matchId)
+				if err != nil {
+					log.Printf("Couldn't get the match data for the match %s: %v", matchId, err)
+					errChan <- err
+					continue
+				}
 
-		// Set as fully fetched.
-		q.processor.MatchService.SetFullyFetched(matchInfo.ID)
+				matchParseStart := time.Now()
 
-		// Log the complete creation of a given match and the elapsed time for verifying performance.
-		log.Printf("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
-			matchId,
-			time.Since(matchfetchStart).Seconds(),
-			matchParseStart.Sub(matchfetchStart).Seconds()+timelineParseStart.Sub(timelineFetchStart).Seconds(),
-			timelineFetchStart.Sub(matchParseStart).Seconds()+time.Since(timelineParseStart).Seconds(),
-		)
+				matchInfo, _, matchStats, err := q.processor.ProcessMatchData(matchData, matchId, subRegion)
+				if err != nil {
+					log.Printf("Couldn't process the data for the match %s: %v", matchId, err)
+					errChan <- err
+					continue
+				}
+
+				// Create a map of each inserted stat id by the puuid.
+				statByPuuid := make(map[string]uint64)
+				for _, stat := range matchStats {
+					statByPuuid[stat.PlayerData.Puuid] = stat.ID
+				}
+
+				timelineFetchStart := time.Now()
+				matchTimeline, err := q.processor.GetMatchTimeline(matchId)
+				if err != nil {
+					log.Printf("Couldn't get the match timeline for the match %s: %v", matchId, err)
+					errChan <- err
+					continue
+				}
+
+				timelineParseStart := time.Now()
+
+				// Lock the processing to avoid deadlocks.
+				mu.Lock()
+				err = q.processor.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo)
+				mu.Unlock()
+
+				if err != nil {
+					log.Printf("Couldn't process the timeline data for the match %s: %v", matchId, err)
+					errChan <- err
+					continue
+				}
+
+				// The lock is not needed.
+				q.processor.MatchService.SetFullyFetched(matchInfo.ID)
+
+				// Log the complete creation of a given match and the elapsed time for verifying performance.
+				log.Printf("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
+					matchId,
+					time.Since(matchfetchStart).Seconds(),
+					matchParseStart.Sub(matchfetchStart).Seconds()+timelineParseStart.Sub(timelineFetchStart).Seconds(),
+					timelineFetchStart.Sub(matchParseStart).Seconds()+time.Since(timelineParseStart).Seconds(),
+				)
+			}
+		}()
 	}
 
-	// Set the last fetch.
+	// Send the matches to the channel.
+	for _, matchId := range trueMatchList {
+		jobChan <- matchId
+	}
+
+	close(jobChan)
+
+	go func() {
+		wg.Wait()
+		close(errChan)
+	}()
+
+	// Collect the first error.
+	var processError error
+	for err := range errChan {
+		if processError == nil {
+			processError = err
+		}
+	}
+
+	// Set the last fetch regardless of any match processing errors
 	if err := q.processor.PlayerService.SetFetched(player.ID); err != nil {
 		log.Printf("Couldn't set the last fetch date for the player with ID %d: %v", player.ID, err)
+		if processError == nil {
+			processError = err
+		}
 	}
 
-	return player, nil
+	return player, processError
 }

@@ -6,6 +6,7 @@ import (
 	league_fetcher "goleague/fetcher/data/league"
 	"goleague/fetcher/regions"
 	"goleague/pkg/database"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -30,6 +31,9 @@ type PlayerInfo struct {
 	// Last time the player data was changed.
 	UpdatedAt time.Time `gorm:"autoUpdateTime:false"`
 }
+
+// Mutex for handling the player upsert.
+var playerUpsertMutex sync.Mutex
 
 // Set the last time of a metch fetch as 3 months ago.
 // That way, will not get too old matches.
@@ -156,9 +160,12 @@ func (ps *PlayerService) SetFetched(playerId uint) error {
 // Update or create multiple players.
 // Only update if the data is newer.
 func (ps *PlayerService) UpsertPlayerBatch(players []*PlayerInfo) error {
+	// In the case of multiple goroutines fetching data, a mutex is needed.
+	playerUpsertMutex.Lock()
+	defer playerUpsertMutex.Unlock()
 	return ps.db.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "puuid"}, {Name: "region"}},
-		DoUpdates: clause.Assignments(map[string]interface{}{
+		DoUpdates: clause.Assignments(map[string]any{
 			"profile_icon":      gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.profile_icon ELSE player_infos.profile_icon END"),
 			"riot_id_game_name": gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_game_name ELSE player_infos.riot_id_game_name END"),
 			"riot_id_tagline":   gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_tagline ELSE player_infos.riot_id_tagline END"),
