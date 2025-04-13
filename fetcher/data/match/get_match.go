@@ -1,4 +1,4 @@
-package match_fetcher
+package matchfetcher
 
 // Match information.
 type MatchInfo struct {

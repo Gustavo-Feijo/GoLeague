@@ -3,7 +3,7 @@ package queue
 import (
 	mainregion_queue "goleague/fetcher/queue/mainregion"
 	subregion_queue "goleague/fetcher/queue/subregion"
-	"goleague/fetcher/regionmanager"
+	regionmanager "goleague/fetcher/region_manager"
 	"goleague/fetcher/regions"
 	"log"
 	"sync"

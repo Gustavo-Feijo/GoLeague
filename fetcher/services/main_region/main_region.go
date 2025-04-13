@@ -1,4 +1,4 @@
-package mainregion_processor
+package mainregionservice
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"goleague/fetcher/data"
 	match_fetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/regions"
+	"goleague/fetcher/repositories"
 	"goleague/pkg/database/models"
 	"log"
 	"strconv"
@@ -17,15 +18,15 @@ type mainRegionConfig struct {
 	maxRetries int
 }
 
-// Type for the main region processor.
-type MainRegionProcessor struct {
-	config          mainRegionConfig
-	fetcher         data.MainFetcher
-	MatchService    models.MatchService
-	PlayerService   models.PlayerService
-	RatingService   models.RatingService
-	TimelineService models.TimelineService
-	MainRegion      regions.MainRegion
+// Type for the main region service.
+type MainRegionService struct {
+	config             mainRegionConfig
+	fetcher            data.MainFetcher
+	MatchRepository    repositories.MatchRepository
+	PlayerService      repositories.PlayerRepository
+	RatingRepository   repositories.RatingRepository
+	TimelineRepository repositories.TimelineRepository
+	MainRegion         regions.MainRegion
 }
 
 // Create the main region default config.
@@ -35,46 +36,46 @@ func createMainRegionConfig() *mainRegionConfig {
 	}
 }
 
-// Create the main region processor.
-func CreateMainRegionProcessor(
+// Create the main region service.
+func CreateMainRegionService(
 	fetcher *data.MainFetcher,
 	region regions.MainRegion,
-) (*MainRegionProcessor, error) {
+) (*MainRegionService, error) {
 	// Create the services.
-	RatingService, err := models.CreateRatingService()
+	ratingRepository, err := repositories.NewRatingRepository()
 	if err != nil {
 		return nil, errors.New("failed to start the rating service")
 	}
 
-	PlayerService, err := models.CreatePlayerService()
+	playerService, err := repositories.NewPlayerRepository()
 	if err != nil {
 		return nil, errors.New("failed to start the player service")
 	}
 
-	MatchService, err := models.CreateMatchService()
+	matchRepository, err := repositories.NewMatchRepository()
 	if err != nil {
 		return nil, errors.New("failed to start the match service")
 	}
 
-	TimelineService, err := models.CreateTimelineService()
+	timelineRepository, err := repositories.NewTimelineRepository()
 	if err != nil {
 		return nil, errors.New("failed to start the timeline service")
 	}
 
-	// Return the new region processor.
-	return &MainRegionProcessor{
-		config:          *createMainRegionConfig(),
-		fetcher:         *fetcher,
-		MatchService:    *MatchService,
-		PlayerService:   *PlayerService,
-		RatingService:   *RatingService,
-		TimelineService: *TimelineService,
-		MainRegion:      region,
+	// Return the new region service.
+	return &MainRegionService{
+		config:             *createMainRegionConfig(),
+		fetcher:            *fetcher,
+		MatchRepository:    matchRepository,
+		PlayerService:      playerService,
+		RatingRepository:   ratingRepository,
+		TimelineRepository: timelineRepository,
+		MainRegion:         region,
 	}, nil
 }
 
 // Get the full match list of a given player.
-func (p *MainRegionProcessor) getFullMatchList(
+func (p *MainRegionService) getFullMatchList(
 	player *models.PlayerInfo,
 ) ([]string, error) {
 	var matchList []string
@@ -113,7 +114,7 @@ func (p *MainRegionProcessor) getFullMatchList(
 }
 
 // Get the data of the match from the Riot API.
-func (p *MainRegionProcessor) GetMatchData(
+func (p *MainRegionService) GetMatchData(
 	matchId string,
 ) (*match_fetcher.MatchData, error) {
 	var matchData *match_fetcher.MatchData
@@ -141,7 +142,7 @@ func (p *MainRegionProcessor) GetMatchData(
 }
 
 // Get the data of the match timeline from the Riot API.
-func (p *MainRegionProcessor) GetMatchTimeline(
+func (p *MainRegionService) GetMatchTimeline(
 	matchId string,
 ) (*match_fetcher.MatchTimeline, error) {
 	var matchData *match_fetcher.MatchTimeline
@@ -170,7 +171,7 @@ func (p *MainRegionProcessor) GetMatchTimeline(
 
 // Get the matches that need to be fetched for a given player.
 // Remove all matches that were already fetched.
-func (p *MainRegionProcessor) GetTrueMatchList(
+func (p *MainRegionService) GetTrueMatchList(
 	player *models.PlayerInfo,
 ) ([]string, error) {
 	var trueMatchList []string
@@ -181,7 +182,7 @@ func (p *MainRegionProcessor) GetTrueMatchList(
 		return nil, err
 	}
 
-	alreadyFetchedList, err := p.MatchService.GetAlreadyFetchedMatches(matchList)
+	alreadyFetchedList, err := p.MatchRepository.GetAlreadyFetchedMatches(matchList)
 	if err != nil {
 		log.Printf("Couldn't get the already fetched matches: %v", err)
 		return nil, err
@@ -205,7 +206,7 @@ func (p *MainRegionProcessor) GetTrueMatchList(
 }
 
 // Retrieve the bans and create them.
-func (p *MainRegionProcessor) processMatchBans(
+func (p *MainRegionService) processMatchBans(
 	matchTeams []match_fetcher.TeamInfo,
 	matchInfo *models.MatchInfo,
 ) ([]*models.MatchBans, error) {
@@ -226,7 +227,7 @@ func (p *MainRegionProcessor) processMatchBans(
 	// Some modes don't have bans.
 	if len(bans) != 0 {
 		// Create the bans.
-		if err := p.MatchService.CreateMatchBans(bans); err != nil {
+		if err := p.MatchRepository.CreateMatchBans(bans); err != nil {
 			return nil, err
 		}
 	}
@@ -235,7 +236,7 @@ func (p *MainRegionProcessor) processMatchBans(
 }
 
 // Retrieve the match info from the received payload, parse it and insert into the database.
-func (p *MainRegionProcessor) processMatchInfo(
+func (p *MainRegionService) processMatchInfo(
 	match *match_fetcher.MatchData,
 	matchId string,
 ) (*models.MatchInfo, error) {
@@ -252,11 +253,11 @@ func (p *MainRegionProcessor) processMatchInfo(
 
 	// Create the match.
 	// Return the match that we tried to insert and the error result of the insert (Nil or error)
-	return matchInfo, p.MatchService.CreateMatchInfo(matchInfo)
+	return matchInfo, p.MatchRepository.CreateMatchInfo(matchInfo)
 }
 
 // Process to insert the match stats for each player.
-func (p *MainRegionProcessor) processMatchStats(
+func (p *MainRegionService) processMatchStats(
 	playersToUpsert []*models.PlayerInfo,
 	participants map[string]match_fetcher.MatchPlayer,
 	matchInfo *models.MatchInfo,
@@ -281,7 +282,7 @@ func (p *MainRegionProcessor) processMatchStats(
 	}
 
 	// Create/update the players.
-	if err := p.MatchService.CreateMatchStats(statsToUpsert); err != nil {
+	if err := p.MatchRepository.CreateMatchStats(statsToUpsert); err != nil {
 		return nil, err
 	}
 
@@ -290,7 +291,7 @@ func (p *MainRegionProcessor) processMatchStats(
 
 // Process each player from a given match.
 // Upsert the players, only updating the data if the match data is newer.
-func (p *MainRegionProcessor) processPlayersFromMatch(
+func (p *MainRegionService) processPlayersFromMatch(
 	participants []match_fetcher.MatchPlayer,
 	matchInfo *models.MatchInfo,
 	region regions.SubRegion,
@@ -327,7 +328,7 @@ func (p *MainRegionProcessor) processPlayersFromMatch(
 
 // Process the match data to insert it into the database.
 // Wrapper to call all other necessary functions.
-func (p *MainRegionProcessor) ProcessMatchData(
+func (p *MainRegionService) ProcessMatchData(
 	match *match_fetcher.MatchData,
 	matchId string,
 	region regions.SubRegion,
@@ -364,7 +365,7 @@ func (p *MainRegionProcessor) ProcessMatchData(
 }
 
 // Process the match timeline data to insert it into the database.
-func (p *MainRegionProcessor) ProcessMatchTimeline(
+func (p *MainRegionService) ProcessMatchTimeline(
 	matchTimeline *match_fetcher.MatchTimeline,
 	statIdByPuuid map[string]uint64,
 	matchInfo *models.MatchInfo,
@@ -378,7 +379,7 @@ func (p *MainRegionProcessor) ProcessMatchTimeline(
 
 	// Get the default frame interval.
 	frameInterval := matchTimeline.Info.FrameInterval
-	if err := p.MatchService.SetFrameInterval(matchInfo.ID, frameInterval); err != nil {
+	if err := p.MatchRepository.SetFrameInterval(matchInfo.ID, frameInterval); err != nil {
 		return fmt.Errorf("couldn't save the frame interval: %v", err)
 	}
 
@@ -409,19 +410,19 @@ func (p *MainRegionProcessor) ProcessMatchTimeline(
 	}
 
 	// Insert the participant frames in a batch.
-	if err := p.TimelineService.CreateBatchParticipantFrame(framesToInsert); err != nil {
+	if err := p.TimelineRepository.CreateBatchParticipantFrame(framesToInsert); err != nil {
 		log.Printf("Couldn't insert the participant frames on  match %s: %v", matchInfo.MatchId, err)
 		return err
 	}
 
 	// Process the events.
-	err := eventCollector.processBatches(p.TimelineService)
+	err := eventCollector.processBatches()
 
 	return err
 }
 
 // Prepare a champion kill event.
-func (p *MainRegionProcessor) prepareChampionKill(
+func (p *MainRegionService) prepareChampionKill(
 	event match_fetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 	statIdByParticipantId map[string]uint64,
@@ -475,7 +476,7 @@ func (p *MainRegionProcessor) prepareChampionKill(
 // Prepare each event to be inserted.
 // Handle the events as any/interface{}
 // Add each event to the batch collector for further batch insertion.
-func (p *MainRegionProcessor) prepareEvents(
+func (p *MainRegionService) prepareEvents(
 	event match_fetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 	statIdByParticipantId map[string]uint64,
@@ -533,7 +534,7 @@ func (p *MainRegionProcessor) prepareEvents(
 }
 
 // Prepare a feat update event.
-func (p *MainRegionProcessor) prepareFeatUpdateEvent(
+func (p *MainRegionService) prepareFeatUpdateEvent(
 	event match_fetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 ) (*models.EventFeatUpdate, error) {
@@ -574,7 +575,7 @@ func (p *MainRegionProcessor) prepareFeatUpdateEvent(
 }
 
 // Prepare a item event.
-func (p *MainRegionProcessor) prepareItemEvent(
+func (p *MainRegionService) prepareItemEvent(
 	event match_fetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventItem, error) {
@@ -615,7 +616,7 @@ func (p *MainRegionProcessor) prepareItemEvent(
 }
 
 // Process a level up event.
-func (p *MainRegionProcessor) prepareLevelUpEvent(
+func (p *MainRegionService) prepareLevelUpEvent(
 	event match_fetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventLevelUp, error) {
@@ -651,7 +652,7 @@ func (p *MainRegionProcessor) prepareLevelUpEvent(
 }
 
 // Prepare a monster kill event.
-func (p *MainRegionProcessor) prepareMonsterKill(
+func (p *MainRegionService) prepareMonsterKill(
 	event match_fetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventMonsterKill, error) {
@@ -706,7 +707,7 @@ func (p *MainRegionProcessor) prepareMonsterKill(
 }
 
 // Prepare the participant frame and return it to be later inserted.
-func (p *MainRegionProcessor) prepareParticipantsFrames(
+func (p *MainRegionService) prepareParticipantsFrames(
 	frame match_fetcher.ParticipantFrames,
 	matchStatId uint64,
 	frameId int,
@@ -722,7 +723,7 @@ func (p *MainRegionProcessor) prepareParticipantsFrames(
 }
 
 // Prepare a skill level up.
-func (p *MainRegionProcessor) prepareSkillLevelUpEvent(
+func (p *MainRegionService) prepareSkillLevelUpEvent(
 	event match_fetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventSkillLevelUp, error) {
@@ -761,7 +762,7 @@ func (p *MainRegionProcessor) prepareSkillLevelUpEvent(
 }
 
 // Prepare a struct kill event.
-func (p *MainRegionProcessor) prepareStructKillEvent(
+func (p *MainRegionService) prepareStructKillEvent(
 	event match_fetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 	statIdByParticipantId map[string]uint64,
@@ -816,7 +817,7 @@ func (p *MainRegionProcessor) prepareStructKillEvent(
 }
 
 // Prepare a ward event.
-func (p *MainRegionProcessor) prepareWardEvent(
+func (p *MainRegionService) prepareWardEvent(
 	event match_fetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventWard, error) {
@@ -858,7 +859,7 @@ func (p *MainRegionProcessor) prepareWardEvent(
 }
 
 // Set the match winner.
-func (p *MainRegionProcessor) setMatchWinner(
+func (p *MainRegionService) setMatchWinner(
 	event match_fetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 ) error {
@@ -867,5 +868,5 @@ func (p *MainRegionProcessor) setMatchWinner(
 		teamId = *event.WinningTeam
 	}
 
-	return p.MatchService.SetMatchWinner(matchInfo.ID, teamId)
+	return p.MatchRepository.SetMatchWinner(matchInfo.ID, teamId)
 }

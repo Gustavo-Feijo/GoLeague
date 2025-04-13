@@ -1,4 +1,4 @@
-package league_fetcher
+package leaguefetcher
 
 import (
 	"encoding/json"

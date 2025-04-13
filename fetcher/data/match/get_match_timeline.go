@@ -1,4 +1,4 @@
-package match_fetcher
+package matchfetcher
 
 // Default match timeline.
 type MatchTimeline struct {

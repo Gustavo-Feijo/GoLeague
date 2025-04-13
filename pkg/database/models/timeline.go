@@ -1,11 +1,7 @@
 package models
 
 import (
-	"fmt"
 	match_fetcher "goleague/fetcher/data/match"
-	"goleague/pkg/database"
-
-	"gorm.io/gorm"
 )
 
 // The timeline entries are almost always attached to a given player stat entry.
@@ -129,40 +125,4 @@ type ParticipantFrame struct {
 	// Foreign Key
 	MatchStat                       MatchStats `gorm:"MatchStatId"`
 	match_fetcher.ParticipantFrames `gorm:"embedded"`
-}
-
-// Timeline service structure.
-type TimelineService struct {
-	db *gorm.DB
-}
-
-// Create a match service.
-func CreateTimelineService() (*TimelineService, error) {
-	db, err := database.GetConnection()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get database connection: %w", err)
-	}
-	return &TimelineService{db: db}, nil
-}
-
-// Create the participant frames in batches.
-func (ts *TimelineService) CreateBatchParticipantFrame(frames []*ParticipantFrame) error {
-	if len(frames) == 0 {
-		return nil
-	}
-	return ts.db.CreateInBatches(&frames, 1000).Error
-}
-
-// Create a way to make the timeline service available.
-// Need to access the function above, since Go doesn't support it as method.
-func (ts *TimelineService) GetDb() *gorm.DB {
-	return ts.db
-}
-
-// Generic function for creating the events in batches.
-func CreateEventBatch[T any](db *gorm.DB, entities []*T) error {
-	if len(entities) == 0 {
-		return nil
-	}
-	return db.CreateInBatches(&entities, 1000).Error
 }

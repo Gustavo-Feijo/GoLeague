@@ -1,4 +1,4 @@
-package subregion_processor
+package subregionservice
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"goleague/fetcher/data"
 	league_fetcher "goleague/fetcher/data/league"
 	"goleague/fetcher/regions"
+	"goleague/fetcher/repositories"
 	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
 )
@@ -16,13 +17,13 @@ type subRegionConfig struct {
 }
 
 // Type for the sub region main process.
-type SubRegionProcessor struct {
-	config        subRegionConfig
-	fetcher       data.SubFetcher
-	Logger        *logger.NewLogger
-	PlayerService models.PlayerService
-	RatingService models.RatingService
-	SubRegion     regions.SubRegion
+type SubRegionService struct {
+	config           subRegionConfig
+	fetcher          data.SubFetcher
+	Logger           *logger.NewLogger
+	PlayerRepository repositories.PlayerRepository
+	RatingRepository repositories.RatingRepository
+	SubRegion        regions.SubRegion
 }
 
 // Return a default configuration for the sub region.
@@ -32,15 +33,15 @@ func createSubRegionConfig() *subRegionConfig {
 	}
 }
 
-// Create the sub region processor.
-func CreateSubRegionProcessor(fetcher *data.SubFetcher, region regions.SubRegion) (*SubRegionProcessor, error) {
+// Create the sub region service.
+func CreateSubRegionService(fetcher *data.SubFetcher, region regions.SubRegion) (*SubRegionService, error) {
 	// Create the services.
-	ratingService, err := models.CreateRatingService()
+	ratingRepository, err := repositories.NewRatingRepository()
 	if err != nil {
 		return nil, errors.New("failed to start the rating service")
 	}
 
-	PlayerService, err := models.CreatePlayerService()
+	playerRepository, err := repositories.NewPlayerRepository()
 	if err != nil {
 		return nil, errors.New("failed to start the player service")
 	}
@@ -51,19 +52,19 @@ func CreateSubRegionProcessor(fetcher *data.SubFetcher, region regions.SubRegion
 		return nil, fmt.Errorf("failed to start the logger on sub region %s: %v", region, err)
 	}
 
-	// Return the new region processor.
-	return &SubRegionProcessor{
-		config:        *createSubRegionConfig(),
-		fetcher:       *fetcher,
-		Logger:        logger,
-		PlayerService: *PlayerService,
-		RatingService: *ratingService,
-		SubRegion:     region,
+	// Return the new region service.
+	return &SubRegionService{
+		config:           *createSubRegionConfig(),
+		fetcher:          *fetcher,
+		Logger:           logger,
+		PlayerRepository: playerRepository,
+		RatingRepository: ratingRepository,
+		SubRegion:        region,
 	}, nil
 }
 
 // Get a list of the already existing players as well as the entries mapped for the player puuid.
-func (p *SubRegionProcessor) getExistingPlayer(
+func (p *SubRegionService) getExistingPlayer(
 	entries []league_fetcher.LeagueEntry,
 ) (
 	map[string]*models.PlayerInfo,
@@ -81,7 +82,7 @@ func (p *SubRegionProcessor) getExistingPlayer(
 	}
 
 	// Fetch all the players from those puuids.
-	existingPlayers, err := p.PlayerService.GetPlayersByPuuids(puuids)
+	existingPlayers, err := p.PlayerRepository.GetPlayersByPuuids(puuids)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,7 +92,7 @@ func (p *SubRegionProcessor) getExistingPlayer(
 
 // Get the already existing player in the database.
 // Process a given high elo league.
-func (p *SubRegionProcessor) ProcessHighElo(highElo string, queue string) error {
+func (p *SubRegionService) ProcessHighElo(highElo string, queue string) error {
 	// Get the data on the Riot API.
 	highRating, err := p.fetcher.League.GetHighEloLeagueEntries(highElo, queue)
 	if err != nil {
@@ -114,7 +115,7 @@ func (p *SubRegionProcessor) ProcessHighElo(highElo string, queue string) error 
 }
 
 // Process a given league and sub rank.
-func (p *SubRegionProcessor) ProcessLeagueRank(tier string, rank string, queue string) error {
+func (p *SubRegionService) ProcessLeagueRank(tier string, rank string, queue string) error {
 	// Starting page that will be fetched.
 	page := 1
 
@@ -161,7 +162,7 @@ func (p *SubRegionProcessor) ProcessLeagueRank(tier string, rank string, queue s
 }
 
 // Process each player that needs to be  created.
-func (p *SubRegionProcessor) processPlayers(
+func (p *SubRegionService) processPlayers(
 	entries []league_fetcher.LeagueEntry,
 	existingPlayers map[string]*models.PlayerInfo,
 ) ([]*models.PlayerInfo, error) {
@@ -185,7 +186,7 @@ func (p *SubRegionProcessor) processPlayers(
 
 	// Creates the list of players.
 	if len(playersToCreate) > 0 {
-		if err := p.PlayerService.CreatePlayersBatch(playersToCreate); err != nil {
+		if err := p.PlayerRepository.CreatePlayersBatch(playersToCreate); err != nil {
 			return nil, fmt.Errorf("error inserting %v new players: %v", len(playersToCreate), err)
 		}
 
@@ -200,7 +201,7 @@ func (p *SubRegionProcessor) processPlayers(
 }
 
 // Process each rating entry that must be created.
-func (p *SubRegionProcessor) processRatings(
+func (p *SubRegionService) processRatings(
 	existingPlayers map[string]*models.PlayerInfo,
 	entryByPuuid map[string]league_fetcher.LeagueEntry,
 	lastRatings map[uint]*models.RatingEntry,
@@ -217,7 +218,7 @@ func (p *SubRegionProcessor) processRatings(
 		lastRating, exists := lastRatings[player.ID]
 
 		// If the last rating doesn't exist or it changed, then c reate a new rating.
-		if !exists || p.RatingService.RatingNeedsUpdate(lastRating, entry) {
+		if !exists || p.RatingRepository.RatingNeedsUpdate(lastRating, entry) {
 			newRating := models.RatingEntry{
 				PlayerId:     player.ID,
 				Region:       p.SubRegion,
@@ -245,7 +246,7 @@ func (p *SubRegionProcessor) processRatings(
 
 	// Create the ratings.
 	if len(ratingsToCreate) > 0 {
-		if err := p.RatingService.CreateBatchRating(ratingsToCreate); err != nil {
+		if err := p.RatingRepository.CreateBatchRating(ratingsToCreate); err != nil {
 			return nil, fmt.Errorf("error creating rating entries: %v", err)
 		}
 	}
@@ -254,7 +255,7 @@ func (p *SubRegionProcessor) processRatings(
 }
 
 // Process a batch of league entries.
-func (p *SubRegionProcessor) processBatchEntry(entries []league_fetcher.LeagueEntry, queue string) error {
+func (p *SubRegionService) processBatchEntry(entries []league_fetcher.LeagueEntry, queue string) error {
 	// If empty just return.
 	if len(entries) == 0 {
 		return nil
@@ -285,7 +286,7 @@ func (p *SubRegionProcessor) processBatchEntry(entries []league_fetcher.LeagueEn
 	}
 
 	// Get the rating for each player.
-	lastRatings, err := p.RatingService.GetLastRatingEntryByPlayerIdsAndQueue(playerIDs, queue)
+	lastRatings, err := p.RatingRepository.GetLastRatingEntryByPlayerIdsAndQueue(playerIDs, queue)
 	if err != nil {
 		return fmt.Errorf("error fetching last ratings: %v", err)
 	}

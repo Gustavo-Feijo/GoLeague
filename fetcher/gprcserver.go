@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"goleague/fetcher/assets"
-	"goleague/fetcher/regionmanager"
+	regionmanager "goleague/fetcher/region_manager"
 	pb "goleague/pkg/grpc"
 	"goleague/pkg/models/champion"
 	"goleague/pkg/models/image"

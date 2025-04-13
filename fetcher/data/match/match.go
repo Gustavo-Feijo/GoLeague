@@ -1,4 +1,4 @@
-package match_fetcher
+package matchfetcher
 
 import (
 	"encoding/json"

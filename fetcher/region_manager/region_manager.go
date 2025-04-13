@@ -3,9 +3,9 @@ package regionmanager
 import (
 	"fmt"
 	"goleague/fetcher/data"
-	mainregion_processor "goleague/fetcher/data/processors/mainregion"
-	subregion_processor "goleague/fetcher/data/processors/subregion"
 	"goleague/fetcher/regions"
+	mainregion_service "goleague/fetcher/services/main_region"
+	subregion_service "goleague/fetcher/services/sub_region"
 	"log"
 	"sync"
 )
@@ -24,10 +24,10 @@ type RegionManager struct {
 	mainToSub map[regions.MainRegion][]regions.SubRegion
 
 	// List of fetchers the main regions.
-	mainProcessor map[regions.MainRegion]*mainregion_processor.MainRegionProcessor
+	mainService map[regions.MainRegion]*mainregion_service.MainRegionService
 
 	// List of fetchers the sub regions.
-	subProcessor map[regions.SubRegion]*subregion_processor.SubRegionProcessor
+	subService map[regions.SubRegion]*subregion_service.SubRegionService
 
 	mu sync.RWMutex
 }
@@ -38,10 +38,10 @@ func GetRegionManager() *RegionManager {
 	regionManagerOnce.Do(func() {
 		// Create the region manager.
 		regionManagerInstance = &RegionManager{
-			subToMain:     make(map[regions.SubRegion]regions.MainRegion),
-			mainToSub:     make(map[regions.MainRegion][]regions.SubRegion),
-			mainProcessor: make(map[regions.MainRegion]*mainregion_processor.MainRegionProcessor),
-			subProcessor:  make(map[regions.SubRegion]*subregion_processor.SubRegionProcessor),
+			subToMain:   make(map[regions.SubRegion]regions.MainRegion),
+			mainToSub:   make(map[regions.MainRegion][]regions.SubRegion),
+			mainService: make(map[regions.MainRegion]*mainregion_service.MainRegionService),
+			subService:  make(map[regions.SubRegion]*subregion_service.SubRegionService),
 		}
 
 		// Loop through each region and populate it.
@@ -52,13 +52,13 @@ func GetRegionManager() *RegionManager {
 			// Create  the main region fetcher.
 			fetcher := data.CreateMainFetcher(string(MainRegion))
 
-			// Create the processor.
-			processor, err := mainregion_processor.CreateMainRegionProcessor(fetcher, MainRegion)
+			// Create the service.
+			service, err := mainregion_service.CreateMainRegionService(fetcher, MainRegion)
 			if err != nil {
-				log.Fatalf("Couldn't create the processor for region %s: %v", MainRegion, err)
+				log.Fatalf("Couldn't create the service for region %s: %v", MainRegion, err)
 			}
 
-			regionManagerInstance.mainProcessor[MainRegion] = processor
+			regionManagerInstance.mainService[MainRegion] = service
 
 			for _, SubRegion := range SubRegions {
 				// Save the parent of this sub regions.
@@ -67,13 +67,13 @@ func GetRegionManager() *RegionManager {
 				// Create the sub region fetcher.
 				fetcher := data.CreateSubFetcher(string(SubRegion))
 
-				// Create the processor.
-				processor, err := subregion_processor.CreateSubRegionProcessor(fetcher, SubRegion)
+				// Create the service.
+				service, err := subregion_service.CreateSubRegionService(fetcher, SubRegion)
 				if err != nil {
-					log.Fatalf("Couldn't create the processor for region %s: %v", SubRegion, err)
+					log.Fatalf("Couldn't create the service for region %s: %v", SubRegion, err)
 				}
 
-				regionManagerInstance.subProcessor[SubRegion] = processor
+				regionManagerInstance.subService[SubRegion] = service
 			}
 		}
 	})
@@ -82,33 +82,33 @@ func GetRegionManager() *RegionManager {
 }
 
 // Get the fetcher for a given region
-func (m *RegionManager) GetMainProcessor(region regions.MainRegion) (*mainregion_processor.MainRegionProcessor, error) {
+func (m *RegionManager) GetMainService(region regions.MainRegion) (*mainregion_service.MainRegionService, error) {
 	// Lock for reading.
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	// Verify if the processor exists and get it.
-	processor, exists := m.mainProcessor[region]
+	// Verify if the service exists and get it.
+	service, exists := m.mainService[region]
 	if !exists {
 		return nil, fmt.Errorf("the main region %s doesn't exist", region)
 	}
 
-	return processor, nil
+	return service, nil
 }
 
-// Get the processor for a given region
-func (m *RegionManager) GetSubProcessor(region regions.SubRegion) (*subregion_processor.SubRegionProcessor, error) {
+// Get the service for a given region
+func (m *RegionManager) GetSubService(region regions.SubRegion) (*subregion_service.SubRegionService, error) {
 	// Lock for reading.
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	// Verify if the processor exists and get it.
-	processor, exists := m.subProcessor[region]
+	// Verify if the service exists and get it.
+	service, exists := m.subService[region]
 	if !exists {
 		return nil, fmt.Errorf("the sub region %s doesn't exist", region)
 	}
 
-	return processor, nil
+	return service, nil
 }
 
 // Get the parent of a sub region.

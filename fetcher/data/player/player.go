@@ -1,4 +1,4 @@
-package player_fetcher
+package playerfetcher
 
 import (
 	"encoding/json"

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"goleague/fetcher/queue"
-	"goleague/fetcher/regionmanager"
+	regionmanager "goleague/fetcher/region_manager"
 	"goleague/pkg/config"
 	"goleague/pkg/database"
 	"goleague/pkg/database/models"

@@ -1,9 +1,9 @@
-package mainregion_queue
+package mainregionqueue
 
 import (
-	mainregion_processor "goleague/fetcher/data/processors/mainregion"
-	"goleague/fetcher/regionmanager"
+	regionmanager "goleague/fetcher/region_manager"
 	"goleague/fetcher/regions"
+	mainregionservice "goleague/fetcher/services/main_region"
 	"goleague/pkg/database/models"
 	"log"
 	"sync"
@@ -18,7 +18,7 @@ type MainRegionQueueConfig struct {
 // Type for the sub region main process.
 type MainRegionQueue struct {
 	config     MainRegionQueueConfig
-	processor  mainregion_processor.MainRegionProcessor
+	service    mainregionservice.MainRegionService
 	subRegions []regions.SubRegion
 }
 
@@ -31,24 +31,24 @@ func CreateDefaultQueueConfig() *MainRegionQueueConfig {
 
 // Create the main region queue.
 func CreateMainRegionQueue(region regions.MainRegion, rm *regionmanager.RegionManager) (*MainRegionQueue, error) {
-	// Create the processor.
-	processor, err := rm.GetMainProcessor(region)
+	// Create the service.
+	service, err := rm.GetMainService(region)
 	if err != nil {
-		log.Printf("Failed to get main processor for %v: %v", region, err)
+		log.Printf("Failed to get main service for %v: %v", region, err)
 		return nil, err
 	}
 
 	// Get the sub regions to define which region must be fetched.
 	subRegions, err := rm.GetSubRegions(region)
 	if err != nil {
-		log.Printf("Failed to run the main region processor for the region %v: %v", region, err)
+		log.Printf("Failed to run the main region service for the region %v: %v", region, err)
 		return nil, err
 	}
 
-	// Return the new region processor.
+	// Return the new region service.
 	return &MainRegionQueue{
 		config:     *CreateDefaultQueueConfig(),
-		processor:  *processor,
+		service:    *service,
 		subRegions: subRegions,
 	}, nil
 }
@@ -62,7 +62,7 @@ func (q *MainRegionQueue) Run() {
 			player, err := q.processQueue(subRegion)
 			if err != nil && player != nil {
 				// Delay the player next fetch to avoid the queue getting stuck.
-				if err := q.processor.PlayerService.SetDelayedLastFetch(player.ID); err != nil {
+				if err := q.service.PlayerService.SetDelayedLastFetch(player.ID); err != nil {
 					log.Printf("Couldn't delay the next fetch for the player.")
 				}
 			}
@@ -71,7 +71,7 @@ func (q *MainRegionQueue) Run() {
 }
 
 func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
-	player, err := q.processor.PlayerService.GetUnfetchedBySubRegions(subRegion)
+	player, err := q.service.PlayerService.GetUnfetchedBySubRegions(subRegion)
 	if err != nil {
 		log.Printf("Couldn't get any unfetched player on regions %v: %v", subRegion, err)
 		// Could be the first fetch, wait to the sub regions to start filling the database.
@@ -79,7 +79,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 		return nil, err
 	}
 
-	trueMatchList, err := q.processor.GetTrueMatchList(player)
+	trueMatchList, err := q.service.GetTrueMatchList(player)
 	if err != nil {
 		log.Printf("Couldn't get the true match list: %v", err)
 		return player, err
@@ -105,7 +105,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 			// Process matches from the matches channel until closed.
 			for matchId := range jobChan {
 				matchfetchStart := time.Now()
-				matchData, err := q.processor.GetMatchData(matchId)
+				matchData, err := q.service.GetMatchData(matchId)
 				if err != nil {
 					log.Printf("Couldn't get the match data for the match %s: %v", matchId, err)
 					errChan <- err
@@ -114,7 +114,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 
 				matchParseStart := time.Now()
 
-				matchInfo, _, matchStats, err := q.processor.ProcessMatchData(matchData, matchId, subRegion)
+				matchInfo, _, matchStats, err := q.service.ProcessMatchData(matchData, matchId, subRegion)
 				if err != nil {
 					log.Printf("Couldn't process the data for the match %s: %v", matchId, err)
 					errChan <- err
@@ -128,7 +128,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 				}
 
 				timelineFetchStart := time.Now()
-				matchTimeline, err := q.processor.GetMatchTimeline(matchId)
+				matchTimeline, err := q.service.GetMatchTimeline(matchId)
 				if err != nil {
 					log.Printf("Couldn't get the match timeline for the match %s: %v", matchId, err)
 					errChan <- err
@@ -139,7 +139,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 
 				// Lock the processing to avoid deadlocks.
 				mu.Lock()
-				err = q.processor.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo)
+				err = q.service.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo)
 				mu.Unlock()
 
 				if err != nil {
@@ -149,7 +149,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 				}
 
 				// The lock is not needed.
-				q.processor.MatchService.SetFullyFetched(matchInfo.ID)
+				q.service.MatchRepository.SetFullyFetched(matchInfo.ID)
 
 				// Log the complete creation of a given match and the elapsed time for verifying performance.
 				log.Printf("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
@@ -183,7 +183,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 	}
 
 	// Set the last fetch regardless of any match processing errors
-	if err := q.processor.PlayerService.SetFetched(player.ID); err != nil {
+	if err := q.service.PlayerService.SetFetched(player.ID); err != nil {
 		log.Printf("Couldn't set the last fetch date for the player with ID %d: %v", player.ID, err)
 		if processError == nil {
 			processError = err

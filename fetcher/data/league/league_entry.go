@@ -1,4 +1,4 @@
-package league_fetcher
+package leaguefetcher
 
 // Define the type return by the simple league entries.
 type LeagueEntry struct {

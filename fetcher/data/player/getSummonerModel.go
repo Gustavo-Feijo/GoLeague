@@ -1,4 +1,4 @@
-package player_fetcher
+package playerfetcher
 
 // Return of the sub region endpoint.
 type SummonerByPuuid struct {
