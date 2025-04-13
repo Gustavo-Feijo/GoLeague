@@ -5,6 +5,7 @@ type MatchInfo struct {
 	EndOfGameResult string        `json:"endOfGameResult"`
 	GameCreation    RiotTime      `json:"gameCreation"`
 	GameDuration    int           `json:"gameDuration"`
+	GameMode        string        `json:"gameMode"`
 	GameVersion     string        `json:"gameVersion"`
 	Participants    []MatchPlayer `json:"participants"`
 	PlatformId      string        `json:"platformId"`

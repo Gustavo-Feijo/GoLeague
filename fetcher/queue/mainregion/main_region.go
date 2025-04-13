@@ -112,6 +112,13 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 					continue
 				}
 
+				// Skip swiftplay matches.
+				// They can have bots, which mess with the PUUIDs logic.
+				if matchData.Info.GameMode == "SWIFTPLAY" {
+					log.Printf("Match %s is Swiftplay", matchId)
+					continue
+				}
+
 				matchParseStart := time.Now()
 
 				matchInfo, _, matchStats, err := q.service.ProcessMatchData(matchData, matchId, subRegion)
