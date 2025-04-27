@@ -16,6 +16,7 @@ type RatingEntry struct {
 	Queue        string `gorm:"type:queue_type"`
 	Tier         string `gorm:"type:tier_type"`
 	Rank         string `gorm:"type:rank_type"`
+	NumericScore int    `gorm:"index"`
 	LeaguePoints int
 	Wins         int
 	Losses       int

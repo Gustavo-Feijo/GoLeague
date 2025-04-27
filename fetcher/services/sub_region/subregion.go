@@ -9,6 +9,7 @@ import (
 	"goleague/fetcher/repositories"
 	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
+	"goleague/pkg/tiervalues"
 )
 
 // Type for the default configuration.
@@ -239,6 +240,9 @@ func (p *SubRegionService) processRatings(
 				// If it's high elo, it will be nil, just set the ranking as I.
 				newRating.Rank = "I"
 			}
+
+			// Calculate the numeric score before saving.
+			newRating.NumericScore = tiervalues.CalculateRank(newRating.Tier, newRating.Rank, newRating.LeaguePoints)
 
 			ratingsToCreate = append(ratingsToCreate, newRating)
 		}
