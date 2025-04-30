@@ -15,6 +15,7 @@ type MatchInfo struct {
 	MatchWinner    int
 	MatchSurrender bool
 	MatchRemake    bool
+	AverageRating  float64
 	FrameInterval  int64
 	FullyFetched   bool
 	QueueId        int `gorm:"index"`

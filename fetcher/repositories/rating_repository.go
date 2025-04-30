@@ -6,6 +6,8 @@ import (
 	"goleague/fetcher/regions"
 	"goleague/pkg/database"
 	"goleague/pkg/database/models"
+	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -20,6 +22,7 @@ type RatingRepository interface {
 		queue string,
 		lastRating *models.RatingEntry,
 	) (*models.RatingEntry, error)
+	GetAverageRatingOnMatchByPlayerId(ids []uint, matchID uint, matchTimestamp time.Time, queue string) float64
 	GetLastRatingEntryByPlayerIdsAndQueue(ids []uint, queue string) (map[uint]*models.RatingEntry, error)
 	RatingNeedsUpdate(lastRating *models.RatingEntry, entry league_fetcher.LeagueEntry) bool
 }
@@ -98,6 +101,42 @@ func (rs *ratingRepository) CreateRatingEntry(
 	}
 
 	return insertEntry, nil
+}
+
+// Get the closest rating entry to a given match timestamp.
+func (rs *ratingRepository) GetAverageRatingOnMatchByPlayerId(ids []uint, matchID uint, matchTimestamp time.Time, queue string) float64 {
+
+	// Build placeholders for the clause.
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
+
+	query := fmt.Sprintf(`
+	SELECT AVG(sub.numeric_score) AS avg_score
+	FROM (
+    SELECT DISTINCT ON (re.player_id)
+        re.numeric_score
+    FROM rating_entries re
+    JOIN match_infos mi ON mi.id = ?
+    WHERE re.player_id IN (%s)
+    ORDER BY re.player_id, ABS(EXTRACT(EPOCH FROM (re.fetch_time - mi.match_start))) ASC
+	) AS sub;
+	`, placeholders)
+
+	// Coreate the args.
+	args := make([]interface{}, 0, len(ids)+1)
+	args = append(args, matchID)
+	for _, id := range ids {
+		args = append(args, id)
+	}
+
+	// Run query
+	type EntryResult struct {
+		AvgScore float64
+	}
+
+	var results EntryResult
+	rs.db.Raw(query, args...).Scan(&results)
+
+	return results.AvgScore
 }
 
 // Return a map of ratings by the playerID.

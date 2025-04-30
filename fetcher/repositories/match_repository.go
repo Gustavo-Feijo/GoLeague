@@ -15,6 +15,7 @@ type MatchRepository interface {
 	CreateMatchInfo(match *models.MatchInfo) error
 	CreateMatchStats(stats []*models.MatchStats) error
 	GetAlreadyFetchedMatches(riotMatchIDs []string) ([]models.MatchInfo, error)
+	SetAverageRating(matchID uint, rating float64) error
 	SetFrameInterval(matchID uint, interval int64) error
 	SetFullyFetched(matchID uint) error
 	SetMatchWinner(matchID uint, winner int) error
@@ -73,6 +74,13 @@ func (mr *matchRepository) GetAlreadyFetchedMatches(riotMatchIDs []string) ([]mo
 	}
 
 	return allMatches, nil
+}
+
+// Set the average rating for a given match.
+func (mr *matchRepository) SetAverageRating(matchID uint, rating float64) error {
+	return mr.db.Model(&models.MatchInfo{}).
+		Where("id = ?", matchID).
+		Update("average_rating", rating).Error
 }
 
 // Set the frame interval for the match timeline.

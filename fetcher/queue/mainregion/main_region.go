@@ -62,7 +62,7 @@ func (q *MainRegionQueue) Run() {
 			player, err := q.processQueue(subRegion)
 			if err != nil && player != nil {
 				// Delay the player next fetch to avoid the queue getting stuck.
-				if err := q.service.PlayerService.SetDelayedLastFetch(player.ID); err != nil {
+				if err := q.service.PlayerRepository.SetDelayedLastFetch(player.ID); err != nil {
 					log.Printf("Couldn't delay the next fetch for the player.")
 				}
 			}
@@ -71,7 +71,7 @@ func (q *MainRegionQueue) Run() {
 }
 
 func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
-	player, err := q.service.PlayerService.GetUnfetchedBySubRegions(subRegion)
+	player, err := q.service.PlayerRepository.GetUnfetchedBySubRegions(subRegion)
 	if err != nil {
 		log.Printf("Couldn't get any unfetched player on regions %v: %v", subRegion, err)
 		// Could be the first fetch, wait to the sub regions to start filling the database.
@@ -190,7 +190,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 	}
 
 	// Set the last fetch regardless of any match processing errors
-	if err := q.service.PlayerService.SetFetched(player.ID); err != nil {
+	if err := q.service.PlayerRepository.SetFetched(player.ID); err != nil {
 		log.Printf("Couldn't set the last fetch date for the player with ID %d: %v", player.ID, err)
 		if processError == nil {
 			processError = err

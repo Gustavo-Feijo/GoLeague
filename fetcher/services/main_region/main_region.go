@@ -8,6 +8,7 @@ import (
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
 	"goleague/pkg/database/models"
+	queuevalues "goleague/pkg/riotvalues/queue"
 	"log"
 	"strconv"
 	"time"
@@ -23,7 +24,7 @@ type MainRegionService struct {
 	config             mainRegionConfig
 	fetcher            data.MainFetcher
 	MatchRepository    repositories.MatchRepository
-	PlayerService      repositories.PlayerRepository
+	PlayerRepository   repositories.PlayerRepository
 	RatingRepository   repositories.RatingRepository
 	TimelineRepository repositories.TimelineRepository
 	MainRegion         regions.MainRegion
@@ -47,7 +48,7 @@ func CreateMainRegionService(
 		return nil, errors.New("failed to start the rating service")
 	}
 
-	playerService, err := repositories.NewPlayerRepository()
+	PlayerRepository, err := repositories.NewPlayerRepository()
 	if err != nil {
 		return nil, errors.New("failed to start the player service")
 	}
@@ -67,7 +68,7 @@ func CreateMainRegionService(
 		config:             *createMainRegionConfig(),
 		fetcher:            *fetcher,
 		MatchRepository:    matchRepository,
-		PlayerService:      playerService,
+		PlayerRepository:   PlayerRepository,
 		RatingRepository:   ratingRepository,
 		TimelineRepository: timelineRepository,
 		MainRegion:         region,
@@ -318,9 +319,25 @@ func (p *MainRegionService) processPlayersFromMatch(
 	}
 
 	// Create/update the players.
-	if err := p.PlayerService.UpsertPlayerBatch(playersToUpsert); err != nil {
+	if err := p.PlayerRepository.UpsertPlayerBatch(playersToUpsert); err != nil {
 		log.Printf("Couldn't create/update the players for the match %s: %v", matchInfo.MatchId, err)
 		return nil, nil, err
+	}
+
+	var playerIds []uint
+
+	for _, p := range playersToUpsert {
+		playerIds = append(playerIds, p.ID)
+	}
+
+	// Extract the queue value to get from the rating entries.
+	// Must be ranked solo/duo or flex.
+	queue, exists := queuevalues.RankedQueueValue[matchInfo.QueueId]
+	if exists {
+		avgRating := p.RatingRepository.GetAverageRatingOnMatchByPlayerId(playerIds, matchInfo.ID, matchInfo.MatchStart, queue)
+		if err := p.MatchRepository.SetAverageRating(matchInfo.ID, avgRating); err != nil {
+			log.Printf("Couldn't create/update the players for the match %s: %v", matchInfo.MatchId, err)
+		}
 	}
 
 	return playersToUpsert, participantByPuuid, nil

@@ -9,7 +9,7 @@ import (
 	"goleague/fetcher/repositories"
 	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
-	"goleague/pkg/tiervalues"
+	tiervalues "goleague/pkg/riotvalues/tier"
 )
 
 // Type for the default configuration.
