@@ -9,7 +9,6 @@ import (
 	"goleague/pkg/logger"
 	"log"
 	"slices"
-	"sync"
 	"time"
 )
 
@@ -20,19 +19,13 @@ type MainRegionQueueConfig struct {
 
 // Type for the sub region main process.
 type MainRegionQueue struct {
-	config           MainRegionQueueConfig
-	fetchedMatches   int
-	fetchedMatchesMu sync.Mutex
-	logger           *logger.NewLogger
-	mainRegion       regions.MainRegion
-	service          mainregionservice.MainRegionService
-	subRegions       []regions.SubRegion
+	config         MainRegionQueueConfig
+	fetchedMatches int
+	logger         *logger.NewLogger
+	mainRegion     regions.MainRegion
+	service        mainregionservice.MainRegionService
+	subRegions     []regions.SubRegion
 }
-
-var (
-	processError error
-	errorOnce    sync.Once
-)
 
 // Return a default configuration for the sub region.
 func NewDefaultQueueConfig() *MainRegionQueueConfig {
@@ -104,9 +97,7 @@ func (q *MainRegionQueue) Run() {
 			log.Printf("Successfully sent log to s3 with key: %s", objectKey)
 		}
 
-		q.fetchedMatchesMu.Lock()
 		q.fetchedMatches = 0
-		q.fetchedMatchesMu.Unlock()
 		startTime = time.Now()
 	}
 }
