@@ -78,7 +78,7 @@ func (q *MainRegionQueue) Run() {
 		// Loop through each possible subRegion so we can get a evenly distributed amount of matches.
 		for _, subRegion := range q.subRegions {
 			player, err := q.processQueue(subRegion)
-			if err == nil && player == nil {
+			if err == nil || player == nil {
 				continue
 			}
 			// Delay the player next fetch to avoid the queue getting stuck.
