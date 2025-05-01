@@ -53,7 +53,7 @@ func GetRegionManager() *RegionManager {
 			fetcher := data.CreateMainFetcher(string(MainRegion))
 
 			// Create the service.
-			service, err := mainregion_service.CreateMainRegionService(fetcher, MainRegion)
+			service, err := mainregion_service.NewMainRegionService(fetcher, MainRegion)
 			if err != nil {
 				log.Fatalf("Couldn't create the service for region %s: %v", MainRegion, err)
 			}

@@ -1,4 +1,4 @@
-package mainregionservice
+package batchservice
 
 import (
 	"errors"
@@ -10,20 +10,20 @@ import (
 )
 
 // Batch collector used for handling events insertion
-type batchCollector struct {
+type BatchCollector struct {
 	batches map[string][]interface{}
 	mu      sync.Mutex
 }
 
 // Create the batch collector.
-func createBatchCollector() *batchCollector {
-	return &batchCollector{
+func NewBatchCollector() *BatchCollector {
+	return &BatchCollector{
 		batches: make(map[string][]interface{}),
 	}
 }
 
 // Add a event to the collector or create the slice.
-func (bc *batchCollector) Add(eventType string, event interface{}) {
+func (bc *BatchCollector) Add(eventType string, event interface{}) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
@@ -36,7 +36,7 @@ func (bc *batchCollector) Add(eventType string, event interface{}) {
 }
 
 // Process the current stored event batches.
-func (bc *batchCollector) processBatches() error {
+func (bc *BatchCollector) ProcessBatches() error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
