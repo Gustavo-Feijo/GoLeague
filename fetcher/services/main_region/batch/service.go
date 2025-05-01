@@ -11,19 +11,19 @@ import (
 
 // Batch collector used for handling events insertion
 type BatchCollector struct {
-	batches map[string][]interface{}
+	batches map[string][]any
 	mu      sync.Mutex
 }
 
 // Create the batch collector.
 func NewBatchCollector() *BatchCollector {
 	return &BatchCollector{
-		batches: make(map[string][]interface{}),
+		batches: make(map[string][]any),
 	}
 }
 
 // Add a event to the collector or create the slice.
-func (bc *BatchCollector) Add(eventType string, event interface{}) {
+func (bc *BatchCollector) Add(eventType string, event any) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 

@@ -55,12 +55,12 @@ func RevalidateItemCache(language string, itemId string) (*item.Item, error) {
 		}
 
 		// Get the image data.
-		if imgData, ok := itemData["image"].(map[string]interface{}); ok {
+		if imgData, ok := itemData["image"].(map[string]any); ok {
 			newItem.Image = mapToImage(imgData)
 		}
 
 		// Get the gold data.
-		if goldData, ok := itemData["gold"].(map[string]interface{}); ok {
+		if goldData, ok := itemData["gold"].(map[string]any); ok {
 			newItem.Gold = mapToGold(goldData)
 		}
 

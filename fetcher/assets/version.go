@@ -57,7 +57,7 @@ func GetNewVersion() ([]string, error) {
 	}
 
 	// Push the version to the redis.
-	client.RPush(ctx, versionKey, []interface{}{version[0], version[1], version[2]}).Result()
+	client.RPush(ctx, versionKey, []any{version[0], version[1], version[2]}).Result()
 	return version[:3], nil
 }
 

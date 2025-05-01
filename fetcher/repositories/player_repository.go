@@ -136,7 +136,7 @@ func (ps *playerRepository) SetFetched(playerId uint) error {
 	return ps.db.Model(&models.PlayerInfo{}).
 		Where("id = ?", playerId).
 		Updates(
-			map[string]interface{}{
+			map[string]any{
 				"last_match_fetch": time.Now().UTC(),
 				"unfetched_match":  false,
 			},

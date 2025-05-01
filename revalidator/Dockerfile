@@ -14,7 +14,7 @@ COPY pkg ./pkg
 # Run the build.
 RUN CGO_ENABLED=0 GOOS=linux go build -o revalidate ./revalidator
 
-FROM alpine:latest
+FROM alpine:3.21.3
 
 WORKDIR /app
 COPY --from=builder /app/revalidate /app/revalidator

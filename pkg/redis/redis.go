@@ -46,6 +46,6 @@ func (r *RedisClient) Get(ctx context.Context, key string) (string, error) {
 }
 
 // Wrapper to already return the .Err()
-func (r *RedisClient) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+func (r *RedisClient) Set(ctx context.Context, key string, value any, ttl time.Duration) error {
 	return r.Client.Set(ctx, key, value, ttl).Err()
 }

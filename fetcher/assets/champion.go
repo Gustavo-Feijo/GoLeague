@@ -49,7 +49,7 @@ func RevalidateChampionCache(language string, championId string) (*champion.Cham
 	championKeys := make(chan string, len(championsData.Data))
 
 	// Start workers
-	for i := 0; i < workerCount; i++ {
+	for range workerCount {
 		go func() {
 			for championKey := range championKeys {
 				RevalidateSingleChampionByKey(language, championKey)
@@ -110,7 +110,7 @@ func RevalidateSingleChampionByKey(language string, championKey string) (*champi
 	if err := json.NewDecoder(resp.Body).Decode(&championsData); err != nil {
 		return nil, fmt.Errorf("couldn't convert the body to json: %v", err)
 	}
-	championData, ok := championsData.Data[championKey].(map[string]interface{})
+	championData, ok := championsData.Data[championKey].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("invalid data format for champion: %s", championKey)
 	}
@@ -124,21 +124,21 @@ func RevalidateSingleChampionByKey(language string, championKey string) (*champi
 	}
 
 	// Set the champion image.
-	if imgData, ok := championData["image"].(map[string]interface{}); ok {
+	if imgData, ok := championData["image"].(map[string]any); ok {
 		champ.Image = mapToImage(imgData)
 	}
 
 	// Map the spells.
-	if spellsData, ok := championData["spells"].([]interface{}); ok {
+	if spellsData, ok := championData["spells"].([]any); ok {
 		champ.Spells = make([]champion.Spell, len(spellsData))
 		for i, spellData := range spellsData {
-			spellMap := spellData.(map[string]interface{})
+			spellMap := spellData.(map[string]any)
 			champ.Spells[i] = mapToSpell(spellMap, champ.ID)
 		}
 	}
 
 	// Handle passive
-	if passiveData, ok := championData["passive"].(map[string]interface{}); ok {
+	if passiveData, ok := championData["passive"].(map[string]any); ok {
 		champ.Passive = mapToSpell(passiveData, champ.ID)
 	}
 

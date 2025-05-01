@@ -35,12 +35,12 @@ func CreateLogger() (*NewLogger, error) {
 }
 
 // Log a simple info.
-func (l *NewLogger) Infof(format string, args ...interface{}) {
+func (l *NewLogger) Infof(format string, args ...any) {
 	l.write("[INFO]", format, args...)
 }
 
 // Log a error.
-func (l *NewLogger) Errorf(format string, args ...interface{}) {
+func (l *NewLogger) Errorf(format string, args ...any) {
 	l.write("[ERROR]", format, args...)
 }
 
@@ -50,7 +50,7 @@ func (l *NewLogger) EmptyLine() {
 }
 
 // Write something to the logger.
-func (l *NewLogger) write(infoType string, format string, args ...interface{}) {
+func (l *NewLogger) write(infoType string, format string, args ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 

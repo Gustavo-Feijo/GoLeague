@@ -122,7 +122,7 @@ func (rs *ratingRepository) GetAverageRatingOnMatchByPlayerId(ids []uint, matchI
 	`, placeholders)
 
 	// Coreate the args.
-	args := make([]interface{}, 0, len(ids)+1)
+	args := make([]any, 0, len(ids)+1)
 	args = append(args, matchID)
 	for _, id := range ids {
 		args = append(args, id)

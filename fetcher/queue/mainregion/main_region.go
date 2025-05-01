@@ -20,12 +20,13 @@ type MainRegionQueueConfig struct {
 
 // Type for the sub region main process.
 type MainRegionQueue struct {
-	config         MainRegionQueueConfig
-	fetchedMatches int
-	logger         *logger.NewLogger
-	mainRegion     regions.MainRegion
-	service        mainregionservice.MainRegionService
-	subRegions     []regions.SubRegion
+	config           MainRegionQueueConfig
+	fetchedMatches   int
+	fetchedMatchesMu sync.Mutex
+	logger           *logger.NewLogger
+	mainRegion       regions.MainRegion
+	service          mainregionservice.MainRegionService
+	subRegions       []regions.SubRegion
 }
 
 var (
@@ -77,32 +78,36 @@ func (q *MainRegionQueue) Run() {
 		// Loop through each possible subRegion so we can get a evenly distributed amount of matches.
 		for _, subRegion := range q.subRegions {
 			player, err := q.processQueue(subRegion)
-			if err != nil && player != nil {
-				// Delay the player next fetch to avoid the queue getting stuck.
-				if err := q.service.PlayerRepository.SetDelayedLastFetch(player.ID); err != nil {
-					q.logger.Errorf("Couldn't delay the next fetch for the player.")
-				}
+			if err == nil && player == nil {
+				continue
 			}
+			// Delay the player next fetch to avoid the queue getting stuck.
+			if err := q.service.PlayerRepository.SetDelayedLastFetch(player.ID); err != nil {
+				q.logger.Errorf("Couldn't delay the next fetch for the player.")
+			}
+
+		}
+
+		if q.fetchedMatches < 100 {
+			continue
 		}
 
 		// if we processed 100 matches, upload the log and continue fetching.
-		if q.fetchedMatches >= 10 {
-			q.logger.EmptyLine()
-			q.logger.Infof("Finished executing after %v minutes.", time.Since(startTime).Minutes())
-			objectKey := fmt.Sprintf("mainregions/%s/%s.log", q.mainRegion, time.Now().Format("2006-01-02-15-04-05"))
-			if err := q.logger.UploadToS3Bucket(objectKey); err != nil {
-				log.Printf("Couldn't send the log to s3: %v", err)
+		q.logger.EmptyLine()
+		q.logger.Infof("Finished executing after %v minutes.", time.Since(startTime).Minutes())
 
-				// Clean the file in the case it was a S3 error and not a file error.
-				q.logger.CleanFile()
-			} else {
-				log.Printf("Successfully sent log to s3 with key: %s", objectKey)
-			}
-
-			// Reset the  values for the next run.
-			q.fetchedMatches = 0
-			startTime = time.Now()
+		objectKey := fmt.Sprintf("mainregions/%s/%s.log", q.mainRegion, time.Now().Format("2006-01-02-15-04-05"))
+		if err := q.logger.UploadToS3Bucket(objectKey); err != nil {
+			log.Printf("Couldn't send the log to s3: %v", err)
+			q.logger.CleanFile()
+		} else {
+			log.Printf("Successfully sent log to s3 with key: %s", objectKey)
 		}
+
+		q.fetchedMatchesMu.Lock()
+		q.fetchedMatches = 0
+		q.fetchedMatchesMu.Unlock()
+		startTime = time.Now()
 	}
 }
 
@@ -216,9 +221,9 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 					timelineFetchStart.Sub(matchParseStart).Seconds()+time.Since(timelineParseStart).Seconds(),
 				)
 
-				mu.Lock()
+				q.fetchedMatchesMu.Lock()
 				q.fetchedMatches++
-				mu.Unlock()
+				q.fetchedMatchesMu.Unlock()
 			}
 		}()
 	}

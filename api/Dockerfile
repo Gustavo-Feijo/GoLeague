@@ -13,7 +13,7 @@ COPY /pkg ./pkg
 # Run the build.
 RUN CGO_ENABLED=0 GOOS=linux  go build -o api ./api
 
-FROM alpine:latest
+FROM alpine:3.21.3
 
 WORKDIR /app
 COPY --from=builder /app/api/api /app/api

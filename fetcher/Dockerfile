@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o fetcher ./fetcher
 RUN wget -O /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.37/grpc_health_probe-linux-amd64 && \
   chmod +x /bin/grpc_health_probe
 
-FROM alpine:latest
+FROM alpine:3.21.3
 
 WORKDIR /app
 COPY --from=builder /app/fetcher/fetcher /app/fetcher

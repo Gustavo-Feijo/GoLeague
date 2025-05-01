@@ -78,28 +78,27 @@ func (mr *matchRepository) GetAlreadyFetchedMatches(riotMatchIDs []string) ([]mo
 
 // Set the average rating for a given match.
 func (mr *matchRepository) SetAverageRating(matchID uint, rating float64) error {
-	return mr.db.Model(&models.MatchInfo{}).
-		Where("id = ?", matchID).
-		Update("average_rating", rating).Error
+	return mr.updateMatchField(matchID, "average_rating", rating)
 }
 
 // Set the frame interval for the match timeline.
 func (mr *matchRepository) SetFrameInterval(matchID uint, interval int64) error {
-	return mr.db.Model(&models.MatchInfo{}).
-		Where("id = ?", matchID).
-		Update("frame_interval", interval).Error
+	return mr.updateMatchField(matchID, "frame_interval", interval)
 }
 
 // Set a match as fully fetched.
 func (mr *matchRepository) SetFullyFetched(matchID uint) error {
-	return mr.db.Model(&models.MatchInfo{}).
-		Where("id = ?", matchID).
-		Update("fully_fetched", true).Error
+	return mr.updateMatchField(matchID, "fully_fetched", true)
 }
 
 // Set the match winner team id.
 func (mr *matchRepository) SetMatchWinner(matchID uint, winner int) error {
+	return mr.updateMatchField(matchID, "match_winner", winner)
+}
+
+// Generic update helper for a single field in MatchInfo.
+func (mr *matchRepository) updateMatchField(matchID uint, field string, value any) error {
 	return mr.db.Model(&models.MatchInfo{}).
 		Where("id = ?", matchID).
-		Update("match_winner", winner).Error
+		Update(field, value).Error
 }

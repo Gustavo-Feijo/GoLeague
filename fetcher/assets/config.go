@@ -16,10 +16,10 @@ var ctx = context.Background()
 
 // Definition for extracting the champion data.
 type fullChampion struct {
-	Data map[string]interface{} `json:"data"`
+	Data map[string]any `json:"data"`
 }
 
 // Definition for extracting the item data.
 type fullItem struct {
-	Data map[string]map[string]interface{} `json:"data"`
+	Data map[string]map[string]any `json:"data"`
 }

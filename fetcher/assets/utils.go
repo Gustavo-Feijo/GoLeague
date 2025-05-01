@@ -7,7 +7,7 @@ import (
 )
 
 // Convert the default map from the DDragon to a image type.
-func mapToImage(imgData map[string]interface{}) image.Image {
+func mapToImage(imgData map[string]any) image.Image {
 	return image.Image{
 		Full:   imgData["full"].(string),
 		Sprite: imgData["sprite"].(string),
@@ -19,7 +19,7 @@ func mapToImage(imgData map[string]interface{}) image.Image {
 }
 
 // Convert the default map from the DDragon to a spell type.
-func mapToSpell(spellData map[string]interface{}, championID string) champion.Spell {
+func mapToSpell(spellData map[string]any, championID string) champion.Spell {
 	spell := champion.Spell{
 		ID:          getStringOrDefault(spellData, "id"),
 		Name:        spellData["name"].(string),
@@ -30,7 +30,7 @@ func mapToSpell(spellData map[string]interface{}, championID string) champion.Sp
 	}
 
 	// Get the spell image.
-	if imgData, ok := spellData["image"].(map[string]interface{}); ok {
+	if imgData, ok := spellData["image"].(map[string]any); ok {
 		spell.Image = mapToImage(imgData)
 	}
 
@@ -38,7 +38,7 @@ func mapToSpell(spellData map[string]interface{}, championID string) champion.Sp
 }
 
 // Convert the gold of the item to a gold type.
-func mapToGold(goldData map[string]interface{}) item.Gold {
+func mapToGold(goldData map[string]any) item.Gold {
 	gold := item.Gold{
 		Base:        uint16(goldData["base"].(float64)),
 		Total:       uint16(goldData["total"].(float64)),
@@ -50,7 +50,7 @@ func mapToGold(goldData map[string]interface{}) item.Gold {
 }
 
 // Return the string if it's available, else returns a empty string.
-func getStringOrDefault(data map[string]interface{}, key string) string {
+func getStringOrDefault(data map[string]any, key string) string {
 	if val, ok := data[key].(string); ok {
 		return val
 	}

@@ -18,7 +18,7 @@ func NewRouter(engine *gin.Engine) *Router {
 	}
 }
 
-func (r *Router) SetupRoutes(handlerList ...interface{}) {
+func (r *Router) SetupRoutes(handlerList ...any) {
 	for _, h := range handlerList {
 		switch handler := h.(type) {
 		case *handlers.TierlistHandler:
