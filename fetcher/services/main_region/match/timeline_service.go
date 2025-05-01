@@ -101,6 +101,7 @@ func (t *TimelineService) ProcessMatchTimeline(
 		// Loop through each event frame available.
 		for _, event := range frame.Event {
 			if err := eventService.PrepareEvents(event, matchInfo, statIdByParticipantId, eventCollector); err != nil {
+				// Don't need to add to the logger, usually associated with monsters not being killed before the next one spawns.
 				log.Printf("Couldn't insert event %s on timestamp %d on match %s: %v", event.Type, event.Timestamp, matchInfo.MatchId, err)
 			}
 		}
@@ -108,8 +109,7 @@ func (t *TimelineService) ProcessMatchTimeline(
 
 	// Insert the participant frames in a batch.
 	if err := t.TimelineRepository.CreateBatchParticipantFrame(framesToInsert); err != nil {
-		log.Printf("Couldn't insert the participant frames on match %s: %v", matchInfo.MatchId, err)
-		return err
+		return fmt.Errorf("couldn't insert the participant frames on match %s: %v", matchInfo.MatchId, err)
 	}
 
 	// Process the events.
