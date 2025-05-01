@@ -19,7 +19,7 @@ func StartQueue(rm *regionmanager.RegionManager) {
 		go func(region regions.MainRegion) {
 			defer wg.Done()
 			// Create the main region queue instance.
-			queue, err := mainregion_queue.CreateMainRegionQueue(region, rm)
+			queue, err := mainregion_queue.NewMainRegionQueue(region, rm)
 			if err != nil {
 				log.Printf("Something went wrong at queue start for region %s: %v", region, err)
 				return
@@ -37,7 +37,7 @@ func StartQueue(rm *regionmanager.RegionManager) {
 				defer wg.Done()
 
 				// Create the subregion queue instance.
-				queue, err := subregion_queue.CreateSubRegionQueue(sr, rm)
+				queue, err := subregion_queue.NewSubRegionQueue(sr, rm)
 				if err != nil {
 					log.Printf("Something went wrong at queue start for subregion %s: %v", sr, err)
 					return

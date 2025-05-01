@@ -8,9 +8,9 @@ import (
 	match_fetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
-	eventservice "goleague/fetcher/services/events"
-	matchservice "goleague/fetcher/services/match"
-	playerservice "goleague/fetcher/services/player"
+	eventservice "goleague/fetcher/services/main_region/events"
+	matchservice "goleague/fetcher/services/main_region/match"
+	playerservice "goleague/fetcher/services/main_region/player"
 	"goleague/pkg/database/models"
 	"log"
 	"time"
@@ -37,7 +37,7 @@ type MainRegionService struct {
 }
 
 // Create the main region default config.
-func createMainRegionConfig() *MainRegionConfig {
+func newMainRegionConfig() *MainRegionConfig {
 	return &MainRegionConfig{
 		MaxRetries: 3,
 	}
@@ -69,7 +69,7 @@ func NewMainRegionService(
 		return nil, errors.New("failed to start the timeline service")
 	}
 
-	config := *createMainRegionConfig()
+	config := *newMainRegionConfig()
 
 	// Create the services
 

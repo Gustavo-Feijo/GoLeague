@@ -22,7 +22,7 @@ type Sub_player_fetcher struct {
 }
 
 // Create a player fetcher.
-func CreatePlayerFetcher(limiter *requests.RateLimiter, region string) *Player_fetcher {
+func NewPlayerFetcher(limiter *requests.RateLimiter, region string) *Player_fetcher {
 	return &Player_fetcher{
 		limiter,
 		region,
@@ -30,7 +30,7 @@ func CreatePlayerFetcher(limiter *requests.RateLimiter, region string) *Player_f
 }
 
 // Create a player fetcher.
-func CreateSubPlayerFetcher(limiter *requests.RateLimiter, region string) *Sub_player_fetcher {
+func NewSubPlayerFetcher(limiter *requests.RateLimiter, region string) *Sub_player_fetcher {
 	return &Sub_player_fetcher{
 		limiter,
 		region,

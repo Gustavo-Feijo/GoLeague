@@ -22,26 +22,26 @@ type SubFetcher struct {
 }
 
 // Function to instanciate the main fetcher.
-func CreateMainFetcher(region string) *MainFetcher {
+func NewMainFetcher(region string) *MainFetcher {
 	// Create the limiter for this region.
-	limiter := requests.CreateRateLimiter()
+	limiter := requests.NewRateLimiter()
 
 	// Return the fetcher with it's player instance for queries.
 	return &MainFetcher{
-		Player: player_fetcher.CreatePlayerFetcher(limiter, region),
-		Match:  match_fetcher.CreateMatchFetcher(limiter, region),
-		League: league_fetcher.CreateLeagueFetcher(limiter, region),
+		Player: player_fetcher.NewPlayerFetcher(limiter, region),
+		Match:  match_fetcher.NewMatchFetcher(limiter, region),
+		League: league_fetcher.NewLeagueFetcher(limiter, region),
 	}
 }
 
-func CreateSubFetcher(region string) *SubFetcher {
+func NewSubFetcher(region string) *SubFetcher {
 	// Create the limiter for this region.
-	limiter := requests.CreateRateLimiter()
+	limiter := requests.NewRateLimiter()
 
 	// Return the fetcher with it's player instance for queries.
 	return &SubFetcher{
-		Player: player_fetcher.CreateSubPlayerFetcher(limiter, region),
-		Match:  match_fetcher.CreateSubMatchFetcher(limiter, region),
-		League: league_fetcher.CreateSubLeagueFetcher(limiter, region),
+		Player: player_fetcher.NewSubPlayerFetcher(limiter, region),
+		Match:  match_fetcher.NewSubMatchFetcher(limiter, region),
+		League: league_fetcher.NewSubLeagueFetcher(limiter, region),
 	}
 }

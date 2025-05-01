@@ -20,7 +20,7 @@ type Sub_league_Fetcher struct {
 }
 
 // Create a league fetcher.
-func CreateLeagueFetcher(limiter *requests.RateLimiter, region string) *League_Fetcher {
+func NewLeagueFetcher(limiter *requests.RateLimiter, region string) *League_Fetcher {
 	return &League_Fetcher{
 		limiter,
 		region,
@@ -28,7 +28,7 @@ func CreateLeagueFetcher(limiter *requests.RateLimiter, region string) *League_F
 }
 
 // Create a league fetcher.
-func CreateSubLeagueFetcher(limiter *requests.RateLimiter, region string) *Sub_league_Fetcher {
+func NewSubLeagueFetcher(limiter *requests.RateLimiter, region string) *Sub_league_Fetcher {
 	return &Sub_league_Fetcher{
 		limiter,
 		region,

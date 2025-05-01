@@ -28,7 +28,7 @@ type RateLimiter struct {
 }
 
 // Create a instance of the rate limiter.
-func CreateRateLimiter() *RateLimiter {
+func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{
 		// Hardcoded values for now.
 		windows: []*RiotLimit{

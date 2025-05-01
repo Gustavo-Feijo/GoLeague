@@ -5,7 +5,7 @@ import (
 	"fmt"
 	match_fetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/repositories"
-	batchservice "goleague/fetcher/services/batch"
+	batchservice "goleague/fetcher/services/main_region/batch"
 	"goleague/pkg/database/models"
 
 	"strconv"

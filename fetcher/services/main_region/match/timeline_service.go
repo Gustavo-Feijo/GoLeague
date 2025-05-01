@@ -5,8 +5,8 @@ import (
 	"goleague/fetcher/data"
 	match_fetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/repositories"
-	batchservice "goleague/fetcher/services/batch"
-	eventservice "goleague/fetcher/services/events"
+	batchservice "goleague/fetcher/services/main_region/batch"
+	eventservice "goleague/fetcher/services/main_region/events"
 	"goleague/pkg/database/models"
 
 	"log"

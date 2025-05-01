@@ -50,7 +50,7 @@ func GetRegionManager() *RegionManager {
 			regionManagerInstance.mainToSub[MainRegion] = SubRegions
 
 			// Create  the main region fetcher.
-			fetcher := data.CreateMainFetcher(string(MainRegion))
+			fetcher := data.NewMainFetcher(string(MainRegion))
 
 			// Create the service.
 			service, err := mainregion_service.NewMainRegionService(fetcher, MainRegion)
@@ -65,10 +65,10 @@ func GetRegionManager() *RegionManager {
 				regionManagerInstance.subToMain[SubRegion] = MainRegion
 
 				// Create the sub region fetcher.
-				fetcher := data.CreateSubFetcher(string(SubRegion))
+				fetcher := data.NewSubFetcher(string(SubRegion))
 
 				// Create the service.
-				service, err := subregion_service.CreateSubRegionService(fetcher, SubRegion)
+				service, err := subregion_service.NewSubRegionService(fetcher, SubRegion)
 				if err != nil {
 					log.Fatalf("Couldn't create the service for region %s: %v", SubRegion, err)
 				}

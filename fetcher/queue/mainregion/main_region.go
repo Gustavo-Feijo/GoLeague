@@ -23,14 +23,14 @@ type MainRegionQueue struct {
 }
 
 // Return a default configuration for the sub region.
-func CreateDefaultQueueConfig() *MainRegionQueueConfig {
+func NewDefaultQueueConfig() *MainRegionQueueConfig {
 	return &MainRegionQueueConfig{
 		SleepDuration: 5 * time.Second,
 	}
 }
 
 // Create the main region queue.
-func CreateMainRegionQueue(region regions.MainRegion, rm *regionmanager.RegionManager) (*MainRegionQueue, error) {
+func NewMainRegionQueue(region regions.MainRegion, rm *regionmanager.RegionManager) (*MainRegionQueue, error) {
 	// Create the service.
 	service, err := rm.GetMainService(region)
 	if err != nil {
@@ -47,7 +47,7 @@ func CreateMainRegionQueue(region regions.MainRegion, rm *regionmanager.RegionMa
 
 	// Return the new region service.
 	return &MainRegionQueue{
-		config:     *CreateDefaultQueueConfig(),
+		config:     *NewDefaultQueueConfig(),
 		service:    *service,
 		subRegions: subRegions,
 	}, nil

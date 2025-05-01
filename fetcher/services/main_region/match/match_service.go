@@ -7,7 +7,7 @@ import (
 	matchfetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
-	playerservice "goleague/fetcher/services/player"
+	playerservice "goleague/fetcher/services/main_region/player"
 	"goleague/pkg/database/models"
 	"log"
 
