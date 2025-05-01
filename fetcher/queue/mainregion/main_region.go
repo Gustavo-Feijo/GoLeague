@@ -111,6 +111,7 @@ func (q *MainRegionQueue) Run() {
 	}
 }
 
+// Process each match in order.
 func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
 	player, err := q.service.PlayerRepository.GetUnfetchedBySubRegions(subRegion)
 	if err != nil {
@@ -130,118 +131,68 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 		return player, err
 	}
 
-	// Number of max concurrent workers.
-	// For the queue with a low rate limit, 2 workers are used to avoid the total fetch time of a match to be greater than the interval.
-	const maxWorkers = 2
-
-	// WaitGroup and mutex.
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-
-	jobChan := make(chan string, len(trueMatchList))
-
-	// Start worker goroutines
-	for range maxWorkers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			// Process matches from the matches channel until closed.
-			for matchId := range jobChan {
-				matchfetchStart := time.Now()
-				matchData, err := q.service.GetMatchData(matchId)
-				if err != nil {
-					q.logger.Errorf("Couldn't get the match data for the match %s: %v", matchId, err)
-					errorOnce.Do(func() {
-						processError = err
-					})
-					continue
-				}
-
-				// Skip modes that are not treated.
-				// They can have bots, which mess with the PUUIDs logic.
-				if !slices.Contains([]int{400, 420, 430, 440, 450, 490, 900, 1020, 1300, 1400, 1700, 1710, 1900}, matchData.Info.QueueId) {
-					q.logger.Errorf("Match %s is of untreated gamemode: %d", matchId, matchData.Info.QueueId)
-					continue
-				}
-
-				matchParseStart := time.Now()
-
-				mu.Lock()
-				matchInfo, _, matchStats, err := q.service.ProcessMatchData(matchData, matchId, subRegion)
-				mu.Unlock()
-
-				if err != nil {
-					q.logger.Errorf("Couldn't process the data for the match %s: %v", matchId, err)
-					errorOnce.Do(func() {
-						processError = err
-					})
-					continue
-				}
-
-				// Create a map of each inserted stat id by the puuid.
-				statByPuuid := make(map[string]uint64)
-				for _, stat := range matchStats {
-					statByPuuid[stat.PlayerData.Puuid] = stat.ID
-				}
-
-				timelineFetchStart := time.Now()
-				matchTimeline, err := q.service.GetMatchTimeline(matchId)
-				if err != nil {
-					q.logger.Errorf("Couldn't get the match timeline for the match %s: %v", matchId, err)
-					errorOnce.Do(func() {
-						processError = err
-					})
-					continue
-				}
-
-				timelineParseStart := time.Now()
-
-				// Lock the processing to avoid deadlocks.
-				mu.Lock()
-				err = q.service.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo)
-				mu.Unlock()
-
-				if err != nil {
-					q.logger.Errorf("Couldn't process the timeline data for the match %s: %v", matchId, err)
-					errorOnce.Do(func() {
-						processError = err
-					})
-					continue
-				}
-
-				// The lock is not needed.
-				q.service.MatchRepository.SetFullyFetched(matchInfo.ID)
-
-				// Log the complete creation of a given match and the elapsed time for verifying performance.
-				q.logger.Infof("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
-					matchId,
-					time.Since(matchfetchStart).Seconds(),
-					matchParseStart.Sub(matchfetchStart).Seconds()+timelineParseStart.Sub(timelineFetchStart).Seconds(),
-					timelineFetchStart.Sub(matchParseStart).Seconds()+time.Since(timelineParseStart).Seconds(),
-				)
-
-				q.fetchedMatchesMu.Lock()
-				q.fetchedMatches++
-				q.fetchedMatchesMu.Unlock()
-			}
-		}()
-	}
-
-	// Send the matches to the channel.
+	// Process matches from the matches channel until closed.
 	for _, matchId := range trueMatchList {
-		jobChan <- matchId
-	}
+		matchfetchStart := time.Now()
+		matchData, err := q.service.GetMatchData(matchId)
+		if err != nil {
+			q.logger.Errorf("Couldn't get the match data for the match %s: %v", matchId, err)
+			return player, err
+		}
 
-	close(jobChan)
+		// Skip modes that are not treated.
+		// They can have bots, which mess with the PUUIDs logic.
+		if !slices.Contains([]int{400, 420, 430, 440, 450, 490, 900, 1020, 1300, 1400, 1700, 1710, 1900}, matchData.Info.QueueId) {
+			q.logger.Errorf("Match %s is of untreated gamemode: %d", matchId, matchData.Info.QueueId)
+			continue
+		}
+
+		matchParseStart := time.Now()
+
+		matchInfo, _, matchStats, err := q.service.ProcessMatchData(matchData, matchId, subRegion)
+		if err != nil {
+			q.logger.Errorf("Couldn't process the data for the match %s: %v", matchId, err)
+			return player, err
+		}
+
+		// Create a map of each inserted stat id by the puuid.
+		statByPuuid := make(map[string]uint64)
+		for _, stat := range matchStats {
+			statByPuuid[stat.PlayerData.Puuid] = stat.ID
+		}
+
+		timelineFetchStart := time.Now()
+		matchTimeline, err := q.service.GetMatchTimeline(matchId)
+		if err != nil {
+			q.logger.Errorf("Couldn't get the match timeline for the match %s: %v", matchId, err)
+			return player, err
+		}
+
+		timelineParseStart := time.Now()
+		err = q.service.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo)
+
+		if err != nil {
+			q.logger.Errorf("Couldn't process the timeline data for the match %s: %v", matchId, err)
+			return player, err
+		}
+
+		q.service.MatchRepository.SetFullyFetched(matchInfo.ID)
+
+		// Log the complete creation of a given match and the elapsed time for verifying performance.
+		q.logger.Infof("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
+			matchId,
+			time.Since(matchfetchStart).Seconds(),
+			matchParseStart.Sub(matchfetchStart).Seconds()+timelineParseStart.Sub(timelineFetchStart).Seconds(),
+			timelineFetchStart.Sub(matchParseStart).Seconds()+time.Since(timelineParseStart).Seconds(),
+		)
+
+		q.fetchedMatches++
+	}
 
 	// Set the last fetch regardless of any match processing errors
 	if err := q.service.PlayerRepository.SetFetched(player.ID); err != nil {
 		q.logger.Errorf("Couldn't set the last fetch date for the player with ID %d: %v", player.ID, err)
-		if processError == nil {
-			processError = err
-		}
 	}
 
-	return player, processError
+	return player, nil
 }
