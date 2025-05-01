@@ -1,11 +1,14 @@
 package mainregionqueue
 
 import (
+	"fmt"
 	regionmanager "goleague/fetcher/region_manager"
 	"goleague/fetcher/regions"
 	mainregionservice "goleague/fetcher/services/main_region"
 	"goleague/pkg/database/models"
+	"goleague/pkg/logger"
 	"log"
+	"slices"
 	"sync"
 	"time"
 )
@@ -17,10 +20,18 @@ type MainRegionQueueConfig struct {
 
 // Type for the sub region main process.
 type MainRegionQueue struct {
-	config     MainRegionQueueConfig
-	service    mainregionservice.MainRegionService
-	subRegions []regions.SubRegion
+	config         MainRegionQueueConfig
+	fetchedMatches int
+	logger         *logger.NewLogger
+	mainRegion     regions.MainRegion
+	service        mainregionservice.MainRegionService
+	subRegions     []regions.SubRegion
 }
+
+var (
+	processError error
+	errorOnce    sync.Once
+)
 
 // Return a default configuration for the sub region.
 func NewDefaultQueueConfig() *MainRegionQueueConfig {
@@ -41,13 +52,17 @@ func NewMainRegionQueue(region regions.MainRegion, rm *regionmanager.RegionManag
 	// Get the sub regions to define which region must be fetched.
 	subRegions, err := rm.GetSubRegions(region)
 	if err != nil {
-		log.Printf("Failed to run the main region service for the region %v: %v", region, err)
+		log.Printf("Failed to get the sub regions for: %v: %v", region, err)
 		return nil, err
 	}
+
+	logger := service.GetLogger()
 
 	// Return the new region service.
 	return &MainRegionQueue{
 		config:     *NewDefaultQueueConfig(),
+		logger:     logger,
+		mainRegion: region,
 		service:    *service,
 		subRegions: subRegions,
 	}, nil
@@ -55,6 +70,8 @@ func NewMainRegionQueue(region regions.MainRegion, rm *regionmanager.RegionManag
 
 // Run the main region.
 func (q *MainRegionQueue) Run() {
+	startTime := time.Now()
+
 	// Infinite loop, must be always getting data.
 	for {
 		// Loop through each possible subRegion so we can get a evenly distributed amount of matches.
@@ -63,9 +80,28 @@ func (q *MainRegionQueue) Run() {
 			if err != nil && player != nil {
 				// Delay the player next fetch to avoid the queue getting stuck.
 				if err := q.service.PlayerRepository.SetDelayedLastFetch(player.ID); err != nil {
-					log.Printf("Couldn't delay the next fetch for the player.")
+					q.logger.Errorf("Couldn't delay the next fetch for the player.")
 				}
 			}
+		}
+
+		// if we processed 100 matches, upload the log and continue fetching.
+		if q.fetchedMatches >= 10 {
+			q.logger.EmptyLine()
+			q.logger.Infof("Finished executing after %v minutes.", time.Since(startTime).Minutes())
+			objectKey := fmt.Sprintf("mainregions/%s/%s.log", q.mainRegion, time.Now().Format("2006-01-02-15-04-05"))
+			if err := q.logger.UploadToS3Bucket(objectKey); err != nil {
+				log.Printf("Couldn't send the log to s3: %v", err)
+
+				// Clean the file in the case it was a S3 error and not a file error.
+				q.logger.CleanFile()
+			} else {
+				log.Printf("Successfully sent log to s3 with key: %s", objectKey)
+			}
+
+			// Reset the  values for the next run.
+			q.fetchedMatches = 0
+			startTime = time.Now()
 		}
 	}
 }
@@ -73,15 +109,19 @@ func (q *MainRegionQueue) Run() {
 func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
 	player, err := q.service.PlayerRepository.GetUnfetchedBySubRegions(subRegion)
 	if err != nil {
-		log.Printf("Couldn't get any unfetched player on regions %v: %v", subRegion, err)
+		q.logger.Errorf("Couldn't get any unfetched player on regions %v: %v", subRegion, err)
 		// Could be the first fetch, wait to the sub regions to start filling the database.
-		time.Sleep(5 * time.Second)
+		time.Sleep(q.config.SleepDuration)
 		return nil, err
 	}
 
+	q.logger.EmptyLine()
+	q.logger.Infof("Starting fetching for player: %v", player.ID)
+	q.logger.EmptyLine()
+
 	trueMatchList, err := q.service.GetTrueMatchList(player)
 	if err != nil {
-		log.Printf("Couldn't get the true match list: %v", err)
+		q.logger.Errorf("Couldn't get the true match list: %v", err)
 		return player, err
 	}
 
@@ -94,7 +134,6 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 	var mu sync.Mutex
 
 	jobChan := make(chan string, len(trueMatchList))
-	errChan := make(chan error, len(trueMatchList))
 
 	// Start worker goroutines
 	for range maxWorkers {
@@ -107,24 +146,31 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 				matchfetchStart := time.Now()
 				matchData, err := q.service.GetMatchData(matchId)
 				if err != nil {
-					log.Printf("Couldn't get the match data for the match %s: %v", matchId, err)
-					errChan <- err
+					q.logger.Errorf("Couldn't get the match data for the match %s: %v", matchId, err)
+					errorOnce.Do(func() {
+						processError = err
+					})
 					continue
 				}
 
-				// Skip swiftplay matches.
+				// Skip modes that are not treated.
 				// They can have bots, which mess with the PUUIDs logic.
-				if matchData.Info.GameMode == "SWIFTPLAY" {
-					log.Printf("Match %s is Swiftplay", matchId)
+				if !slices.Contains([]int{400, 420, 430, 440, 450, 490, 900, 1020, 1300, 1400, 1700, 1710, 1900}, matchData.Info.QueueId) {
+					q.logger.Errorf("Match %s is of untreated gamemode: %d", matchId, matchData.Info.QueueId)
 					continue
 				}
 
 				matchParseStart := time.Now()
 
+				mu.Lock()
 				matchInfo, _, matchStats, err := q.service.ProcessMatchData(matchData, matchId, subRegion)
+				mu.Unlock()
+
 				if err != nil {
-					log.Printf("Couldn't process the data for the match %s: %v", matchId, err)
-					errChan <- err
+					q.logger.Errorf("Couldn't process the data for the match %s: %v", matchId, err)
+					errorOnce.Do(func() {
+						processError = err
+					})
 					continue
 				}
 
@@ -137,8 +183,10 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 				timelineFetchStart := time.Now()
 				matchTimeline, err := q.service.GetMatchTimeline(matchId)
 				if err != nil {
-					log.Printf("Couldn't get the match timeline for the match %s: %v", matchId, err)
-					errChan <- err
+					q.logger.Errorf("Couldn't get the match timeline for the match %s: %v", matchId, err)
+					errorOnce.Do(func() {
+						processError = err
+					})
 					continue
 				}
 
@@ -150,8 +198,10 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 				mu.Unlock()
 
 				if err != nil {
-					log.Printf("Couldn't process the timeline data for the match %s: %v", matchId, err)
-					errChan <- err
+					q.logger.Errorf("Couldn't process the timeline data for the match %s: %v", matchId, err)
+					errorOnce.Do(func() {
+						processError = err
+					})
 					continue
 				}
 
@@ -159,12 +209,16 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 				q.service.MatchRepository.SetFullyFetched(matchInfo.ID)
 
 				// Log the complete creation of a given match and the elapsed time for verifying performance.
-				log.Printf("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
+				q.logger.Infof("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
 					matchId,
 					time.Since(matchfetchStart).Seconds(),
 					matchParseStart.Sub(matchfetchStart).Seconds()+timelineParseStart.Sub(timelineFetchStart).Seconds(),
 					timelineFetchStart.Sub(matchParseStart).Seconds()+time.Since(timelineParseStart).Seconds(),
 				)
+
+				mu.Lock()
+				q.fetchedMatches++
+				mu.Unlock()
 			}
 		}()
 	}
@@ -176,22 +230,9 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 
 	close(jobChan)
 
-	go func() {
-		wg.Wait()
-		close(errChan)
-	}()
-
-	// Collect the first error.
-	var processError error
-	for err := range errChan {
-		if processError == nil {
-			processError = err
-		}
-	}
-
 	// Set the last fetch regardless of any match processing errors
 	if err := q.service.PlayerRepository.SetFetched(player.ID); err != nil {
-		log.Printf("Couldn't set the last fetch date for the player with ID %d: %v", player.ID, err)
+		q.logger.Errorf("Couldn't set the last fetch date for the player with ID %d: %v", player.ID, err)
 		if processError == nil {
 			processError = err
 		}

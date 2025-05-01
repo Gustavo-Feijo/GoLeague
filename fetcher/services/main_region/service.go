@@ -12,7 +12,7 @@ import (
 	matchservice "goleague/fetcher/services/main_region/match"
 	playerservice "goleague/fetcher/services/main_region/player"
 	"goleague/pkg/database/models"
-	"log"
+	"goleague/pkg/logger"
 	"time"
 )
 
@@ -33,6 +33,7 @@ type MainRegionService struct {
 	PlayerRepository   repositories.PlayerRepository
 	RatingRepository   repositories.RatingRepository
 	TimelineRepository repositories.TimelineRepository
+	logger             *logger.NewLogger
 	MainRegion         regions.MainRegion
 }
 
@@ -71,8 +72,13 @@ func NewMainRegionService(
 
 	config := *newMainRegionConfig()
 
-	// Create the services
+	// Create the logger
+	logger, err := logger.CreateLogger()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start the logger on sub region %s: %v", region, err)
+	}
 
+	// Create the services
 	eventservice := eventservice.NewEventService(
 		matchRepository,
 	)
@@ -110,8 +116,15 @@ func NewMainRegionService(
 		PlayerRepository:   playerRepository,
 		RatingRepository:   ratingRepository,
 		TimelineRepository: timelineRepository,
+		logger:             logger,
 		MainRegion:         region,
 	}, nil
+}
+
+// Returns the logger instance.
+// Used for manual closing of the logs.
+func (p *MainRegionService) GetLogger() *logger.NewLogger {
+	return p.logger
 }
 
 // Get the full match list of a given player.
@@ -162,14 +175,12 @@ func (p *MainRegionService) GetTrueMatchList(
 
 	matchList, err := p.getFullMatchList(player)
 	if err != nil {
-		log.Printf("Couldn't get the full match list even after retrying: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("couldn't get the full match list even after retrying: %v", err)
 	}
 
 	alreadyFetchedList, err := p.MatchRepository.GetAlreadyFetchedMatches(matchList)
 	if err != nil {
-		log.Printf("Couldn't get the already fetched matches: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("couldn't get the already fetched matches: %v", err)
 	}
 
 	matchByMatchId := make(map[string]models.MatchInfo)

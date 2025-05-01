@@ -22,8 +22,8 @@ type SubRegionQueueConfig struct {
 // Type for the sub region main process.
 type SubRegionQueue struct {
 	config    SubRegionQueueConfig
-	service   subregionservice.SubRegionService
 	logger    *logger.NewLogger
+	service   subregionservice.SubRegionService
 	subRegion regions.SubRegion
 }
 
@@ -60,8 +60,8 @@ func NewSubRegionQueue(region regions.SubRegion, rm *regionmanager.RegionManager
 	// Return the new region service.
 	return &SubRegionQueue{
 		config:    *NewDefaultQueueConfig(),
-		service:   *service,
 		logger:    logger,
+		service:   *service,
 		subRegion: region,
 	}, nil
 }

@@ -7,6 +7,7 @@ import (
 	"goleague/fetcher/regions"
 	"goleague/pkg/database"
 	"goleague/pkg/database/models"
+	"strings"
 	"sync"
 	"time"
 
@@ -142,20 +143,35 @@ func (ps *playerRepository) SetFetched(playerId uint) error {
 		).Error
 }
 
-// Update or create multiple players.
-// Only update if the data is newer.
+// Upsert the player with retry.
+// The retry is due to the possibility of a deadlock.
+// The deadlock could be caused by the main region updating a given player.
 func (ps *playerRepository) UpsertPlayerBatch(players []*models.PlayerInfo) error {
-	// In the case of multiple goroutines fetching data, a mutex is needed.
-	playerUpsertMutex.Lock()
-	defer playerUpsertMutex.Unlock()
-	return ps.db.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "puuid"}, {Name: "region"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"profile_icon":      gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.profile_icon ELSE player_infos.profile_icon END"),
-			"riot_id_game_name": gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_game_name ELSE player_infos.riot_id_game_name END"),
-			"riot_id_tagline":   gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_tagline ELSE player_infos.riot_id_tagline END"),
-			"summoner_level":    gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.summoner_level ELSE player_infos.summoner_level END"),
-			"updated_at":        gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.updated_at ELSE player_infos.updated_at END"),
-		}),
-	}).CreateInBatches(&players, 100).Error
+	const maxRetries = 3
+	for range maxRetries {
+		err := ps.db.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "puuid"}, {Name: "region"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"profile_icon":      gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.profile_icon ELSE player_infos.profile_icon END"),
+				"riot_id_game_name": gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_game_name ELSE player_infos.riot_id_game_name END"),
+				"riot_id_tagline":   gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.riot_id_tagline ELSE player_infos.riot_id_tagline END"),
+				"summoner_level":    gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.summoner_level ELSE player_infos.summoner_level END"),
+				"updated_at":        gorm.Expr("CASE WHEN player_infos.updated_at < excluded.updated_at THEN excluded.updated_at ELSE player_infos.updated_at END"),
+			}),
+		}).CreateInBatches(&players, 100).Error
+
+		if err == nil {
+			return nil
+		}
+
+		if !isDeadlockError(err) {
+			return err
+		}
+	}
+	return errors.New("too many retries on deadlock")
+}
+
+// Verify if it's a deadlock in the database.
+func isDeadlockError(err error) bool {
+	return strings.Contains(err.Error(), "deadlock")
 }

@@ -82,35 +82,31 @@ func (r *RateLimiter) incrementCounts() {
 
 // Wait until the next refresh.
 func (r *RateLimiter) WaitApi() {
-	// Verify if can run the API.
-	if r.canRunApi() {
-		return
+	for {
+		if r.canRunApi() {
+			return
+		}
+		r.waitWindowsReset()
 	}
-
-	// Verify if the windows limit wasn't reached.
-	r.waitWindowsReset()
-
-	// Verify again the API.
-	r.WaitApi()
 }
 
 // Wait until next job refresh.
 func (r *RateLimiter) WaitJob() {
-	// Verify if can run the job.
-	if r.canRunJob() {
-		return
-	}
+	for {
+		// Verify if can run the job.
+		if r.canRunJob() {
+			return
+		}
 
-	// Verify if the elapsed time until the next job fetch was reached.
-	if time.Since(r.lastFetch) > r.fetchInterval {
-		waitTill := r.fetchInterval - time.Since(r.lastFetch)
-		time.Sleep(waitTill)
-	}
+		// Verify if the elapsed time until the next job fetch was reached.
+		if time.Since(r.lastFetch) < r.fetchInterval {
+			waitTill := r.fetchInterval - time.Since(r.lastFetch)
+			time.Sleep(waitTill)
+		}
 
-	// Verify if the general limit wasn't already reached.
-	r.waitWindowsReset()
-	// Verify again for the job.
-	r.WaitJob()
+		// Verify if the general limit wasn't already reached.
+		r.waitWindowsReset()
+	}
 }
 
 // Wait until all the rate limit windows are met.

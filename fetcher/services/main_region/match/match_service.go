@@ -9,7 +9,6 @@ import (
 	"goleague/fetcher/repositories"
 	playerservice "goleague/fetcher/services/main_region/player"
 	"goleague/pkg/database/models"
-	"log"
 
 	"time"
 )
@@ -129,30 +128,26 @@ func (m *MatchService) ProcessMatchData(
 	// Process the match infos.
 	matchInfo, err := m.ProcessMatchInfo(match, matchId)
 	if err != nil {
-		log.Printf("Couldn't create the match info for the match %s: %v", matchId, err)
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("couldn't create the match info for the match %s: %v", matchId, err)
 	}
 
 	// Process the bans.
 	bans, err := m.ProcessMatchBans(match.Info.Teams, matchInfo)
 	if err != nil {
-		log.Printf("Couldn't create the bans for the match %s: %v", matchInfo.MatchId, err)
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("couldn't create the bans for the match %s: %v", matchInfo.MatchId, err)
 	}
 
 	// Process each player.
 	playerService := playerservice.NewPlayerService(m.MatchRepository, m.PlayerRepository, m.RatingRepository)
 	playersToUpsert, participantByPuuid, err := playerService.ProcessPlayersFromMatch(match.Info.Participants, matchInfo, region)
 	if err != nil {
-		log.Printf("Couldn't create the players for the match %s: %v", matchInfo.MatchId, err)
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("couldn't create the players for the match %s: %v", matchInfo.MatchId, err)
 	}
 
 	// Process the match stats.
 	stats, err := m.ProcessMatchStats(playersToUpsert, participantByPuuid, matchInfo)
 	if err != nil {
-		log.Printf("Couldn't create the stats for the match %s: %v", matchInfo.MatchId, err)
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("couldn't create the stats for the match %s: %v", matchInfo.MatchId, err)
 	}
 
 	return matchInfo, bans, stats, nil
@@ -169,7 +164,6 @@ func (m *MatchService) ProcessMatchStats(
 		participant, exists := participants[player.Puuid]
 		if !exists {
 			// Should never occur.
-			log.Println("The participant is not present in the map.")
 			return nil, errors.New("the participant is not present in the map")
 		}
 
