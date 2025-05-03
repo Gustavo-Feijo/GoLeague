@@ -34,10 +34,10 @@ services:
       fetcher:
         condition: service_healthy
 
-  revalidator:
+  scheduler:
     build:
       context: .
-      dockerfile: revalidator/Dockerfile
+      dockerfile: scheduler/Dockerfile
     env_file:
       - .env
     environment:

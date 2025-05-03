@@ -8,15 +8,15 @@ RUN go mod download
 
 # Copy the used code.
 COPY fetcher ./fetcher
-COPY revalidator ./revalidator
+COPY scheduler ./scheduler
 COPY pkg ./pkg
 
 # Run the build.
-RUN CGO_ENABLED=0 GOOS=linux go build -o revalidate ./revalidator
+RUN CGO_ENABLED=0 GOOS=linux go build -o scheduler ./scheduler
 
 FROM alpine:3.21.3
 
 WORKDIR /app
-COPY --from=builder /app/revalidate /app/revalidator
+COPY --from=builder /app/scheduler /app/scheduler
 
-CMD ["./revalidator"]
+CMD ["./scheduler/scheduler"]
