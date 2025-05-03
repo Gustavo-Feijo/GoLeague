@@ -37,7 +37,9 @@ func RecalculateMatchRating() {
 	UPDATE match_infos mi
 	SET average_rating = avg_scores.avg_score
 	FROM avg_scores
-	WHERE mi.id = avg_scores.match_id;
+	WHERE mi.id = avg_scores.match_id
+	AND mi.created_at >= CURRENT_DATE - INTERVAL '1 day'
+  	AND mi.created_at < CURRENT_DATE;
 `).Error
 
 	if err != nil {
