@@ -1,6 +1,7 @@
 package playerfetcher
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"goleague/fetcher/requests"
@@ -39,10 +40,11 @@ func NewSubPlayerFetcher(limiter *requests.RateLimiter, region string) *Sub_play
 
 // Get a players match list.
 func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset int, onDemand bool) ([]string, error) {
+	ctx := context.Background()
 	if onDemand {
-		p.limiter.WaitApi()
+		p.limiter.WaitApi(ctx)
 	} else {
-		p.limiter.WaitJob()
+		p.limiter.WaitJob(ctx)
 	}
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/match/v5/matches/by-puuid/%s/ids", p.region, puuid)
@@ -76,10 +78,11 @@ func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset 
 
 // Get a players summoner data.
 func (p *Sub_player_fetcher) GetSummonerData(puuid string, onDemand bool) (*SummonerByPuuid, error) {
+	ctx := context.Background()
 	if onDemand {
-		p.limiter.WaitApi()
+		p.limiter.WaitApi(ctx)
 	} else {
-		p.limiter.WaitJob()
+		p.limiter.WaitJob(ctx)
 	}
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/%s", p.region, puuid)

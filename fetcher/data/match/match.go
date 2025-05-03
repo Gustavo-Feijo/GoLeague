@@ -1,6 +1,7 @@
 package matchfetcher
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"goleague/fetcher/requests"
@@ -63,11 +64,12 @@ type MatchData struct {
 
 // Get a given match data.
 func (m *Match_fetcher) GetMatchData(matchId string, onDemand bool) (*MatchData, error) {
+	ctx := context.Background()
 	// Verify if it's onDemand.
 	if onDemand {
-		m.limiter.WaitApi()
+		m.limiter.WaitApi(ctx)
 	} else {
-		m.limiter.WaitJob()
+		m.limiter.WaitJob(ctx)
 	}
 
 	// Format the URL and create the params.
@@ -96,11 +98,11 @@ func (m *Match_fetcher) GetMatchData(matchId string, onDemand bool) (*MatchData,
 
 // Get a given match timeline.
 func (m *Match_fetcher) GetMatchTimelineData(matchId string, onDemand bool) (*MatchTimeline, error) {
-	// Verify if it's onDemand.
+	ctx := context.Background()
 	if onDemand {
-		m.limiter.WaitApi()
+		m.limiter.WaitApi(ctx)
 	} else {
-		m.limiter.WaitJob()
+		m.limiter.WaitJob(ctx)
 	}
 
 	// Format the URL and create the params.

@@ -16,11 +16,11 @@ type PlayerInfo struct {
 	RiotIdTagline  string `gorm:"type:varchar(5);index:idx_name_tag"`
 	SummonerId     string `gorm:"type:char(63)"`
 	SummonerLevel  int
-	Region         regions.SubRegion `gorm:"type:varchar(5);uniqueIndex:idx_player_region"` // Sometimes the same player can be found on other leagues.
-	UnfetchedMatch bool              `gorm:"default:true"`
+	Region         regions.SubRegion `gorm:"type:varchar(5);uniqueIndex:idx_player_region;index:idx_unfetched_region"` // Sometimes the same player can be found on other leagues.
+	UnfetchedMatch bool              `gorm:"default:true;index:idx_unfetched_region"`
 
 	// Last time the user match was fetched.
-	LastMatchFetch time.Time `gorm:"default:CURRENT_TIMESTAMP"`
+	LastMatchFetch time.Time `gorm:"default:CURRENT_TIMESTAMP;index"`
 
 	// Last time the player data was changed.
 	UpdatedAt time.Time `gorm:"autoUpdateTime:false"`

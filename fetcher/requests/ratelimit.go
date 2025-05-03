@@ -1,6 +1,7 @@
 package requests
 
 import (
+	"context"
 	"goleague/pkg/config"
 	"sync"
 	"time"
@@ -80,56 +81,105 @@ func (r *RateLimiter) incrementCounts() {
 	}
 }
 
-// Wait until the next refresh.
-func (r *RateLimiter) WaitApi() {
-	for {
-		if r.canRunApi() {
-			return
+// Calculate the minimum wait time necessary for any window.
+func (r *RateLimiter) getMinWaitTime() time.Duration {
+	var minWaitTime time.Duration
+	now := time.Now()
+
+	for _, window := range r.windows {
+		// If this window is at its limit
+		if window.count >= window.limit {
+			// Calculate time until reset
+			elapsed := now.Sub(window.lastReset)
+			waitTime := window.resetInterval - elapsed
+
+			// If this is the first window at limit or it requires longer wait
+			if minWaitTime == 0 || waitTime > minWaitTime {
+				minWaitTime = waitTime
+			}
 		}
-		r.waitWindowsReset()
+	}
+
+	// If no window is at limit, don't wait
+	if minWaitTime < 0 {
+		return 0
+	}
+
+	return minWaitTime
+}
+
+// Wait until the next refresh.
+func (r *RateLimiter) WaitApi(ctx context.Context) error {
+	for {
+		// Check if context is cancelled
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		if r.canRunApi() {
+			return nil
+		}
+
+		waitTime := r.getMinWaitTime()
+		if waitTime <= 0 {
+			// If no need to wait, check limits again to avoid race conditions
+			continue
+		}
+
+		// Use a timer with context for cancellation
+		timer := time.NewTimer(waitTime)
+		select {
+		case <-timer.C:
+			// Continue the loop and check again
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		}
 	}
 }
 
 // Wait until next job refresh.
-func (r *RateLimiter) WaitJob() {
+func (r *RateLimiter) WaitJob(ctx context.Context) error {
 	for {
-		// Verify if can run the job.
+		// Check if context is cancelled
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		if r.canRunJob() {
-			return
+			return nil
 		}
 
-		// Verify if the elapsed time until the next job fetch was reached.
-		if time.Since(r.lastFetch) < r.fetchInterval {
-			waitTill := r.fetchInterval - time.Since(r.lastFetch)
-			time.Sleep(waitTill)
+		// Calculate wait time
+		var waitTime time.Duration
+
+		r.mu.Lock()
+		fetchWaitTime := r.fetchInterval - time.Since(r.lastFetch)
+		if fetchWaitTime > 0 {
+			waitTime = fetchWaitTime
+		} else {
+			waitTime = r.getMinWaitTime()
 		}
+		r.mu.Unlock()
 
-		// Verify if the general limit wasn't already reached.
-		r.waitWindowsReset()
-	}
-}
-
-// Wait until all the rate limit windows are met.
-func (r *RateLimiter) waitWindowsReset() {
-	// If can't run, see how many time must wait.
-	var waitTime time.Duration
-	waitTime = 0
-	for _, window := range r.windows {
-		// If it's not this window that is limited, just continue.
-		if window.count < window.limit {
+		if waitTime <= 0 {
 			continue
 		}
 
-		// See how many time has elapsed since the last reset.
-		elapsed := time.Since(window.lastReset)
-		// See how many time till the next reset.
-		waitTill := window.resetInterval - elapsed
-		if waitTill > waitTime {
-			waitTime = waitTill
+		// Use a timer with context for cancellation
+		timer := time.NewTimer(waitTime)
+		select {
+		case <-timer.C:
+			// Continue the loop and check again
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
 		}
 	}
-	// Wait till next reset.
-	time.Sleep(waitTime)
 }
 
 // Verify if can run the job/background request.

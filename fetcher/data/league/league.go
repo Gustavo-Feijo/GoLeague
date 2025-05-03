@@ -1,6 +1,7 @@
 package leaguefetcher
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"goleague/fetcher/requests"
@@ -39,7 +40,8 @@ func NewSubLeagueFetcher(limiter *requests.RateLimiter, region string) *Sub_leag
 // Used only for  job  requests, since it would not be necessary to get a given page at demand.
 func (l *Sub_league_Fetcher) GetHighEloLeagueEntries(tier string, queue string) (*HighEloLeagueEntry, error) {
 	// Wait for job.
-	l.limiter.WaitJob()
+	ctx := context.Background()
+	l.limiter.WaitJob(ctx)
 
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league/v4/%sleagues/by-queue/%s",
@@ -69,11 +71,12 @@ func (l *Sub_league_Fetcher) GetHighEloLeagueEntries(tier string, queue string) 
 
 // Get a given player entries for each queue.
 func (l *Sub_league_Fetcher) GetLeagueByPuuid(puuid string, onDemand bool) ([]LeagueEntry, error) {
+	ctx := context.Background()
 	// Verify the type of request.
 	if onDemand {
-		l.limiter.WaitApi()
+		l.limiter.WaitApi(ctx)
 	} else {
-		l.limiter.WaitJob()
+		l.limiter.WaitJob(ctx)
 	}
 	// Format the URL and create the params.
 	// Riot only accept upper case on this entries.
@@ -106,7 +109,8 @@ func (l *Sub_league_Fetcher) GetLeagueByPuuid(puuid string, onDemand bool) ([]Le
 // Used only for  job  requests, since it would not be necessary to get a given page at demand.
 func (l *Sub_league_Fetcher) GetLeagueEntries(tier string, rank string, queue string, page int) ([]LeagueEntry, error) {
 	// Wait for job.
-	l.limiter.WaitJob()
+	ctx := context.Background()
+	l.limiter.WaitJob(ctx)
 
 	// Format the URL and create the params.
 	// Riot only accept upper case on this entries.

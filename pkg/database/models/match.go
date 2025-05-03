@@ -18,7 +18,8 @@ type MatchInfo struct {
 	AverageRating  float64
 	FrameInterval  int64
 	FullyFetched   bool
-	QueueId        int `gorm:"index"`
+	QueueId        int       `gorm:"index"`
+	CreatedAt      time.Time `gorm:"autoCreateTime"`
 }
 
 // Database model for saving a player perfomance in a given match.
