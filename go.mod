@@ -1,6 +1,6 @@
 module goleague
 
-go 1.23.4
+go 1.24.1
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.36.3
@@ -15,6 +15,7 @@ require (
 )
 
 require (
+	github.com/Gustavo-Feijo/gomultirate v0.1.1 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.10 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.34 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.34 // indirect

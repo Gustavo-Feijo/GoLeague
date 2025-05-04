@@ -7,22 +7,24 @@ import (
 	"goleague/fetcher/requests"
 	"net/http"
 	"time"
+
+	"github.com/Gustavo-Feijo/gomultirate"
 )
 
 // The match fetcher with it's limiter and region.
 type Match_fetcher struct {
-	limiter *requests.RateLimiter
+	limiter *gomultirate.RateLimiter
 	region  string
 }
 
 // The match fetcher with it's limiter and region.
 type Sub_match_fetcher struct {
-	limiter *requests.RateLimiter
+	limiter *gomultirate.RateLimiter
 	region  string
 }
 
 // Create a instance of the match fetcher.
-func NewMatchFetcher(limiter *requests.RateLimiter, region string) *Match_fetcher {
+func NewMatchFetcher(limiter *gomultirate.RateLimiter, region string) *Match_fetcher {
 	return &Match_fetcher{
 		limiter,
 		region,
@@ -30,7 +32,7 @@ func NewMatchFetcher(limiter *requests.RateLimiter, region string) *Match_fetche
 }
 
 // Create a instance of the match fetcher.
-func NewSubMatchFetcher(limiter *requests.RateLimiter, region string) *Sub_match_fetcher {
+func NewSubMatchFetcher(limiter *gomultirate.RateLimiter, region string) *Sub_match_fetcher {
 	return &Sub_match_fetcher{
 		limiter,
 		region,
@@ -67,9 +69,9 @@ func (m *Match_fetcher) GetMatchData(matchId string, onDemand bool) (*MatchData,
 	ctx := context.Background()
 	// Verify if it's onDemand.
 	if onDemand {
-		m.limiter.WaitApi(ctx)
+		m.limiter.Wait(ctx)
 	} else {
-		m.limiter.WaitJob(ctx)
+		m.limiter.WaitEvenly(ctx, "job")
 	}
 
 	// Format the URL and create the params.
@@ -100,9 +102,9 @@ func (m *Match_fetcher) GetMatchData(matchId string, onDemand bool) (*MatchData,
 func (m *Match_fetcher) GetMatchTimelineData(matchId string, onDemand bool) (*MatchTimeline, error) {
 	ctx := context.Background()
 	if onDemand {
-		m.limiter.WaitApi(ctx)
+		m.limiter.Wait(ctx)
 	} else {
-		m.limiter.WaitJob(ctx)
+		m.limiter.WaitEvenly(ctx, "job")
 	}
 
 	// Format the URL and create the params.

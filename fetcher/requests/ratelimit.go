@@ -1,224 +1,24 @@
 package requests
 
 import (
-	"context"
 	"goleague/pkg/config"
-	"sync"
-	"time"
+
+	"github.com/Gustavo-Feijo/gomultirate"
 )
 
-// Single riot rate limiting.
-type RiotLimit struct {
-	limit         int
-	resetInterval time.Duration
-	count         int
-	lastReset     time.Time
-}
-
-// Full riot rate limit, containing all the constraints.
-type RateLimiter struct {
-	windows []*RiotLimit
-
-	// Fetch interval for the background job.
-	// Will be the slowest interval that let all requests be consumed before reseting.
-	fetchInterval time.Duration
-
-	// Last fetch and the mutex.
-	lastFetch time.Time
-	mu        sync.Mutex
-}
-
 // Create a instance of the rate limiter.
-func NewRateLimiter() *RateLimiter {
-	return &RateLimiter{
-		// Hardcoded values for now.
-		windows: []*RiotLimit{
-			{
-				limit:         config.Limits.Lower.Count,
-				resetInterval: config.Limits.Lower.ResetInterval,
-				lastReset:     time.Now(),
-			},
-			{
-				limit:         config.Limits.Higher.Count,
-				resetInterval: config.Limits.Higher.ResetInterval,
-				lastReset:     time.Now(),
-			},
-		},
-		fetchInterval: config.Limits.SlowInterval,
-		lastFetch:     time.Now(),
-	}
-}
-
-// Reset the count.
-func (r *RateLimiter) resetCounts() {
-	// Get the current time.
-	now := time.Now()
-	// Loop through each window and verify if can reset.
-	for _, window := range r.windows {
-		if now.Sub(window.lastReset) >= window.resetInterval {
-			window.count = 0
-			window.lastReset = now
-		}
-	}
-}
-
-// Check if the window is on it's limits.
-func (r *RateLimiter) checkLimits() bool {
-	// Loop through each window.
-	for _, window := range r.windows {
-		if window.count >= window.limit {
-			return false
-		}
-	}
-	return true
-}
-
-// Loop through each window and increment the counter.
-func (r *RateLimiter) incrementCounts() {
-	// Loop through each window and increment each count.
-	for _, window := range r.windows {
-		window.count++
-	}
-}
-
-// Calculate the minimum wait time necessary for any window.
-func (r *RateLimiter) getMinWaitTime() time.Duration {
-	var minWaitTime time.Duration
-	now := time.Now()
-
-	for _, window := range r.windows {
-		// If this window is at its limit
-		if window.count >= window.limit {
-			// Calculate time until reset
-			elapsed := now.Sub(window.lastReset)
-			waitTime := window.resetInterval - elapsed
-
-			// If this is the first window at limit or it requires longer wait
-			if minWaitTime == 0 || waitTime > minWaitTime {
-				minWaitTime = waitTime
-			}
-		}
+func NewRateLimiter() *gomultirate.RateLimiter {
+	limits := map[string]*gomultirate.Limit{
+		"api": gomultirate.NewLimit(
+			config.Limits.Lower.ResetInterval,
+			config.Limits.Lower.Count,
+		),
+		"job": gomultirate.NewLimit(
+			config.Limits.Higher.ResetInterval,
+			config.Limits.Higher.Count,
+		),
 	}
 
-	// If no window is at limit, don't wait
-	if minWaitTime < 0 {
-		return 0
-	}
-
-	return minWaitTime
-}
-
-// Wait until the next refresh.
-func (r *RateLimiter) WaitApi(ctx context.Context) error {
-	for {
-		// Check if context is cancelled
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		if r.canRunApi() {
-			return nil
-		}
-
-		waitTime := r.getMinWaitTime()
-		if waitTime <= 0 {
-			// If no need to wait, check limits again to avoid race conditions
-			continue
-		}
-
-		// Use a timer with context for cancellation
-		timer := time.NewTimer(waitTime)
-		select {
-		case <-timer.C:
-			// Continue the loop and check again
-		case <-ctx.Done():
-			timer.Stop()
-			return ctx.Err()
-		}
-	}
-}
-
-// Wait until next job refresh.
-func (r *RateLimiter) WaitJob(ctx context.Context) error {
-	for {
-		// Check if context is cancelled
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		if r.canRunJob() {
-			return nil
-		}
-
-		// Calculate wait time
-		var waitTime time.Duration
-
-		r.mu.Lock()
-		fetchWaitTime := r.fetchInterval - time.Since(r.lastFetch)
-		if fetchWaitTime > 0 {
-			waitTime = fetchWaitTime
-		} else {
-			waitTime = r.getMinWaitTime()
-		}
-		r.mu.Unlock()
-
-		if waitTime <= 0 {
-			continue
-		}
-
-		// Use a timer with context for cancellation
-		timer := time.NewTimer(waitTime)
-		select {
-		case <-timer.C:
-			// Continue the loop and check again
-		case <-ctx.Done():
-			timer.Stop()
-			return ctx.Err()
-		}
-	}
-}
-
-// Verify if can run the job/background request.
-func (r *RateLimiter) canRunJob() bool {
-	// Locks the limiter.
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.resetCounts()
-
-	// Verify if it's not to early.
-	if time.Since(r.lastFetch) < r.fetchInterval {
-		return false
-	}
-
-	// Verify the limit.
-	if !r.checkLimits() {
-		return false
-	}
-
-	// Increment the  count.
-	r.incrementCounts()
-	r.lastFetch = time.Now()
-	return true
-}
-
-// Verify if can run the API.
-func (r *RateLimiter) canRunApi() bool {
-	// Locks the limiter.
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.resetCounts()
-
-	// Check the limits.
-	if !r.checkLimits() {
-		return false
-	}
-
-	r.incrementCounts()
-	return true
+	limiter, _ := gomultirate.NewRateLimiter(limits)
+	return limiter
 }

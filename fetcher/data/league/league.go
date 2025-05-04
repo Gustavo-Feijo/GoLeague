@@ -7,21 +7,23 @@ import (
 	"goleague/fetcher/requests"
 	"net/http"
 	"strings"
+
+	"github.com/Gustavo-Feijo/gomultirate"
 )
 
 // The league fetcher with it's limit and region.
 type League_Fetcher struct {
-	limiter *requests.RateLimiter // Pointer to the fetcher, since it's shared.
+	limiter *gomultirate.RateLimiter // Pointer to the fetcher, since it's shared.
 	region  string
 }
 
 type Sub_league_Fetcher struct {
-	limiter *requests.RateLimiter // Pointer to the fetcher, since it's shared.
+	limiter *gomultirate.RateLimiter // Pointer to the fetcher, since it's shared.
 	region  string
 }
 
 // Create a league fetcher.
-func NewLeagueFetcher(limiter *requests.RateLimiter, region string) *League_Fetcher {
+func NewLeagueFetcher(limiter *gomultirate.RateLimiter, region string) *League_Fetcher {
 	return &League_Fetcher{
 		limiter,
 		region,
@@ -29,7 +31,7 @@ func NewLeagueFetcher(limiter *requests.RateLimiter, region string) *League_Fetc
 }
 
 // Create a league fetcher.
-func NewSubLeagueFetcher(limiter *requests.RateLimiter, region string) *Sub_league_Fetcher {
+func NewSubLeagueFetcher(limiter *gomultirate.RateLimiter, region string) *Sub_league_Fetcher {
 	return &Sub_league_Fetcher{
 		limiter,
 		region,
@@ -41,7 +43,7 @@ func NewSubLeagueFetcher(limiter *requests.RateLimiter, region string) *Sub_leag
 func (l *Sub_league_Fetcher) GetHighEloLeagueEntries(tier string, queue string) (*HighEloLeagueEntry, error) {
 	// Wait for job.
 	ctx := context.Background()
-	l.limiter.WaitJob(ctx)
+	l.limiter.WaitEvenly(ctx, "job")
 
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league/v4/%sleagues/by-queue/%s",
@@ -74,9 +76,9 @@ func (l *Sub_league_Fetcher) GetLeagueByPuuid(puuid string, onDemand bool) ([]Le
 	ctx := context.Background()
 	// Verify the type of request.
 	if onDemand {
-		l.limiter.WaitApi(ctx)
+		l.limiter.Wait(ctx)
 	} else {
-		l.limiter.WaitJob(ctx)
+		l.limiter.WaitEvenly(ctx, "job")
 	}
 	// Format the URL and create the params.
 	// Riot only accept upper case on this entries.
@@ -110,7 +112,7 @@ func (l *Sub_league_Fetcher) GetLeagueByPuuid(puuid string, onDemand bool) ([]Le
 func (l *Sub_league_Fetcher) GetLeagueEntries(tier string, rank string, queue string, page int) ([]LeagueEntry, error) {
 	// Wait for job.
 	ctx := context.Background()
-	l.limiter.WaitJob(ctx)
+	l.limiter.WaitEvenly(ctx, "job")
 
 	// Format the URL and create the params.
 	// Riot only accept upper case on this entries.

@@ -1,3 +1,5 @@
+github.com/Gustavo-Feijo/gomultirate v0.1.1 h1:Wd+NfbQHb3cdxQS5bEvSDpdehdYE8seHVj8HqfhPEls=
+github.com/Gustavo-Feijo/gomultirate v0.1.1/go.mod h1:mQ0jWWdW5JKV/F74lipbpPdiNqLPnyMc6m59e9kDYZg=
 github.com/aws/aws-sdk-go-v2 v1.36.3 h1:mJoei2CxPutQVxaATCzDUjcZEjVRdpsiiXi2o38yqWM=
 github.com/aws/aws-sdk-go-v2 v1.36.3/go.mod h1:LLXuLpgzEbD766Z5ECcRmi8AzSwfZItDtmABVkRLGzg=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.10 h1:zAybnyUQXIZ5mok5Jqwlf58/TFE7uvd3IAsa1aF9cXs=

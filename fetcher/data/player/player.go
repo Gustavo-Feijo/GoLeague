@@ -8,22 +8,24 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/Gustavo-Feijo/gomultirate"
 )
 
 // The player fetcher with it's limit and region.
 type Player_fetcher struct {
-	limiter *requests.RateLimiter // Pointer to the fetcher, since it's shared.
+	limiter *gomultirate.RateLimiter // Pointer to the fetcher, since it's shared.
 	region  string
 }
 
 // The player fetcher with it's limit and region.
 type Sub_player_fetcher struct {
-	limiter *requests.RateLimiter // Pointer to the fetcher, since it's shared.
+	limiter *gomultirate.RateLimiter // Pointer to the fetcher, since it's shared.
 	region  string
 }
 
 // Create a player fetcher.
-func NewPlayerFetcher(limiter *requests.RateLimiter, region string) *Player_fetcher {
+func NewPlayerFetcher(limiter *gomultirate.RateLimiter, region string) *Player_fetcher {
 	return &Player_fetcher{
 		limiter,
 		region,
@@ -31,7 +33,7 @@ func NewPlayerFetcher(limiter *requests.RateLimiter, region string) *Player_fetc
 }
 
 // Create a player fetcher.
-func NewSubPlayerFetcher(limiter *requests.RateLimiter, region string) *Sub_player_fetcher {
+func NewSubPlayerFetcher(limiter *gomultirate.RateLimiter, region string) *Sub_player_fetcher {
 	return &Sub_player_fetcher{
 		limiter,
 		region,
@@ -42,9 +44,9 @@ func NewSubPlayerFetcher(limiter *requests.RateLimiter, region string) *Sub_play
 func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset int, onDemand bool) ([]string, error) {
 	ctx := context.Background()
 	if onDemand {
-		p.limiter.WaitApi(ctx)
+		p.limiter.Wait(ctx)
 	} else {
-		p.limiter.WaitJob(ctx)
+		p.limiter.WaitEvenly(ctx, "job")
 	}
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/match/v5/matches/by-puuid/%s/ids", p.region, puuid)
@@ -80,9 +82,9 @@ func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset 
 func (p *Sub_player_fetcher) GetSummonerData(puuid string, onDemand bool) (*SummonerByPuuid, error) {
 	ctx := context.Background()
 	if onDemand {
-		p.limiter.WaitApi(ctx)
+		p.limiter.Wait(ctx)
 	} else {
-		p.limiter.WaitJob(ctx)
+		p.limiter.WaitEvenly(ctx, "job")
 	}
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/%s", p.region, puuid)
