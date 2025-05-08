@@ -7,6 +7,7 @@ import (
 	mainregionservice "goleague/fetcher/services/main_region"
 	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
+	queuevalues "goleague/pkg/riotvalues/queue"
 	"log"
 	"slices"
 	"time"
@@ -133,7 +134,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 
 		// Skip modes that are not treated.
 		// They can have bots, which mess with the PUUIDs logic.
-		if !slices.Contains([]int{400, 420, 430, 440, 450, 490, 900, 1020, 1300, 1400, 1700, 1710, 1900}, matchData.Info.QueueId) {
+		if !slices.Contains(queuevalues.TreatedQueues, matchData.Info.QueueId) {
 			q.logger.Errorf("Match %s is of untreated gamemode: %d", matchId, matchData.Info.QueueId)
 			continue
 		}
