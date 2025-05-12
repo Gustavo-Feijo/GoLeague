@@ -21,7 +21,7 @@ type MatchPlayer struct {
 	BaronKills                     int        `json:"baronKills"`
 	BasicPings                     int        `json:"basicPings"`
 	ChampionLevel                  int        `json:"champLevel"`
-	ChampionId                     int        `json:"championId"`
+	ChampionId                     int        `json:"championId" gorm:"index_champion_position"`
 	Challenges                     Challenges `json:"challenges" gorm:"embedded"`
 	CommandPings                   int        `json:"commandPings"`
 	DangerPings                    int        `json:"dangerPings"`
@@ -59,7 +59,7 @@ type MatchPlayer struct {
 	LongestTimeSpentLiving         int        `json:"longestTimeSpentLiving"`
 	MagicDamageDealt               int        `json:"magicDamageDealt"`
 	TeamId                         int        `json:"teamId"`
-	TeamPosition                   string     `json:"teamPosition"`
+	TeamPosition                   string     `json:"teamPosition" gorm:"index_champion_position"`
 	TimeCCingOthers                int        `json:"timeCCingOthers"`
 	TotalDamageDealtToChampions    int        `json:"totalDamageDealtToChampions"`
 	TotalMinionsKilled             int        `json:"totalMinionsKilled"`

@@ -1,12 +1,12 @@
 package modules
 
 import (
+	"fmt"
 	"goleague/api/handlers"
-	"goleague/api/repositories"
 	"goleague/api/services"
-	"log"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
 )
 
 // Module containing the necessary handlers.
@@ -16,18 +16,14 @@ type Module struct {
 }
 
 // Create a new module with all the necessary handlers initialized.
-func NewModule() *Module {
+func NewModule(grpcClient *grpc.ClientConn) (*Module, error) {
 	router := gin.Default()
 
-	// Initialize necessary repositories.
-	tierlistRepo, err := repositories.NewTierlistRepository()
-	if err != nil {
-		log.Fatalf("Couldn't start the tierlist repository: %v", err)
-	}
-
 	// Initialize the services.
-	tierlistService := services.NewTierlistService(tierlistRepo)
-
+	tierlistService, err := services.NewTierlistService(grpcClient)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't start the tierlist service: %v", err)
+	}
 	// Initialize the handlers.
 	tierlistHandler := handlers.NewTierlistHandler(tierlistService)
 
@@ -35,5 +31,5 @@ func NewModule() *Module {
 	return &Module{
 		Router:          router,
 		TierlistHandler: tierlistHandler,
-	}
+	}, nil
 }

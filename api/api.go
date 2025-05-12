@@ -33,7 +33,10 @@ func main() {
 	defer grpcClient.Close()
 
 	// Create a module with all necessary handlers.
-	module := modules.NewModule()
+	module, err := modules.NewModule(grpcClient)
+	if err != nil {
+		log.Fatalf("Error to start the modules: %v", err)
+	}
 
 	// Create a new router with the routes setup.
 	router := routes.NewRouter(module.Router)

@@ -1,6 +1,9 @@
 package tiervalues
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 var tierValues = map[string]int{
 	"IRON":        0,
@@ -24,10 +27,18 @@ var rankValues = map[string]int{
 
 // Calculate numeric rank from tier and division
 func CalculateRank(tier string, rank string, lp int) int {
+	// Normalize the tier entry.
+	tier = strings.ToUpper(tier)
+	tier = strings.TrimSpace(tier)
+
 	baseValue, exists := tierValues[tier]
 	if !exists {
 		return 0 // Unknown tier
 	}
+
+	// Normalize the rank entry.
+	rank = strings.ToUpper(rank)
+	rank = strings.TrimSpace(rank)
 
 	// Division 4 is lowest, 1 is highest, each worth 100 points
 	divisionValue, exists := rankValues[rank]
