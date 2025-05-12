@@ -6,12 +6,13 @@ import (
 
 // Query parameters for the tierlist filters.
 type GetQueryParams struct {
-	Tier   string `form:"tier"`
-	Rank   string `form:"rank"`
-	Queue  int    `form:"queue"`
-	SortBy string `form:"sort_by" binding:"omitempty,oneof=championId winRate pickRate banRate"`
-	Limit  int    `form:"limit,default=100" binding:"omitempty,min=1"`
-	Offset int    `form:"offset,default=0" binding:"omitempty,min=0"`
+	Tier      string `form:"tier"`
+	Rank      string `form:"rank"`
+	Queue     int    `form:"queue"`
+	SortBy    string `form:"sort_by" binding:"omitempty,oneof=championId winRate pickRate banRate"`
+	Direction string `form:"direction,default=ascending"`
+	Limit     int    `form:"limit,default=100" binding:"omitempty,min=1"`
+	Offset    int    `form:"offset,default=0" binding:"omitempty,min=0"`
 }
 
 // Get the query parameters as a map.
@@ -24,8 +25,9 @@ func (q *GetQueryParams) AsMap() map[string]any {
 		q.Limit = 100
 	}
 
+	// Set pagination data.
+	filters["direction"] = q.Direction
 	filters["limit"] = q.Limit
-	filters["queue"] = q.Queue
 	filters["offset"] = q.Offset
 	filters["sort"] = q.SortBy
 
@@ -44,6 +46,10 @@ func (q *GetQueryParams) AsMap() map[string]any {
 
 	if q.Rank != "" {
 		filters["rank"] = q.Rank
+	}
+
+	if q.Queue != 0 {
+		filters["queue"] = q.Queue
 	}
 
 	return filters

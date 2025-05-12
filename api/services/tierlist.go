@@ -71,7 +71,7 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist,
 	// Get the champion cache instance.
 	cacheChampion := cache.GetChampionCache()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	wg.Add(workers)

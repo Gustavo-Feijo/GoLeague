@@ -3,6 +3,8 @@ package repositories
 import (
 	"fmt"
 	"goleague/pkg/database"
+	queuevalues "goleague/pkg/riotvalues/queue"
+	"slices"
 	"strings"
 
 	"gorm.io/gorm"
@@ -68,6 +70,17 @@ func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*TierlistRe
 		whereClause = "WHERE " + strings.Join(whereConditions, " AND ")
 	}
 
+	// Sometimes in queues that must have positions, the RIOT API returns invalid data.
+	// The team position of some players can be '', leading to bad data.
+	positionFix := whereClause
+	if slices.Contains(queuevalues.QueuesWithPositions, defaultQueue) {
+		if len(whereClause) > 0 {
+			positionFix += " AND ms.team_position != ''"
+		} else {
+			positionFix = "WHERE ms.team_position != ''"
+		}
+	}
+
 	args := []any{}
 	// Append the single query args 3 times.
 	// Three for the CTEs and one for the main query.
@@ -128,7 +141,7 @@ func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*TierlistRe
 		championBans cb ON ms.champion_id = cb.champion_id
 	JOIN
     	totalMatches tm ON TRUE
-	` + whereClause + ` GROUP BY
+	` + positionFix + ` GROUP BY
 		ms.champion_id,
 		ms.team_position,
 		pc.positionCount,
@@ -155,12 +168,23 @@ func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*TierlistRe
 		sortBy = "ms.champion_id"
 	}
 
+	var direction string
+	if direct, exists := filters["direction"]; exists {
+		switch direct {
+		case "ascending":
+			direction = "ASC"
+		case "descending":
+			direction = "DESC"
+		}
+	}
+
 	// Get the final part of the query sorting and pagination.
 	sortAndPage := fmt.Sprintf(`
-	ORDER BY %s
+	ORDER BY %s %s
     	OFFSET ?
     	LIMIT ?;
-	`, sortBy)
+	`, sortBy, direction)
+
 	args = append(args, filters["offset"], filters["limit"])
 
 	// Combine all parts of the query
