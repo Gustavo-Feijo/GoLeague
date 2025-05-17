@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"goleague/api/repositories"
 	"goleague/pkg/redis"
 	"maps"
 	"sync"
@@ -59,7 +60,7 @@ func (c *ChampionCache) cacheExpirationWorker() {
 
 // Get a champion from the in memory cache, if not already in there, get from the redis.
 // Returns a deep copy, so it's safe to change the returned value directly.
-func (c *ChampionCache) GetChampionCopy(ctx context.Context, championId string) (map[string]any, error) {
+func (c *ChampionCache) GetChampionCopy(ctx context.Context, championId string, repo repositories.CacheRepository) (map[string]any, error) {
 	// Create a copy from the map.
 	newMap := make(map[string]any)
 
@@ -76,8 +77,18 @@ func (c *ChampionCache) GetChampionCopy(ctx context.Context, championId string) 
 	cacheKey := fmt.Sprintf("ddragon:champion:%s", championId)
 	champRedis, err := c.redis.Get(ctx, cacheKey)
 	if err != nil {
-		// It should exist on redis, unless it's out.
-		return nil, fmt.Errorf("error getting from redis: %w", err)
+		if repo == nil {
+			// It should exist on redis, unless it's out.
+			return nil, fmt.Errorf("error getting from redis: %w", err)
+		}
+
+		// Get from the database fallback in that case.
+		// It will be way slower, but will save in memory for the next requests.
+		champRedis, err = repo.GetKey(cacheKey)
+		if err != nil {
+			// Everything went wrong.
+			return nil, fmt.Errorf("error getting from the database fallback: %w", err)
+		}
 	}
 
 	// Unmarshal as a generic map.

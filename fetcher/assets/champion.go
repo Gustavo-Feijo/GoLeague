@@ -3,6 +3,7 @@ package assets
 import (
 	"encoding/json"
 	"fmt"
+	"goleague/fetcher/repositories"
 	"goleague/fetcher/requests"
 	"goleague/pkg/models/champion"
 	"goleague/pkg/redis"
@@ -13,6 +14,8 @@ import (
 // Get the champion from the datadragon based on it's key.
 // If a champion key is passed, also return the given champion.
 func RevalidateChampionCache(language string, championId string) (*champion.Champion, error) {
+	repo, _ := repositories.NewCacheRepository()
+
 	// Get the latest version.
 	// Usually only GetLatestVersion should be used to get the current running latest.
 	// But we are using GetNewVersion to also revalidate the versions.
@@ -52,7 +55,7 @@ func RevalidateChampionCache(language string, championId string) (*champion.Cham
 	for range workerCount {
 		go func() {
 			for championKey := range championKeys {
-				RevalidateSingleChampionByKey(language, championKey)
+				RevalidateSingleChampionByKey(language, championKey, repo)
 				wg.Done()
 			}
 		}()
@@ -90,7 +93,7 @@ func RevalidateChampionCache(language string, championId string) (*champion.Cham
 	return nil, nil
 }
 
-func RevalidateSingleChampionByKey(language string, championKey string) (*champion.Champion, error) {
+func RevalidateSingleChampionByKey(language string, championKey string, repo repositories.CacheRepository) (*champion.Champion, error) {
 	latestVersion, err := GetLatestVersion()
 	if err != nil {
 		log.Fatalf("Can't get the latest version: %v", err)
@@ -155,6 +158,11 @@ func RevalidateSingleChampionByKey(language string, championKey string) (*champi
 	client := redis.GetClient()
 	if err := client.Set(ctx, keyWithId, champJson, 0); err != nil {
 		return nil, fmt.Errorf("can't set the champion json on redis: %v", err)
+	}
+
+	// Set the key on the database. Fallback.
+	if repo != nil {
+		repo.Setkey(keyWithId, string(champJson))
 	}
 
 	return champ, nil

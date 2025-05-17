@@ -70,8 +70,8 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist,
 
 	// Get the champion cache instance.
 	cacheChampion := cache.GetChampionCache()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	repo, _ := repositories.NewCacheRepository()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	wg.Add(workers)
@@ -81,7 +81,7 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist,
 			// Consume the channel.
 			for entry := range jobs {
 				// Get a copy of the champion on the cache.
-				championData, err := cacheChampion.GetChampionCopy(ctx, strconv.Itoa(entry.ChampionId))
+				championData, err := cacheChampion.GetChampionCopy(ctx, strconv.Itoa(entry.ChampionId), repo)
 				if err != nil {
 					continue
 				}
@@ -125,5 +125,6 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist,
 			validResults = append(validResults, result)
 		}
 	}
+
 	return validResults, nil
 }

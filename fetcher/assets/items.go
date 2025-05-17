@@ -3,6 +3,7 @@ package assets
 import (
 	"encoding/json"
 	"fmt"
+	"goleague/fetcher/repositories"
 	"goleague/fetcher/requests"
 	"goleague/pkg/models/item"
 	"goleague/pkg/redis"
@@ -12,6 +13,9 @@ import (
 // Revalidate the full item cache.
 // Returns a specific item if a id was passed.
 func RevalidateItemCache(language string, itemId string) (*item.Item, error) {
+
+	repo, _ := repositories.NewCacheRepository()
+
 	// Get the latest version.
 	// Usually only GetLatestVersion should be used to get the current running latest.
 	// But we are using GetNewVersion to also revalidate the versions.
@@ -81,6 +85,11 @@ func RevalidateItemCache(language string, itemId string) (*item.Item, error) {
 		client := redis.GetClient()
 		if err := client.Set(ctx, keyWithId, itemJson, 0); err != nil {
 			return nil, fmt.Errorf("can't set the item json on redis: %v", err)
+		}
+
+		// Set the key on the database. Fallback.
+		if repo != nil {
+			repo.Setkey(keyWithId, string(itemJson))
 		}
 	}
 
