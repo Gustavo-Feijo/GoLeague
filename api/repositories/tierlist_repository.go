@@ -90,6 +90,7 @@ func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*TierlistRe
 	args = append(args, singleQueryArgs...)
 
 	// Construct CTE subqueries with proper WHERE clause placement
+	// Should have only 6 possible values, 5 from normal queue and empty for Aram.
 	positionCountsCTE := `
 	WITH positionCounts AS (
 		SELECT
@@ -149,52 +150,15 @@ func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*TierlistRe
 		tm.total
 	HAVING
 		(COUNT(*) * 100.0) / pc.positionCount > 0.5
+	ORDER BY winRate desc
     `
-
-	// Get the sorting.
-	var sortBy string
-	if sorting, exists := filters["sort"]; exists {
-		switch sorting {
-		case "championId":
-			sortBy = "ms.champion_id"
-		case "winRate":
-			sortBy = "winRate"
-		case "pickRate":
-			sortBy = "pickRate"
-		case "banRate":
-			sortBy = "banRate"
-		}
-	} else {
-		sortBy = "ms.champion_id"
-	}
-
-	var direction string
-	if direct, exists := filters["direction"]; exists {
-		switch direct {
-		case "ascending":
-			direction = "ASC"
-		case "descending":
-			direction = "DESC"
-		}
-	}
-
-	// Get the final part of the query sorting and pagination.
-	sortAndPage := fmt.Sprintf(`
-	ORDER BY %s %s
-    	OFFSET ?
-    	LIMIT ?;
-	`, sortBy, direction)
-
-	args = append(args, filters["offset"], filters["limit"])
-
 	// Combine all parts of the query
-	query := positionCountsCTE + championBansCTE + totalMatchesCTE + mainQuery + sortAndPage
+	query := positionCountsCTE + championBansCTE + totalMatchesCTE + mainQuery
 
 	// Execute the query with arguments
 	err := ts.db.Raw(query, args...).Scan(&results).Error
 	if err != nil {
 		return nil, err
 	}
-
 	return results, nil
 }
