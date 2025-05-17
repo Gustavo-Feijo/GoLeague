@@ -22,7 +22,8 @@ type tierlistRepository struct {
 
 // Result of a tierlist fetch.
 type TierlistResult struct {
-	BanCount     int
+	Bancount     int
+	Banrate      float64
 	ChampionId   int
 	Pickcount    int
 	Pickrate     float64

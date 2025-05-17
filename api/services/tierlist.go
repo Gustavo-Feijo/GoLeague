@@ -22,10 +22,11 @@ type TierlistService struct {
 type FullTierlist struct {
 	Champion     map[string]any // Will be a simplified version of champion.Champion, without spell data.
 	BanCount     int
-	Pickcount    int
-	Pickrate     float64
+	Banrate      float64
+	PickCount    int
+	PickRate     float64
 	TeamPosition string
-	Winrate      float64
+	WinRate      float64
 }
 
 // Create a tierlist service.
@@ -71,7 +72,7 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist,
 	// Get the champion cache instance.
 	cacheChampion := cache.GetChampionCache()
 	repo, _ := repositories.NewCacheRepository()
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	wg.Add(workers)
@@ -93,11 +94,12 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist,
 
 				fullResult[entry.index] = &FullTierlist{
 					Champion:     championData,
-					BanCount:     entry.BanCount,
-					Pickcount:    entry.Pickcount,
-					Pickrate:     entry.Pickrate,
+					BanCount:     entry.Bancount,
+					Banrate:      entry.Banrate,
+					PickCount:    entry.Pickcount,
+					PickRate:     entry.Pickrate,
 					TeamPosition: entry.TeamPosition,
-					Winrate:      entry.Winrate,
+					WinRate:      entry.Winrate,
 				}
 			}
 		}()
