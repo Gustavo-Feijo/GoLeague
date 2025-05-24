@@ -23,9 +23,13 @@ var (
 func GetClient() *RedisClient {
 	once.Do(func() {
 		client := redis.NewClient(&redis.Options{
-			Addr:     config.Redis.Host + ":" + config.Redis.Port,
-			Password: config.Redis.Password,
-			DB:       0,
+			Addr:         config.Redis.Host + ":" + config.Redis.Port,
+			Password:     config.Redis.Password,
+			DB:           0,
+			MaxRetries:   3,
+			PoolSize:     100,
+			MinIdleConns: 10,
+			PoolTimeout:  30 * time.Second,
 		})
 
 		instance = &RedisClient{

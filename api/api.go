@@ -5,7 +5,9 @@ import (
 	"goleague/api/routes"
 	"goleague/pkg/config"
 	"log"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
@@ -44,6 +46,17 @@ func main() {
 		module.TierlistHandler,
 	)
 
-	// Start the server.
-	router.Run(":8080")
+	server := &http.Server{
+		Addr:           ":8080",
+		Handler:        router.Engine, // router is *gin.Engine which implements http.Handler
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1MB
+	}
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatal("Server failed to start:", err)
+	}
+
 }

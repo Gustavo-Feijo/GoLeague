@@ -7,14 +7,14 @@ import (
 )
 
 type Router struct {
-	engine *gin.Engine
+	Engine *gin.Engine
 	api    *gin.RouterGroup
 }
 
 func NewRouter(engine *gin.Engine) *Router {
 	return &Router{
 		api:    engine.Group("/api/v1"),
-		engine: engine,
+		Engine: engine,
 	}
 }
 
@@ -37,5 +37,5 @@ func (r *Router) registerTierlistHandler(handler *handlers.TierlistHandler) {
 
 // Start the router.
 func (r *Router) Run(addr string) error {
-	return r.engine.Run(addr)
+	return r.Engine.Run(addr)
 }
