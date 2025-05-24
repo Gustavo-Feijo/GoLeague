@@ -53,3 +53,28 @@ func (r *RedisClient) Get(ctx context.Context, key string) (string, error) {
 func (r *RedisClient) Set(ctx context.Context, key string, value any, ttl time.Duration) error {
 	return r.Client.Set(ctx, key, value, ttl).Err()
 }
+
+// Get the keys by the prefix.
+func (r *RedisClient) GetKeysByPrefix(ctx context.Context, prefix string) ([]string, error) {
+	var cursor uint64
+	var keys []string
+
+	for {
+		var result []string
+		var err error
+
+		// SCAN for keys with the prefix
+		result, cursor, err = r.Client.Scan(ctx, cursor, prefix+"*", 100).Result()
+		if err != nil {
+			return nil, err
+		}
+
+		keys = append(keys, result...)
+
+		if cursor == 0 {
+			break
+		}
+	}
+
+	return keys, nil
+}

@@ -1,7 +1,9 @@
 package modules
 
 import (
+	"context"
 	"fmt"
+	"goleague/api/cache"
 	"goleague/api/handlers"
 	"goleague/api/services"
 
@@ -18,6 +20,9 @@ type Module struct {
 // Create a new module with all the necessary handlers initialized.
 func NewModule(grpcClient *grpc.ClientConn) (*Module, error) {
 	router := gin.Default()
+
+	// Preload the cache.
+	cache.GetChampionCache().Initialize(context.Background())
 
 	// Initialize the services.
 	tierlistService, err := services.NewTierlistService(grpcClient)

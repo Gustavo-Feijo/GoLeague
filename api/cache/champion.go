@@ -109,3 +109,49 @@ func (c *ChampionCache) GetChampionCopy(ctx context.Context, championId string, 
 
 	return newMap, nil
 }
+
+func (c *ChampionCache) Initialize(ctx context.Context) error {
+	cachePrefix := "ddragon:champion:"
+
+	// Get all the keys by prefix.
+	keys, err := redis.GetClient().GetKeysByPrefix(ctx, cachePrefix)
+	if err != nil {
+		repo, err := repositories.NewCacheRepository()
+		if err != nil {
+			return err
+		}
+
+		// Get all champions by the prefix and save in memory.
+		champions, _ := repo.GetByPrefix(cachePrefix)
+		for _, champion := range champions {
+			var champJson map[string]any
+			err := json.Unmarshal([]byte(champion.CacheValue), &champJson)
+			if err != nil {
+				return err
+			}
+			championId := champJson["id"].(string)
+			c.mu.Lock()
+			c.memoryCache[championId] = champJson
+			c.mu.Unlock()
+		}
+		return nil
+	}
+
+	// Loop through each redis key and store it on memory.
+	for _, key := range keys {
+		champRedis, err := redis.GetClient().Get(ctx, key)
+		if err != nil {
+			continue
+		}
+		var champJson map[string]any
+		err = json.Unmarshal([]byte(champRedis), &champJson)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal champion data: %w", err)
+		}
+		championId := champJson["id"].(string)
+		c.mu.Lock()
+		c.memoryCache[championId] = champJson
+		c.mu.Unlock()
+	}
+	return nil
+}

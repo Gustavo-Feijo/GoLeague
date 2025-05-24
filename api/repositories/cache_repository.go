@@ -11,6 +11,7 @@ import (
 // Public Interface.
 type CacheRepository interface {
 	GetKey(key string) (string, error)
+	GetByPrefix(prefix string) ([]*models.CacheBackup, error)
 }
 
 // Match repository structure.
@@ -27,10 +28,9 @@ func NewCacheRepository() (CacheRepository, error) {
 	return &cacheRepository{db: db}, nil
 }
 
-// SetKey sets the given key value.
+// GetKey gets the given key value.
 // Should be used as a Redis fallback.
 func (cr *cacheRepository) GetKey(key string) (string, error) {
-
 	cacheEntry := &models.CacheBackup{
 		CacheKey: key,
 	}
@@ -42,4 +42,16 @@ func (cr *cacheRepository) GetKey(key string) (string, error) {
 	}
 
 	return cacheEntry.CacheValue, nil
+}
+
+// SetKey sets the given key value.
+// Should be used as a Redis fallback.
+func (cr *cacheRepository) GetByPrefix(prefix string) ([]*models.CacheBackup, error) {
+	var cacheEntries []*models.CacheBackup
+
+	if err := cr.db.Where("cache_key LIKE ?", prefix+"%").Find(&cacheEntries).Error; err != nil {
+		return nil, err
+	}
+
+	return cacheEntries, nil
 }
