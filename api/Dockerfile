@@ -15,6 +15,9 @@ RUN CGO_ENABLED=0 GOOS=linux  go build -o api ./api
 
 FROM alpine:3.21.3
 
+RUN adduser -D appuser
+USER appuser
+
 WORKDIR /app
 COPY --from=builder /app/api/api /app/api
 

@@ -18,6 +18,9 @@ RUN wget -O /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health
 
 FROM alpine:3.21.3
 
+RUN adduser -D appuser
+USER appuser
+
 WORKDIR /app
 COPY --from=builder /app/fetcher/fetcher /app/fetcher
 COPY --from=builder /bin/grpc_health_probe /bin/grpc_health_probe
