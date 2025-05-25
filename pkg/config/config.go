@@ -87,11 +87,11 @@ func LoadEnv() {
 	Bucket.Region = os.Getenv("BUCKET_REGION")
 
 	// Get the API Limits.
-	// Load lower limit settings
+	// Load lower limit settings.
 	lowerCount := getEnvInt("LIMIT_LOWER_COUNT", defaultLowerCount)
 	lowerReset := getEnvInt("LIMIT_LOWER_RESET", defaultLowerReset)
 
-	// Load higher limit settings
+	// Load higher limit settings.
 	higherCount := getEnvInt("LIMIT_HIGHER_COUNT", defaultHigherCount)
 	higherReset := getEnvInt("LIMIT_HIGHER_RESET", defaultHigherReset)
 

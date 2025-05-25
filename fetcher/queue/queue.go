@@ -1,14 +1,16 @@
 package queue
 
 import (
-	mainregion_queue "goleague/fetcher/queue/mainregion"
-	subregion_queue "goleague/fetcher/queue/subregion"
-	regionmanager "goleague/fetcher/region_manager"
+	mainregionqueue "goleague/fetcher/queue/mainregion"
+	subregionqueue "goleague/fetcher/queue/subregion"
+	regionmanager "goleague/fetcher/regionmanager"
 	"goleague/fetcher/regions"
 	"log"
 	"sync"
 )
 
+// StartQueue is the main process of the fetcher.
+// Initialize all subregions and main region queues.
 func StartQueue(rm *regionmanager.RegionManager) {
 	var wg sync.WaitGroup
 	// Loop through each main region and start it's queue.
@@ -19,7 +21,7 @@ func StartQueue(rm *regionmanager.RegionManager) {
 		go func(region regions.MainRegion) {
 			defer wg.Done()
 			// Create the main region queue instance.
-			queue, err := mainregion_queue.NewMainRegionQueue(region, rm)
+			queue, err := mainregionqueue.NewMainRegionQueue(region, rm)
 			if err != nil {
 				log.Printf("Something went wrong at queue start for region %s: %v", region, err)
 				return
@@ -37,7 +39,7 @@ func StartQueue(rm *regionmanager.RegionManager) {
 				defer wg.Done()
 
 				// Create the subregion queue instance.
-				queue, err := subregion_queue.NewSubRegionQueue(sr, rm)
+				queue, err := subregionqueue.NewSubRegionQueue(sr, rm)
 				if err != nil {
 					log.Printf("Something went wrong at queue start for subregion %s: %v", sr, err)
 					return

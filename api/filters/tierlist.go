@@ -15,7 +15,7 @@ type GetQueryParams struct {
 func (q *GetQueryParams) AsMap() map[string]any {
 	filters := make(map[string]any)
 
-	// Only add non-empty filters
+	// Only add non-empty filters.
 	if q.Tier != "" {
 		tierValue := q.Tier
 

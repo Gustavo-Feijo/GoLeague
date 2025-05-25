@@ -3,10 +3,10 @@ package matchservice
 import (
 	"fmt"
 	"goleague/fetcher/data"
-	match_fetcher "goleague/fetcher/data/match"
+	matchfetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/repositories"
-	batchservice "goleague/fetcher/services/main_region/batch"
-	eventservice "goleague/fetcher/services/main_region/events"
+	batchservice "goleague/fetcher/services/mainregion/batch"
+	eventservice "goleague/fetcher/services/mainregion/events"
 	"goleague/pkg/database/models"
 
 	"log"
@@ -14,14 +14,14 @@ import (
 	"time"
 )
 
-// TimelineService handles match timeline operations
+// TimelineService handles match timeline operations.
 type TimelineService struct {
 	fetcher            data.MainFetcher
 	TimelineRepository repositories.TimelineRepository
 	maxRetries         int
 }
 
-// NewTimelineService creates a new timeline service
+// NewTimelineService creates a new timeline service.
 func NewTimelineService(
 	fetcher data.MainFetcher,
 	timelineRepo repositories.TimelineRepository,
@@ -34,9 +34,9 @@ func NewTimelineService(
 	}
 }
 
-// GetMatchTimeline gets the timeline data for a match
-func (t *TimelineService) GetMatchTimeline(matchId string) (*match_fetcher.MatchTimeline, error) {
-	var matchData *match_fetcher.MatchTimeline
+// GetMatchTimeline gets the timeline data for a match.
+func (t *TimelineService) GetMatchTimeline(matchId string) (*matchfetcher.MatchTimeline, error) {
+	var matchData *matchfetcher.MatchTimeline
 	var err error
 
 	for attempt := 1; attempt < t.maxRetries; attempt++ {
@@ -60,9 +60,9 @@ func (t *TimelineService) GetMatchTimeline(matchId string) (*match_fetcher.Match
 	return matchData, nil
 }
 
-// ProcessMatchTimeline processes the match timeline data and inserts it into the database
+// ProcessMatchTimeline processes the match timeline data and inserts it into the database.
 func (t *TimelineService) ProcessMatchTimeline(
-	matchTimeline *match_fetcher.MatchTimeline,
+	matchTimeline *matchfetcher.MatchTimeline,
 	statIdByPuuid map[string]uint64,
 	matchInfo *models.MatchInfo,
 	matchRepo repositories.MatchRepository,
@@ -95,7 +95,7 @@ func (t *TimelineService) ProcessMatchTimeline(
 			framesToInsert = append(framesToInsert, t.prepareParticipantsFrames(frameData, matchStatId, frameIndex))
 		}
 
-		// Process event handler service
+		// Process event handler service.
 		eventService := eventservice.NewEventService(matchRepo)
 
 		// Loop through each event frame available.
@@ -118,17 +118,17 @@ func (t *TimelineService) ProcessMatchTimeline(
 	return err
 }
 
-// prepareParticipantsFrames prepares and returns a participant frame to be inserted
+// prepareParticipantsFrames prepares and returns a participant frame to be inserted.
 func (t *TimelineService) prepareParticipantsFrames(
-	frame match_fetcher.ParticipantFrames,
+	frame matchfetcher.ParticipantFrame,
 	matchStatId uint64,
 	frameId int,
 ) *models.ParticipantFrame {
 	// Create the participant to be inserted in the database.
 	participant := &models.ParticipantFrame{
-		MatchStatId:       matchStatId,
-		FrameIndex:        frameId,
-		ParticipantFrames: frame,
+		MatchStatId:      matchStatId,
+		FrameIndex:       frameId,
+		ParticipantFrame: frame,
 	}
 
 	return participant

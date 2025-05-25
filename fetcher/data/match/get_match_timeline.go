@@ -1,11 +1,11 @@
 package matchfetcher
 
-// Default match timeline.
+// MatchTimeline is the default return, with the info key.
 type MatchTimeline struct {
 	Info MatchTimelineData `json:"info"`
 }
 
-// Date of the timeline.
+// MatchTimelineData is the struct containing the main content of the timeline.
 type MatchTimelineData struct {
 	EndOfGameResult string                      `json:"endOfGameResult"`
 	FrameInterval   int64                       `json:"frameInterval"`
@@ -13,13 +13,13 @@ type MatchTimelineData struct {
 	Participants    []MatchTimelineParticipants `json:"participants"`
 }
 
-// Frame generated every FrameInterval interval.
+// MatchTimelineFrame contains the participant frames and events for a given frame interval.
 type MatchTimelineFrame struct {
-	Event             []EventFrame                 `json:"events"`
-	ParticipantFrames map[string]ParticipantFrames `json:"participantFrames"`
+	Event             []EventFrame                `json:"events"`
+	ParticipantFrames map[string]ParticipantFrame `json:"participantFrames"`
 }
 
-// Frame with the events.
+// EventFrame is a struct of possible values for a event.
 type EventFrame struct {
 	AfterId       *int           `json:"afterId,omitempty"`
 	BeforeId      *int           `json:"beforeId,omitempty"`
@@ -47,8 +47,8 @@ type EventFrame struct {
 	WinningTeam   *int           `json:"winningTeam,omitempty"`
 }
 
-// Frame for each participant.
-type ParticipantFrames struct {
+// ParticipantFrame contains a single player frame.
+type ParticipantFrame struct {
 	CurrentGold         int         `json:"currentGold"`
 	DamageStats         DamageStats `json:"damageStats" gorm:"embedded"`
 	JungleMinionsKilled int         `json:"jungleMinionsKilled"`
@@ -59,7 +59,7 @@ type ParticipantFrames struct {
 	XP                  int         `json:"xp"`
 }
 
-// Damage stats for a given participant.
+// DamageStats contain damage related statistics for a given participant.
 type DamageStats struct {
 	MagicDamageDone               int `json:"magicDamageDone"`
 	MagicDamageDoneToChampions    int `json:"magicDamageDoneToChampions"`
@@ -75,7 +75,7 @@ type DamageStats struct {
 	TrueDamageTaken               int `json:"trueDamageTaken"`
 }
 
-// Each participant with it's respective ID inside the timeline.
+// MatchTimelineParticipants conrains each participant with it's respective ID inside the timeline.
 type MatchTimelineParticipants struct {
 	ParticipantId int    `json:"participantId"`
 	Puuid         string `json:"puuid"`

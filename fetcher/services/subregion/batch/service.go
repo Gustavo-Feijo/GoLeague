@@ -2,15 +2,15 @@ package batchservice
 
 import (
 	"fmt"
-	league_fetcher "goleague/fetcher/data/league"
+	leaguefetcher "goleague/fetcher/data/league"
 	"goleague/fetcher/regions"
-	leagueservice "goleague/fetcher/services/sub_region/league"
-	playerservice "goleague/fetcher/services/sub_region/player"
-	ratingservice "goleague/fetcher/services/sub_region/rating"
+	leagueservice "goleague/fetcher/services/subregion/league"
+	playerservice "goleague/fetcher/services/subregion/player"
+	ratingservice "goleague/fetcher/services/subregion/rating"
 	"goleague/pkg/logger"
 )
 
-// Handles batch processing of league entries.
+// BatchService handles batch processing of league entries.
 type BatchService struct {
 	leagueService *leagueservice.LeagueService
 	playerService *playerservice.PlayerService
@@ -19,7 +19,7 @@ type BatchService struct {
 	subRegion     regions.SubRegion
 }
 
-// Creates a new batch service
+// NewBatchService creates a new batch service.
 func NewBatchService(
 	leagueService *leagueservice.LeagueService,
 	playerService *playerservice.PlayerService,
@@ -36,9 +36,9 @@ func NewBatchService(
 	}
 }
 
-// Processes a batch of league entries
-func (s *BatchService) ProcessBatchEntry(entries []league_fetcher.LeagueEntry, queue string) error {
-	// If empty just return
+// ProcessBatchEntry processes a batch of league entries.
+func (s *BatchService) ProcessBatchEntry(entries []leaguefetcher.LeagueEntry, queue string) error {
+	// If empty just return.
 	if len(entries) == 0 {
 		return nil
 	}
@@ -52,7 +52,7 @@ func (s *BatchService) ProcessBatchEntry(entries []league_fetcher.LeagueEntry, q
 		return fmt.Errorf("couldn't get the existing players by puuid: %v", err)
 	}
 
-	// Process players (create missing ones)
+	// Process players (create missing ones).
 	playersToCreate, err := s.playerService.ProcessPlayersFromEntries(entries, existingPlayers)
 	if err != nil {
 		return fmt.Errorf("couldn't create the players from the entries: %v", err)
@@ -78,7 +78,7 @@ func (s *BatchService) ProcessBatchEntry(entries []league_fetcher.LeagueEntry, q
 
 	// Log rating creation if any.
 	if len(createdRatings) > 0 {
-		// Extract the tier for printing
+		// Extract the tier for printing.
 		tier := createdRatings[0].Tier
 		rank := createdRatings[0].Rank
 

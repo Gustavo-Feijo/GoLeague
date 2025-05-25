@@ -3,20 +3,20 @@ package eventservice
 import (
 	"errors"
 	"fmt"
-	match_fetcher "goleague/fetcher/data/match"
+	matchfetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/repositories"
-	batchservice "goleague/fetcher/services/main_region/batch"
+	batchservice "goleague/fetcher/services/mainregion/batch"
 	"goleague/pkg/database/models"
 
 	"strconv"
 )
 
-// Separate service for event operations.
+// EventService is a separated service for event operations.
 type EventService struct {
 	MatchRepository repositories.MatchRepository
 }
 
-// Creates a new event service.
+// NewEventService creates a new event service.
 func NewEventService(
 	matchRepo repositories.MatchRepository,
 ) *EventService {
@@ -25,9 +25,9 @@ func NewEventService(
 	}
 }
 
-// Prepare a champion kill event.
+// prepareChampionKill prepares a champion kill event.
 func (es *EventService) prepareChampionKill(
-	event match_fetcher.EventFrame,
+	event matchfetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventPlayerKill, error) {
@@ -77,11 +77,11 @@ func (es *EventService) prepareChampionKill(
 	return eventInsert, nil
 }
 
-// Prepare each event to be inserted.
-// Handle the events as any/interface{}
+// PrepareEvents prepares each event to be inserted.
+// Handle the events as any/interface{}.
 // Add each event to the batch collector for further batch insertion.
 func (es *EventService) PrepareEvents(
-	event match_fetcher.EventFrame,
+	event matchfetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 	statIdByParticipantId map[string]uint64,
 	batchCollector *batchservice.BatchCollector,
@@ -137,9 +137,9 @@ func (es *EventService) PrepareEvents(
 	return nil
 }
 
-// Prepare a feat update event.
+// prepareFeatUpdateEvent prepares a feat update event.
 func (es *EventService) prepareFeatUpdateEvent(
-	event match_fetcher.EventFrame,
+	event matchfetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 ) (*models.EventFeatUpdate, error) {
 	var (
@@ -178,9 +178,9 @@ func (es *EventService) prepareFeatUpdateEvent(
 	return eventInsert, nil
 }
 
-// Prepare a item event.
+// prepareItemEvent prepares a item event.
 func (es *EventService) prepareItemEvent(
-	event match_fetcher.EventFrame,
+	event matchfetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventItem, error) {
 	// Get the killer id as string if setted.
@@ -219,9 +219,9 @@ func (es *EventService) prepareItemEvent(
 	return eventInsert, nil
 }
 
-// Process a level up event.
+// prepareLevelUpEvent prepares a level up event.
 func (es *EventService) prepareLevelUpEvent(
-	event match_fetcher.EventFrame,
+	event matchfetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventLevelUp, error) {
 	// Get the participant that level up.
@@ -255,9 +255,9 @@ func (es *EventService) prepareLevelUpEvent(
 	return eventInsert, nil
 }
 
-// Prepare a monster kill event.
+// prepareMonsterKill prepares a monster kill event.
 func (es *EventService) prepareMonsterKill(
-	event match_fetcher.EventFrame,
+	event matchfetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventMonsterKill, error) {
 	// Get the killer id as string if setted.
@@ -310,25 +310,9 @@ func (es *EventService) prepareMonsterKill(
 	return eventInsert, nil
 }
 
-// Prepare the participant frame and return it to be later inserted.
-func (es *EventService) prepareParticipantsFrames(
-	frame match_fetcher.ParticipantFrames,
-	matchStatId uint64,
-	frameId int,
-) *models.ParticipantFrame {
-	// Create the participant to be inserted in the database.
-	participant := &models.ParticipantFrame{
-		MatchStatId:       matchStatId,
-		FrameIndex:        frameId,
-		ParticipantFrames: frame,
-	}
-
-	return participant
-}
-
-// Prepare a skill level up.
+// prepareSkillLevelUpEvent prepares a skill level up.
 func (es *EventService) prepareSkillLevelUpEvent(
-	event match_fetcher.EventFrame,
+	event matchfetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventSkillLevelUp, error) {
 	// Get the participant that leveled up.
@@ -365,9 +349,9 @@ func (es *EventService) prepareSkillLevelUpEvent(
 	return eventInsert, nil
 }
 
-// Prepare a struct kill event.
+// prepareStructKillEvent prepares a struct kill event.
 func (es *EventService) prepareStructKillEvent(
-	event match_fetcher.EventFrame,
+	event matchfetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventKillStruct, error) {
@@ -420,9 +404,9 @@ func (es *EventService) prepareStructKillEvent(
 	return eventInsert, nil
 }
 
-// Prepare a ward event.
+// prepareWardEvent prepares a ward event.
 func (es *EventService) prepareWardEvent(
-	event match_fetcher.EventFrame,
+	event matchfetcher.EventFrame,
 	statIdByParticipantId map[string]uint64,
 ) (*models.EventWard, error) {
 	var actorId string
@@ -462,9 +446,9 @@ func (es *EventService) prepareWardEvent(
 	return nil, errors.New("couldn't find the actor of the ward event")
 }
 
-// Set the match winner.
+// setMatchWinner set the match winner.
 func (es *EventService) setMatchWinner(
-	event match_fetcher.EventFrame,
+	event matchfetcher.EventFrame,
 	matchInfo *models.MatchInfo,
 ) error {
 	var teamId int

@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Create the player into the database.
+// PlayerInfo contains the player information data.
 type PlayerInfo struct {
 	ID             uint `gorm:"primaryKey"`
 	ProfileIcon    int

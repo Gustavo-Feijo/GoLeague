@@ -48,10 +48,10 @@ func RevalidateChampionCache(language string, championId string) (*champion.Cham
 
 	var wg sync.WaitGroup
 
-	// Channel for the champion keys. (Champion names on the DDragon)
+	// Channel for the champion keys. (Champion names on the DDragon).
 	championKeys := make(chan string, len(championsData.Data))
 
-	// Start workers
+	// Start workers.
 	for range workerCount {
 		go func() {
 			for championKey := range championKeys {
@@ -61,13 +61,13 @@ func RevalidateChampionCache(language string, championId string) (*champion.Cham
 		}()
 	}
 
-	// Enqueue tasks
+	// Enqueue tasks.
 	for championKey := range championsData.Data {
 		wg.Add(1)
 		championKeys <- championKey
 	}
 
-	// Close the channel and wait for all workers to finish
+	// Close the channel and wait for all workers to finish.
 	close(championKeys)
 	wg.Wait()
 
@@ -140,7 +140,7 @@ func RevalidateSingleChampionByKey(language string, championKey string, repo rep
 		}
 	}
 
-	// Handle passive
+	// Handle passive.
 	if passiveData, ok := championData["passive"].(map[string]any); ok {
 		champ.Passive = mapToSpell(passiveData, champ.ID)
 	}

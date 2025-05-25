@@ -1,11 +1,11 @@
 package models
 
 import (
-	match_fetcher "goleague/fetcher/data/match"
+	matchfetcher "goleague/fetcher/data/match"
 	"time"
 )
 
-// Database model for the match information.
+// MatchInfo contains the data regarding the match information.
 type MatchInfo struct {
 	ID             uint   `gorm:"primaryKey"`
 	GameVersion    string `gorm:"type:varchar(20)"`
@@ -22,7 +22,7 @@ type MatchInfo struct {
 	CreatedAt      time.Time `gorm:"autoCreateTime"`
 }
 
-// Database model for saving a player perfomance in a given match.
+// MatchStats contains the data regarding a given player perfomance on a given match.
 type MatchStats struct {
 	// Ids and identifiers for the match stats.
 	ID       uint64 `gorm:"primaryKey"`
@@ -34,10 +34,10 @@ type MatchStats struct {
 	Player PlayerInfo `gorm:"PlayerId"`
 
 	// Embedded match stats.
-	PlayerData match_fetcher.MatchPlayer `gorm:"embedded"`
+	PlayerData matchfetcher.MatchPlayer `gorm:"embedded"`
 }
 
-// Database model for saving the match bans.
+// MatchBans contains the bans made in a given match.
 type MatchBans struct {
 	MatchId    uint `gorm:"primaryKey;autoIncrement:false"`
 	PickTurn   int  `gorm:"primaryKey;autoIncrement:false"`

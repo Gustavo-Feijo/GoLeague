@@ -1,7 +1,7 @@
 package models
 
 import (
-	match_fetcher "goleague/fetcher/data/match"
+	matchfetcher "goleague/fetcher/data/match"
 )
 
 // The timeline entries are almost always attached to a given player stat entry.
@@ -9,7 +9,7 @@ import (
 // By making it like that, we can avoid creation of composite keys like the ones in the stats structure.
 // The few exceptions are events that can be made by minions.
 
-// Event of a feat update.
+// EventFeatUpdate contains data regarding feats of strenght.
 type EventFeatUpdate struct {
 	MatchId uint `gorm:"index"`
 
@@ -20,12 +20,12 @@ type EventFeatUpdate struct {
 	TeamId    int
 }
 
-// Event of a player doing something with an item.
+// EventItem contains data regarding players and items.
 type EventItem struct {
 	MatchStatId *uint64 `gorm:"index"`
 	Timestamp   int64
 
-	// Foreign Key
+	// Foreign Key.
 	MatchStat MatchStats `gorm:"MatchStatId"`
 
 	ItemId int
@@ -35,7 +35,7 @@ type EventItem struct {
 	Action  string
 }
 
-// Event of killing a ward/plate/tower.
+// EventKillStruct contains data regarding killings structs (Towers, Plates, etc).
 type EventKillStruct struct {
 	// Struct kills not necessary are attached to a player.
 	// A minion can kill a struct, so we need to handle differently.
@@ -53,24 +53,24 @@ type EventKillStruct struct {
 	Y            int
 }
 
-// Event of a player level up.
+// EventLevelUp contains data regarding a givne player level up.
 type EventLevelUp struct {
 	// Composite primary key, a given player can have multiple level ups.
 	MatchStatId uint64 `gorm:"index"`
 	Timestamp   int64
 
-	// Foreign Key
+	// Foreign Key.
 	MatchStat MatchStats `gorm:"MatchStatId"`
 
 	Level int
 }
 
-// Event of destroying a monster.
+// EventMonsterKill contains data regarding the death of a monster.
 type EventMonsterKill struct {
 	MatchStatId uint64 `gorm:"index"`
 	Timestamp   int64
 
-	// Foreign Key
+	// Foreign Key.
 	MatchStat MatchStats `gorm:"MatchStatId"`
 
 	KillerTeam  int
@@ -79,7 +79,8 @@ type EventMonsterKill struct {
 	Y           int
 }
 
-// Event of a player kill.
+// EventPlayerKill contains data regarding a champion being killed.
+// Can come from another players or minions and towers.
 type EventPlayerKill struct {
 	// Champions kills not necessary are attached to a player.
 	// A minion can kill a player, so we need to handle differently.
@@ -93,19 +94,19 @@ type EventPlayerKill struct {
 	Y                 int
 }
 
-// Event of a player leveling up a skill.
+// EventSkillLevelUp contains data regarding a skill level up.
 type EventSkillLevelUp struct {
 	MatchStatId uint64 `gorm:"index"`
 	Timestamp   int64
 
-	// Foreign Key
+	// Foreign Key.
 	MatchStat MatchStats `gorm:"MatchStatId"`
 
 	LevelUpType string `gorm:"type:varchar(30)"`
 	SkillSlot   int
 }
 
-// Event of a ward.
+// EventWard contains data regarding a ward/vision event.
 type EventWard struct {
 	// Sometimes the participant ID will be setted as 0 for some reason.
 	// So we cannot find who created/killed the ward.
@@ -116,13 +117,14 @@ type EventWard struct {
 	WardType  *string
 }
 
-// The participant frame already come in a ready to insert structure.
+// ParticipantFrame contains data regarding a given player at a given time.
+// Can be used for generating graphs.
 type ParticipantFrame struct {
 	// Composite primary key, a given player in a given match can have multiple frames.
 	MatchStatId uint64 `gorm:"primaryKey"`
 	FrameIndex  int    `gorm:"primaryKey"`
 
-	// Foreign Key
-	MatchStat                       MatchStats `gorm:"MatchStatId"`
-	match_fetcher.ParticipantFrames `gorm:"embedded"`
+	// Foreign Key.
+	MatchStat                     MatchStats `gorm:"MatchStatId"`
+	matchfetcher.ParticipantFrame `gorm:"embedded"`
 }

@@ -25,7 +25,7 @@ var rankValues = map[string]int{
 	"I":   7500,
 }
 
-// Calculate numeric rank from tier and division
+// Calculate numeric rank from tier and division.
 func CalculateRank(tier string, rank string, lp int) int {
 	// Normalize the tier entry.
 	tier = strings.ToUpper(tier)
@@ -40,7 +40,7 @@ func CalculateRank(tier string, rank string, lp int) int {
 	rank = strings.ToUpper(rank)
 	rank = strings.TrimSpace(rank)
 
-	// Division 4 is lowest, 1 is highest, each worth 100 points
+	// Division 4 is lowest, 1 is highest, each worth 100 points.
 	divisionValue, exists := rankValues[rank]
 	if !exists {
 		return baseValue

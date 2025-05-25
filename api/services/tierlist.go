@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Tierlist service with the  repositories and the gRPC client in case we need to force fetch something (Unlikely)
+// Tierlist service with the  repositories and the gRPC client in case we need to force fetch something (Unlikely).
 type TierlistService struct {
 	TierlistRepository repositories.TierlistRepository
 	grpcClient         *grpc.ClientConn
@@ -69,7 +69,6 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist,
 			continue
 		}
 		// Remove the spells and passive from the copied map.
-		// Grants a smaller
 		delete(championData, "spells")
 		delete(championData, "passive")
 

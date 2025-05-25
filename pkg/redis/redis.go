@@ -19,7 +19,7 @@ var (
 	instance *RedisClient
 )
 
-// Return the only existing instance of the client.
+// GetClient is a singleton that returns a redis connection pool.
 func GetClient() *RedisClient {
 	once.Do(func() {
 		client := redis.NewClient(&redis.Options{
@@ -39,22 +39,22 @@ func GetClient() *RedisClient {
 	return instance
 }
 
-// Close the client connection.
+// Close clopses the client connection.
 func (r *RedisClient) Close() error {
 	return r.Client.Close()
 }
 
-// Wrapper to return the Result directly.
+// Get is a simple wrapper to the Get, returning the result directly.
 func (r *RedisClient) Get(ctx context.Context, key string) (string, error) {
 	return r.Client.Get(ctx, key).Result()
 }
 
-// Wrapper to already return the .Err()
+// Set is a wrapper to already return the .Err() on the Set.
 func (r *RedisClient) Set(ctx context.Context, key string, value any, ttl time.Duration) error {
 	return r.Client.Set(ctx, key, value, ttl).Err()
 }
 
-// Get the keys by the prefix.
+// GetKeysByPrefix return all keys that match a given prefix.
 func (r *RedisClient) GetKeysByPrefix(ctx context.Context, prefix string) ([]string, error) {
 	var cursor uint64
 	var keys []string
@@ -63,7 +63,6 @@ func (r *RedisClient) GetKeysByPrefix(ctx context.Context, prefix string) ([]str
 		var result []string
 		var err error
 
-		// SCAN for keys with the prefix
 		result, cursor, err = r.Client.Scan(ctx, cursor, prefix+"*", 100).Result()
 		if err != nil {
 			return nil, err

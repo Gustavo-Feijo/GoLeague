@@ -141,7 +141,7 @@ func (c *ChampionCache) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// deepCopyMap creates a deep copy of a map[string]any
+// deepCopyMap creates a deep copy of a map[string]any.
 func deepCopyMap(original map[string]any) map[string]any {
 	copy := make(map[string]any, len(original))
 	for k, v := range original {
@@ -157,7 +157,7 @@ func deepCopyMap(original map[string]any) map[string]any {
 	return copy
 }
 
-// deepCopySlice creates a deep copy of a []any
+// deepCopySlice creates a deep copy of a []any.
 func deepCopySlice(original []any) []any {
 	copy := make([]any, len(original))
 	for i, v := range original {

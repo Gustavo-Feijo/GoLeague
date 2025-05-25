@@ -14,14 +14,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-// Logger that we will use to save our logs.
+// NewLogger is a very simple logging implementation.
+// Writes logs to a temporary file that is later sent to a Bucket and cleaned.
 type NewLogger struct {
 	mu       sync.Mutex
 	logFile  *os.File
 	filePath string
 }
 
-// Create the log instance with a temporary file.
+// CreateLogger creates a new temporary file and return the logger.
 func CreateLogger() (*NewLogger, error) {
 	f, err := os.CreateTemp("", "log-*.log")
 	if err != nil {
@@ -34,22 +35,23 @@ func CreateLogger() (*NewLogger, error) {
 	}, nil
 }
 
-// Log a simple info.
+// Infof writes information to a file.
 func (l *NewLogger) Infof(format string, args ...any) {
 	l.write("[INFO]", format, args...)
 }
 
-// Log a error.
+// Errorf writes errors to a file.
 func (l *NewLogger) Errorf(format string, args ...any) {
 	l.write("[ERROR]", format, args...)
 }
 
-// Write a empty line.
+// EmptyLine writes a empty line to the file.
 func (l *NewLogger) EmptyLine() {
 	l.logFile.WriteString("\n")
 }
 
-// Write something to the logger.
+// write is the base method for writing data to the file.
+// Works with parallelism and adds the date to the logs.
 func (l *NewLogger) write(infoType string, format string, args ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -60,7 +62,7 @@ func (l *NewLogger) write(infoType string, format string, args ...any) {
 	l.logFile.WriteString(line)
 }
 
-// Clean the file contents.
+// CleanFile is responsible for cleaning the file after it's sent for the bucket.
 func (l *NewLogger) CleanFile() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -70,7 +72,7 @@ func (l *NewLogger) CleanFile() {
 	l.logFile.Seek(0, 0)
 }
 
-// Upload the log to a s3 bucket.
+// UploadToS3Bucket send the temporary log to the bucket and clean the temporary file for reuse.
 func (l *NewLogger) UploadToS3Bucket(objectKey string) error {
 	if _, err := l.logFile.Seek(0, 0); err != nil {
 		return fmt.Errorf("failed to rewind file: %v", err)

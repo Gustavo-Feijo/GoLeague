@@ -14,12 +14,12 @@ type CacheRepository interface {
 	Setkey(key string, value string) error
 }
 
-// Match repository structure.
+// cacheRepository structure.
 type cacheRepository struct {
 	db *gorm.DB
 }
 
-// Create a match repository.
+// NewCacheRepository creates a new cache repository and return it.
 func NewCacheRepository() (CacheRepository, error) {
 	db, err := database.GetConnection()
 	if err != nil {

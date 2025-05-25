@@ -5,23 +5,23 @@ import (
 	"fmt"
 
 	"goleague/fetcher/data"
-	match_fetcher "goleague/fetcher/data/match"
+	matchfetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
-	eventservice "goleague/fetcher/services/main_region/events"
-	matchservice "goleague/fetcher/services/main_region/match"
-	playerservice "goleague/fetcher/services/main_region/player"
+	eventservice "goleague/fetcher/services/mainregion/events"
+	matchservice "goleague/fetcher/services/mainregion/match"
+	playerservice "goleague/fetcher/services/mainregion/player"
 	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
 	"time"
 )
 
-// Type for the default configuration.
+// MainRegionConfig is the configuration of the main region.
 type MainRegionConfig struct {
 	MaxRetries int
 }
 
-// Type for the main region service.
+// MainRegionService coordinates data fetching and processing for a specific main region.
 type MainRegionService struct {
 	config             MainRegionConfig
 	fetcher            data.MainFetcher
@@ -37,14 +37,14 @@ type MainRegionService struct {
 	MainRegion         regions.MainRegion
 }
 
-// Create the main region default config.
+// newMainRegionConfig creates the main region default config.
 func newMainRegionConfig() *MainRegionConfig {
 	return &MainRegionConfig{
 		MaxRetries: 3,
 	}
 }
 
-// Create the main region service.
+// NewMainRegionService creates the main region service.
 func NewMainRegionService(
 	fetcher *data.MainFetcher,
 	region regions.MainRegion,
@@ -72,13 +72,13 @@ func NewMainRegionService(
 
 	config := *newMainRegionConfig()
 
-	// Create the logger
+	// Create the logger.
 	logger, err := logger.CreateLogger()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start the logger on sub region %s: %v", region, err)
 	}
 
-	// Create the services
+	// Create the services.
 	eventservice := eventservice.NewEventService(
 		matchRepository,
 	)
@@ -121,13 +121,13 @@ func NewMainRegionService(
 	}, nil
 }
 
-// Returns the logger instance.
+// GetLogger returns the logger instance.
 // Used for manual closing of the logs.
 func (p *MainRegionService) GetLogger() *logger.NewLogger {
 	return p.logger
 }
 
-// Get the full match list of a given player.
+// getFullMatchList retrieves the full match list of a given player.
 func (p *MainRegionService) getFullMatchList(
 	player *models.PlayerInfo,
 ) ([]string, error) {
@@ -166,7 +166,7 @@ func (p *MainRegionService) getFullMatchList(
 	}
 }
 
-// Get the matches that need to be fetched for a given player.
+// GetTrueMatchList retrieves the matches that need to be fetched for a given player.
 // Remove all matches that were already fetched.
 func (p *MainRegionService) GetTrueMatchList(
 	player *models.PlayerInfo,
@@ -199,34 +199,34 @@ func (p *MainRegionService) GetTrueMatchList(
 	return trueMatchList, nil
 }
 
-// Get the data of the match from the Riot API.
+// GetMatchData retrives the data of the match from the Riot API.
 func (p *MainRegionService) GetMatchData(
 	matchId string,
-) (*match_fetcher.MatchData, error) {
+) (*matchfetcher.MatchData, error) {
 	return p.matchService.GetMatchData(matchId)
 }
 
-// Process the match data to insert it into the database.
+// ProcessMatchData process the match data to insert it into the database.
 // Wrapper to call the service.
 func (p *MainRegionService) ProcessMatchData(
-	match *match_fetcher.MatchData,
+	match *matchfetcher.MatchData,
 	matchId string,
 	region regions.SubRegion,
 ) (*models.MatchInfo, []*models.MatchBans, []*models.MatchStats, error) {
 	return p.matchService.ProcessMatchData(match, matchId, region)
 }
 
-// Get the match timeline.
+// GetMatchTimeline retrives the match timeline from the Riot API.
 func (p *MainRegionService) GetMatchTimeline(
 	matchId string,
-) (*match_fetcher.MatchTimeline, error) {
+) (*matchfetcher.MatchTimeline, error) {
 	return p.timelineService.GetMatchTimeline(matchId)
 }
 
-// Process the match timeline to insert it into the database.
+// ProcessMatchTimeline process the match timeline to insert it into the database.
 // Wrapper to call the service.
 func (p *MainRegionService) ProcessMatchTimeline(
-	matchTimeline *match_fetcher.MatchTimeline,
+	matchTimeline *matchfetcher.MatchTimeline,
 	statIdByPuuid map[string]uint64,
 	matchInfo *models.MatchInfo,
 ) error {

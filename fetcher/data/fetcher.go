@@ -1,47 +1,48 @@
 package data
 
 import (
-	league_fetcher "goleague/fetcher/data/league"
-	match_fetcher "goleague/fetcher/data/match"
-	player_fetcher "goleague/fetcher/data/player"
+	leaguefetcher "goleague/fetcher/data/league"
+	matchfetcher "goleague/fetcher/data/match"
+	playerfetcher "goleague/fetcher/data/player"
 	"goleague/fetcher/requests"
 )
 
-// Define a main fetcher.
+// MainFetcher with it's dependencies.
 type MainFetcher struct {
-	Player *player_fetcher.Player_fetcher
-	Match  *match_fetcher.Match_fetcher
-	League *league_fetcher.League_Fetcher
+	Player *playerfetcher.PlayerFetcher
+	Match  *matchfetcher.MatchFetcher
+	League *leaguefetcher.LeagueFetcher
 }
 
-// Define a sub region fetcher.
+// SubFetcher with it's dependencies.
 type SubFetcher struct {
-	Player *player_fetcher.Sub_player_fetcher
-	Match  *match_fetcher.Sub_match_fetcher
-	League *league_fetcher.Sub_league_Fetcher
+	Player *playerfetcher.SubPlayerFetcher
+	Match  *matchfetcher.SubMatchFetcher
+	League *leaguefetcher.SubLeagueFetcher
 }
 
-// Function to instanciate the main fetcher.
+// NewMainFetcher instanciate the main fetcher.
 func NewMainFetcher(region string) *MainFetcher {
 	// Create the limiter for this region.
 	limiter := requests.NewRateLimiter()
 
 	// Return the fetcher with it's player instance for queries.
 	return &MainFetcher{
-		Player: player_fetcher.NewPlayerFetcher(limiter, region),
-		Match:  match_fetcher.NewMatchFetcher(limiter, region),
-		League: league_fetcher.NewLeagueFetcher(limiter, region),
+		Player: playerfetcher.NewPlayerFetcher(limiter, region),
+		Match:  matchfetcher.NewMatchFetcher(limiter, region),
+		League: leaguefetcher.NewLeagueFetcher(limiter, region),
 	}
 }
 
+// NewSubFetcher instanciate the sub fetcher.
 func NewSubFetcher(region string) *SubFetcher {
 	// Create the limiter for this region.
 	limiter := requests.NewRateLimiter()
 
 	// Return the fetcher with it's player instance for queries.
 	return &SubFetcher{
-		Player: player_fetcher.NewSubPlayerFetcher(limiter, region),
-		Match:  match_fetcher.NewSubMatchFetcher(limiter, region),
-		League: league_fetcher.NewSubLeagueFetcher(limiter, region),
+		Player: playerfetcher.NewSubPlayerFetcher(limiter, region),
+		Match:  matchfetcher.NewSubMatchFetcher(limiter, region),
+		League: leaguefetcher.NewSubLeagueFetcher(limiter, region),
 	}
 }

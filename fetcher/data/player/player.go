@@ -12,36 +12,36 @@ import (
 	"github.com/Gustavo-Feijo/gomultirate"
 )
 
-// The player fetcher with it's limit and region.
-type Player_fetcher struct {
+// PlayerFetcher with it's limit and region.
+type PlayerFetcher struct {
 	limiter *gomultirate.RateLimiter // Pointer to the fetcher, since it's shared.
 	region  string
 }
 
-// The player fetcher with it's limit and region.
-type Sub_player_fetcher struct {
+// SubPlayerFetcher with it's limit and region.
+type SubPlayerFetcher struct {
 	limiter *gomultirate.RateLimiter // Pointer to the fetcher, since it's shared.
 	region  string
 }
 
-// Create a player fetcher.
-func NewPlayerFetcher(limiter *gomultirate.RateLimiter, region string) *Player_fetcher {
-	return &Player_fetcher{
+// NewPlayerFetcher creates a player fetcher.
+func NewPlayerFetcher(limiter *gomultirate.RateLimiter, region string) *PlayerFetcher {
+	return &PlayerFetcher{
 		limiter,
 		region,
 	}
 }
 
-// Create a player fetcher.
-func NewSubPlayerFetcher(limiter *gomultirate.RateLimiter, region string) *Sub_player_fetcher {
-	return &Sub_player_fetcher{
+// NewSubPlayerFetcher creates a player fetcher.
+func NewSubPlayerFetcher(limiter *gomultirate.RateLimiter, region string) *SubPlayerFetcher {
+	return &SubPlayerFetcher{
 		limiter,
 		region,
 	}
 }
 
-// Get a players match list.
-func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset int, onDemand bool) ([]string, error) {
+// GetMatchList returns a players match list.
+func (p *PlayerFetcher) GetMatchList(puuid string, lastFetch time.Time, offset int, onDemand bool) ([]string, error) {
 	ctx := context.Background()
 	if onDemand {
 		p.limiter.Wait(ctx)
@@ -78,8 +78,8 @@ func (p *Player_fetcher) GetMatchList(puuid string, lastFetch time.Time, offset 
 	return matches, nil
 }
 
-// Get a players summoner data.
-func (p *Sub_player_fetcher) GetSummonerData(puuid string, onDemand bool) (*SummonerByPuuid, error) {
+// GetSummonerData returns a players summoner data.
+func (p *SubPlayerFetcher) GetSummonerData(puuid string, onDemand bool) (*SummonerByPuuid, error) {
 	ctx := context.Background()
 	if onDemand {
 		p.limiter.Wait(ctx)

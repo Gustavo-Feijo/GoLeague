@@ -45,7 +45,7 @@ func NewTierlistRepository() (TierlistRepository, error) {
 func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*TierlistResult, error) {
 	var results []*TierlistResult
 
-	// Initialize query parts
+	// Initialize query parts.
 	whereConditions := []string{}
 	singleQueryArgs := []any{}
 
@@ -59,13 +59,13 @@ func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*TierlistRe
 	}
 	singleQueryArgs = append(singleQueryArgs, defaultQueue)
 
-	// Process tier/average_rating filter if provided
+	// Process tier/average_rating filter if provided.
 	if avgScore, ok := filters["tier"].(int); ok {
 		whereConditions = append(whereConditions, "mi.average_rating >= ?")
 		singleQueryArgs = append(singleQueryArgs, avgScore)
 	}
 
-	// Format the WHERE clause
+	// Format the WHERE clause.
 	whereClause := ""
 	if len(whereConditions) > 0 {
 		whereClause = "WHERE " + strings.Join(whereConditions, " AND ")
@@ -90,7 +90,7 @@ func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*TierlistRe
 	args = append(args, singleQueryArgs...)
 	args = append(args, singleQueryArgs...)
 
-	// Construct CTE subqueries with proper WHERE clause placement
+	// Construct CTE subqueries with proper WHERE clause placement.
 	// Should have only 6 possible values, 5 from normal queue and empty for Aram.
 	positionCountsCTE := `
 	WITH positionCounts AS (
@@ -123,7 +123,7 @@ func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*TierlistRe
     SELECT COUNT(*) AS total
     FROM match_infos mi ` + whereClause + `)`
 
-	// Construct the main query
+	// Construct the main query.
 	mainQuery := `
 	SELECT
 		COUNT(*) AS pickCount,
@@ -153,10 +153,10 @@ func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*TierlistRe
 		(COUNT(*) * 100.0) / pc.positionCount > 0.5
 	ORDER BY winRate desc
     `
-	// Combine all parts of the query
+	// Combine all parts of the query.
 	query := positionCountsCTE + championBansCTE + totalMatchesCTE + mainQuery
 
-	// Execute the query with arguments
+	// Execute the query with arguments.
 	err := ts.db.Raw(query, args...).Scan(&results).Error
 	if err != nil {
 		return nil, err

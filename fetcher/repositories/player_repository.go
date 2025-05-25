@@ -3,22 +3,19 @@ package repositories
 import (
 	"errors"
 	"fmt"
-	league_fetcher "goleague/fetcher/data/league"
 	"goleague/fetcher/regions"
 	"goleague/pkg/database"
 	"goleague/pkg/database/models"
 	"strings"
-	"sync"
 	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-// Public Interface.
+// PlayerRepository defines the public interface for handling player related data.
 type PlayerRepository interface {
 	CreatePlayersBatch(players []*models.PlayerInfo) error
-	CreatePlayerFromRating(rating league_fetcher.LeagueEntry, region regions.SubRegion) (*models.PlayerInfo, error)
 	GetPlayerByPuuid(puuid string) (*models.PlayerInfo, error)
 	GetPlayersByPuuids(puuids []string) (map[string]*models.PlayerInfo, error)
 	GetUnfetchedBySubRegions(subRegion regions.SubRegion) (*models.PlayerInfo, error)
@@ -27,15 +24,12 @@ type PlayerRepository interface {
 	UpsertPlayerBatch(players []*models.PlayerInfo) error
 }
 
-// Player repository structure.
+// playerRepository is the repository instance.
 type playerRepository struct {
 	db *gorm.DB
 }
 
-// Mutex for handling the player upsert.
-var playerUpsertMutex sync.Mutex
-
-// Create a player repository.
+// NewPlayerRepository creates and return the player repository.
 func NewPlayerRepository() (PlayerRepository, error) {
 	db, err := database.GetConnection()
 	if err != nil {
@@ -44,7 +38,7 @@ func NewPlayerRepository() (PlayerRepository, error) {
 	return &playerRepository{db: db}, nil
 }
 
-// Create multiple passed players.
+// CreatePlayersBatch creates multiple players in batches of 1000.
 func (ps *playerRepository) CreatePlayersBatch(players []*models.PlayerInfo) error {
 	if len(players) == 0 {
 		return nil
@@ -54,27 +48,9 @@ func (ps *playerRepository) CreatePlayersBatch(players []*models.PlayerInfo) err
 	return ps.db.CreateInBatches(&players, 1000).Error
 }
 
-// Create a basic player structure.
-func (ps *playerRepository) CreatePlayerFromRating(rating league_fetcher.LeagueEntry, region regions.SubRegion) (*models.PlayerInfo, error) {
-	insertEntry := &models.PlayerInfo{
-		Puuid:          rating.Puuid,
-		SummonerId:     rating.SummonerId,
-		Region:         region,
-		UnfetchedMatch: true,
-	}
-
-	// Create a basic player structure.
-	err := ps.db.Create(insertEntry).Error
-	if err != nil {
-		return nil, fmt.Errorf("couldn't create the player basic entry for the player with puuid %v: %v", rating.Puuid, err)
-	}
-
-	return insertEntry, nil
-}
-
-// Get a given player by his PUUID.
+// GetPlayerByPuuid returns a given player by his PUUID.
 func (ps *playerRepository) GetPlayerByPuuid(puuid string) (*models.PlayerInfo, error) {
-	// Retrieve player by PUUID
+	// Retrieve player by PUUID.
 	var player models.PlayerInfo
 	if err := ps.db.Where("puuid = ?", puuid).First(&player).Error; err != nil {
 		// If the record was not found, doesn't need to return a error.
@@ -88,7 +64,7 @@ func (ps *playerRepository) GetPlayerByPuuid(puuid string) (*models.PlayerInfo, 
 	return &player, nil
 }
 
-// Get a list of players by a list of passed PUUIDs.
+// GetPlayersByPuuids returns a list of players by a list of passed PUUIDs.
 func (ps *playerRepository) GetPlayersByPuuids(puuids []string) (map[string]*models.PlayerInfo, error) {
 	// Empty list, just return nil.
 	if len(puuids) == 0 {
@@ -111,7 +87,7 @@ func (ps *playerRepository) GetPlayersByPuuids(puuids []string) (map[string]*mod
 	return playersMap, nil
 }
 
-// Get the players with unfetched matches.
+// GetUnfetchedBySubRegions returns the player from a given region that has spent the most time without being fetched.
 func (ps *playerRepository) GetUnfetchedBySubRegions(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
 	var unfetchedPlayer models.PlayerInfo
 	result := ps.db.Where("unfetched_match = ? AND region = ?", true, subRegion).Order("last_match_fetch ASC").First(&unfetchedPlayer)
@@ -124,14 +100,14 @@ func (ps *playerRepository) GetUnfetchedBySubRegions(subRegion regions.SubRegion
 	return &unfetchedPlayer, nil
 }
 
-// Set the date of the last time fetch to the previous + 1 day.
+// SetDelayedLastFetch set the date of the last time fetch to the previous + 1 day.
 func (ps *playerRepository) SetDelayedLastFetch(playerId uint) error {
 	return ps.db.Model(&models.PlayerInfo{}).
 		Where("id = ?", playerId).
 		UpdateColumn("last_match_fetch", gorm.Expr("last_match_fetch + interval '1 day'")).Error
 }
 
-// Set the date of the last time fetch.
+// SetFetched set the player as fetched and store the date where it was fetched.
 func (ps *playerRepository) SetFetched(playerId uint) error {
 	return ps.db.Model(&models.PlayerInfo{}).
 		Where("id = ?", playerId).
@@ -143,9 +119,9 @@ func (ps *playerRepository) SetFetched(playerId uint) error {
 		).Error
 }
 
-// Upsert the player with retry.
+// UpsertPlayerBatch upsert multiple players with retry.
 // The retry is due to the possibility of a deadlock.
-// The deadlock could be caused by the main region updating a given player.
+// The deadlock could be caused by the main region updating a given player or working with Goroutines for fetching matches.
 func (ps *playerRepository) UpsertPlayerBatch(players []*models.PlayerInfo) error {
 	const maxRetries = 3
 	for range maxRetries {
@@ -171,7 +147,7 @@ func (ps *playerRepository) UpsertPlayerBatch(players []*models.PlayerInfo) erro
 	return errors.New("too many retries on deadlock")
 }
 
-// Verify if it's a deadlock in the database.
+// isDeadlockError verify if there is a deadlock in the database.
 func isDeadlockError(err error) bool {
 	return strings.Contains(err.Error(), "deadlock")
 }

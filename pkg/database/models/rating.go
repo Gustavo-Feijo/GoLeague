@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Create a rating entry for a given player.
+// RatingEntry contains a given rating entry for a player at a given moment.
 type RatingEntry struct {
 	ID uint `gorm:"primaryKey"`
 

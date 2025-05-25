@@ -9,14 +9,14 @@ import (
 	"log"
 )
 
-// Separate service for player operations.
+// PlayerService is a separated service for player operations.
 type PlayerService struct {
 	MatchRepository  repositories.MatchRepository
 	PlayerRepository repositories.PlayerRepository
 	RatingRepository repositories.RatingRepository
 }
 
-// Creates a new player service.
+// NewPlayerService creates a new player service.
 func NewPlayerService(
 	matchRepo repositories.MatchRepository,
 	playerRepo repositories.PlayerRepository,
@@ -29,8 +29,8 @@ func NewPlayerService(
 	}
 }
 
-// Processes each player from a given match
-// Upserts the players, only updating the data if the match data is newer
+// ProcessPlayersFromMatch process each player from a given match.
+// Upserts the players, only updating the data if the match data is newer.
 func (p *PlayerService) ProcessPlayersFromMatch(
 	participants []matchfetcher.MatchPlayer,
 	matchInfo *models.MatchInfo,

@@ -2,20 +2,20 @@ package ratingservice
 
 import (
 	"fmt"
-	league_fetcher "goleague/fetcher/data/league"
+	leaguefetcher "goleague/fetcher/data/league"
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
 	"goleague/pkg/database/models"
 	tiervalues "goleague/pkg/riotvalues/tier"
 )
 
-// RatingService handles all rating-related operations
+// RatingService handles all rating-related operations.
 type RatingService struct {
 	repository repositories.RatingRepository
 	subRegion  regions.SubRegion
 }
 
-// NewRatingService creates a new rating service
+// NewRatingService creates a new rating service.
 func NewRatingService(repository repositories.RatingRepository, subRegion regions.SubRegion) *RatingService {
 	return &RatingService{
 		repository: repository,
@@ -23,10 +23,10 @@ func NewRatingService(repository repositories.RatingRepository, subRegion region
 	}
 }
 
-// createRatingFromEntry creates a rating entry from a league entry
+// createRatingFromEntry creates a rating entry from a league entry.
 func (s *RatingService) createRatingFromEntry(
 	player *models.PlayerInfo,
-	entry league_fetcher.LeagueEntry,
+	entry leaguefetcher.LeagueEntry,
 	queue string,
 ) models.RatingEntry {
 	newRating := models.RatingEntry{
@@ -38,7 +38,7 @@ func (s *RatingService) createRatingFromEntry(
 		Losses:       entry.Losses,
 	}
 
-	// Handle Tier and Rank if they are not nil
+	// Handle Tier and Rank if they are not nil.
 	if entry.Tier != nil {
 		newRating.Tier = *entry.Tier
 	}
@@ -46,25 +46,25 @@ func (s *RatingService) createRatingFromEntry(
 	if entry.Rank != nil {
 		newRating.Rank = *entry.Rank
 	} else {
-		// If it's high elo, it will be nil, just set the ranking as I
+		// If it's high elo, it will be nil, just set the ranking as I.
 		newRating.Rank = "I"
 	}
 
-	// Calculate the numeric score before saving
+	// Calculate the numeric score before saving.
 	newRating.NumericScore = tiervalues.CalculateRank(newRating.Tier, newRating.Rank, newRating.LeaguePoints)
 
 	return newRating
 }
 
-// GetLastRatingsByPlayerIdsAndQueue fetches the last ratings for a list of players
+// GetLastRatingsByPlayerIdsAndQueue fetches the last ratings for a list of players.
 func (s *RatingService) GetLastRatingsByPlayerIdsAndQueue(playerIDs []uint, queue string) (map[uint]*models.RatingEntry, error) {
 	return s.repository.GetLastRatingEntryByPlayerIdsAndQueue(playerIDs, queue)
 }
 
-// ProcessRatings processes ratings for players, creating new ones when needed
+// ProcessRatings processes ratings for players, creating new ones when needed.
 func (s *RatingService) ProcessRatings(
 	existingPlayers map[string]*models.PlayerInfo,
-	entryByPuuid map[string]league_fetcher.LeagueEntry,
+	entryByPuuid map[string]leaguefetcher.LeagueEntry,
 	lastRatings map[uint]*models.RatingEntry,
 	queue string,
 ) (
@@ -74,18 +74,18 @@ func (s *RatingService) ProcessRatings(
 	var ratingsToCreate []models.RatingEntry
 
 	for _, player := range existingPlayers {
-		// Get the corresponding entry for the player, as well as the last rating
+		// Get the corresponding entry for the player, as well as the last rating.
 		entry := entryByPuuid[player.Puuid]
 		lastRating, exists := lastRatings[player.ID]
 
-		// If the last rating doesn't exist or it changed, then create a new rating
+		// If the last rating doesn't exist or it changed, then create a new rating.
 		if !exists || s.repository.RatingNeedsUpdate(lastRating, entry) {
 			newRating := s.createRatingFromEntry(player, entry, queue)
 			ratingsToCreate = append(ratingsToCreate, newRating)
 		}
 	}
 
-	// Create the ratings
+	// Create the ratings.
 	if len(ratingsToCreate) > 0 {
 		if err := s.repository.CreateBatchRating(ratingsToCreate); err != nil {
 			return nil, fmt.Errorf("error creating rating entries: %v", err)

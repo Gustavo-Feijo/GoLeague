@@ -1,6 +1,6 @@
 package models
 
-// Database model for saving the cache keys.
+// CacheBackup saves keys and values that will be in cache.
 // Used as fallback in case the Redis is down.
 // Should be use only as a last resort to fetch and store in memory, since it will be too slow.
 type CacheBackup struct {

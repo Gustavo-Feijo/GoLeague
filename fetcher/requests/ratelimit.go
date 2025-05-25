@@ -6,7 +6,7 @@ import (
 	"github.com/Gustavo-Feijo/gomultirate"
 )
 
-// Create a instance of the rate limiter.
+// NewRateLimiter creates a instance of the rate limiter.
 func NewRateLimiter() *gomultirate.RateLimiter {
 	limits := map[string]*gomultirate.Limit{
 		"api": gomultirate.NewLimit(

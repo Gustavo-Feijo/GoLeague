@@ -1,6 +1,6 @@
 package leaguefetcher
 
-// Define the type return by the simple league entries.
+// LeagueEntry defines the type returned by the simple league entries.
 type LeagueEntry struct {
 	FreshBlood   bool    `json:"freshBlood"`
 	HotStreak    bool    `json:"hotStreak"`
@@ -14,7 +14,7 @@ type LeagueEntry struct {
 	Wins         int     `json:"wins"`
 }
 
-// The high elo league entries come in a very similar way.
+// HighEloLeagueEntry come in a very similar way.
 // Only having some outer keys.
 type HighEloLeagueEntry struct {
 	Entries []LeagueEntry `json:"entries"`

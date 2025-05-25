@@ -10,5 +10,5 @@ var TreatedQueues = []int{400, 420, 430, 440, 450, 490, 700, 720, 900, 1020, 130
 
 // Queues that have defined positions.
 // Need to verify again to see if they really have.
-// Needed to verify if the team_position value is valid or not. Sometimes could be ”
+// Needed to verify if the team_position value is valid or not. Sometimes could be "".
 var QueuesWithPositions = []int{400, 420, 430, 440, 490, 700, 900, 1020, 1400, 1900}

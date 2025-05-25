@@ -6,14 +6,14 @@ import (
 	"goleague/fetcher/data"
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
-	batchservice "goleague/fetcher/services/sub_region/batch"
-	leagueservice "goleague/fetcher/services/sub_region/league"
-	playerservice "goleague/fetcher/services/sub_region/player"
-	ratingservice "goleague/fetcher/services/sub_region/rating"
+	batchservice "goleague/fetcher/services/subregion/batch"
+	leagueservice "goleague/fetcher/services/subregion/league"
+	playerservice "goleague/fetcher/services/subregion/player"
+	ratingservice "goleague/fetcher/services/subregion/rating"
 	"goleague/pkg/logger"
 )
 
-// SubRegionService coordinates data fetching and processing for a specific sub-region
+// SubRegionService coordinates data fetching and processing for a specific sub-region.
 type SubRegionService struct {
 	leagueService *leagueservice.LeagueService
 	playerService *playerservice.PlayerService
@@ -23,9 +23,9 @@ type SubRegionService struct {
 	subRegion     regions.SubRegion
 }
 
-// NewSubRegionService creates a new sub-region service
+// NewSubRegionService creates a new sub-region service.
 func NewSubRegionService(fetcher *data.SubFetcher, region regions.SubRegion) (*SubRegionService, error) {
-	// Create the repositories
+	// Create the repositories.
 	ratingRepository, err := repositories.NewRatingRepository()
 	if err != nil {
 		return nil, errors.New("failed to start the rating repository")
@@ -36,19 +36,19 @@ func NewSubRegionService(fetcher *data.SubFetcher, region regions.SubRegion) (*S
 		return nil, errors.New("failed to start the player repository")
 	}
 
-	// Create the logger
+	// Create the logger.
 	logger, err := logger.CreateLogger()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start the logger on sub region %s: %v", region, err)
 	}
 
-	// Create the services
+	// Create the services.
 	leagueService := leagueservice.NewLeagueService(*fetcher, leagueservice.DefaultConfig())
 	playerService := playerservice.NewPlayerService(playerRepository, region)
 	ratingService := ratingservice.NewRatingService(ratingRepository, region)
 	batchService := batchservice.NewBatchService(leagueService, playerService, ratingService, logger, region)
 
-	// Return the new region service
+	// Return the new region service.
 	return &SubRegionService{
 		leagueService: leagueService,
 		playerService: playerService,
@@ -59,48 +59,48 @@ func NewSubRegionService(fetcher *data.SubFetcher, region regions.SubRegion) (*S
 	}, nil
 }
 
-// Returns the logger instance.
+// GetLogger returns the logger instance.
 // Used for manual closing of the logs.
 func (s *SubRegionService) GetLogger() *logger.NewLogger {
 	return s.logger
 }
 
-// ProcessHighElo processes high elo leagues
+// ProcessHighElo processes high elo leagues.
 func (s *SubRegionService) ProcessHighElo(highElo string, queue string) error {
-	// Get the data from the Riot API
+	// Get the data from the Riot API.
 	entries, err := s.leagueService.GetHighEloLeagueEntries(highElo, queue)
 	if err != nil {
 		return err
 	}
 
-	// Process the batch
+	// Process the batch.
 	return s.batchService.ProcessBatchEntry(entries, queue)
 }
 
-// ProcessLeagueRank processes a specific tier and rank
+// ProcessLeagueRank processes a specific tier and rank.
 func (s *SubRegionService) ProcessLeagueRank(tier string, rank string, queue string) error {
-	// Starting page
+	// Starting page.
 	page := 1
 
-	// Fetch pages until we get an empty result
+	// Fetch pages until we get an empty result.
 	for {
-		// Get entries for the current page
+		// Get entries for the current page.
 		entries, err := s.leagueService.GetLeagueEntries(tier, rank, queue, page)
 		if err != nil {
 			return err
 		}
 
-		// If no entry is found, break and go to the next rank
+		// If no entry is found, break and go to the next rank.
 		if len(entries) == 0 {
 			break
 		}
 
-		// Process the batch
+		// Process the batch.
 		if err := s.batchService.ProcessBatchEntry(entries, queue); err != nil {
 			return fmt.Errorf("error at processing page %d: %v", page, err)
 		}
 
-		// Increment page for next iteration
+		// Increment page for next iteration.
 		page++
 	}
 

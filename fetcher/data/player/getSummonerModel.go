@@ -1,6 +1,6 @@
 package playerfetcher
 
-// Return of the sub region endpoint.
+// SummonerByPuuid is the return of the sub region endpoint.
 type SummonerByPuuid struct {
 	Id            string `json:"id"`
 	AccountId     string `json:"accountId"`

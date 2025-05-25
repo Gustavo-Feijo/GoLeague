@@ -5,35 +5,34 @@ import (
 	"encoding/json"
 	"fmt"
 	"goleague/fetcher/requests"
-	"net/http"
 	"time"
 
 	"github.com/Gustavo-Feijo/gomultirate"
 )
 
-// The match fetcher with it's limiter and region.
-type Match_fetcher struct {
+// MatchFetcher with it's limiter and region.
+type MatchFetcher struct {
 	limiter *gomultirate.RateLimiter
 	region  string
 }
 
-// The match fetcher with it's limiter and region.
-type Sub_match_fetcher struct {
+// SubMatchFetcher with it's limiter and region.
+type SubMatchFetcher struct {
 	limiter *gomultirate.RateLimiter
 	region  string
 }
 
-// Create a instance of the match fetcher.
-func NewMatchFetcher(limiter *gomultirate.RateLimiter, region string) *Match_fetcher {
-	return &Match_fetcher{
+// NewMatchFetcher creates a instance of the match fetcher.
+func NewMatchFetcher(limiter *gomultirate.RateLimiter, region string) *MatchFetcher {
+	return &MatchFetcher{
 		limiter,
 		region,
 	}
 }
 
-// Create a instance of the match fetcher.
-func NewSubMatchFetcher(limiter *gomultirate.RateLimiter, region string) *Sub_match_fetcher {
-	return &Sub_match_fetcher{
+// NewSubMatchFetcher creates a instance of the match fetcher.
+func NewSubMatchFetcher(limiter *gomultirate.RateLimiter, region string) *SubMatchFetcher {
+	return &SubMatchFetcher{
 		limiter,
 		region,
 	}
@@ -49,7 +48,7 @@ func (rt *RiotTime) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	// Convert milliseconds to time.Time
+	// Convert milliseconds to time.Time.
 	*rt = RiotTime(time.UnixMilli(timestamp))
 	return nil
 }
@@ -59,13 +58,13 @@ func (rt RiotTime) Time() time.Time {
 	return time.Time(rt)
 }
 
-// Return type from the match_v5 endpoint.
+// MatchData is the return type from the match_v5 endpoint.
 type MatchData struct {
 	Info MatchInfo `json:"info"`
 }
 
-// Get a given match data.
-func (m *Match_fetcher) GetMatchData(matchId string, onDemand bool) (*MatchData, error) {
+// GetMatchData returns a given match data.
+func (m *MatchFetcher) GetMatchData(matchId string, onDemand bool) (*MatchData, error) {
 	ctx := context.Background()
 	// Verify if it's onDemand.
 	if onDemand {
@@ -77,29 +76,11 @@ func (m *Match_fetcher) GetMatchData(matchId string, onDemand bool) (*MatchData,
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/match/v5/matches/%s", m.region, matchId)
 
-	resp, err := requests.AuthRequest(url, "GET", map[string]string{})
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
-	}
-
-	defer resp.Body.Close()
-
-	// Check the status code.
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
-	}
-	// Parse the matches data.
-	var matchData MatchData
-	if err := json.NewDecoder(resp.Body).Decode(&matchData); err != nil {
-		return nil, fmt.Errorf("failed to parse API response: %w", err)
-	}
-
-	// Return the matches.
-	return &matchData, nil
+	return requests.HandleAuthRequest[*MatchData](url, "GET", map[string]string{})
 }
 
-// Get a given match timeline.
-func (m *Match_fetcher) GetMatchTimelineData(matchId string, onDemand bool) (*MatchTimeline, error) {
+// GetMatchTimelineData returns a given match timeline.
+func (m *MatchFetcher) GetMatchTimelineData(matchId string, onDemand bool) (*MatchTimeline, error) {
 	ctx := context.Background()
 	if onDemand {
 		m.limiter.Wait(ctx)
@@ -110,23 +91,5 @@ func (m *Match_fetcher) GetMatchTimelineData(matchId string, onDemand bool) (*Ma
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/match/v5/matches/%s/timeline", m.region, matchId)
 
-	resp, err := requests.AuthRequest(url, "GET", map[string]string{})
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
-	}
-
-	defer resp.Body.Close()
-
-	// Check the status code.
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
-	}
-	// Parse the match timeline.
-	var matchTimeline MatchTimeline
-	if err := json.NewDecoder(resp.Body).Decode(&matchTimeline); err != nil {
-		return nil, fmt.Errorf("failed to parse API response: %w", err)
-	}
-
-	// Return the timeline.
-	return &matchTimeline, nil
+	return requests.HandleAuthRequest[*MatchTimeline](url, "GET", map[string]string{})
 }

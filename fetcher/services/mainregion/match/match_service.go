@@ -7,13 +7,13 @@ import (
 	matchfetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
-	playerservice "goleague/fetcher/services/main_region/player"
+	playerservice "goleague/fetcher/services/mainregion/player"
 	"goleague/pkg/database/models"
 
 	"time"
 )
 
-// MatchService handles functionality related to matches
+// MatchService handles functionality related to matches.
 type MatchService struct {
 	fetcher            data.MainFetcher
 	MatchRepository    repositories.MatchRepository
@@ -23,7 +23,7 @@ type MatchService struct {
 	maxRetries         int
 }
 
-// NewMatchService creates a new match service
+// NewMatchService creates a new match service.
 func NewMatchService(
 	fetcher data.MainFetcher,
 	matchRepo repositories.MatchRepository,
@@ -42,7 +42,7 @@ func NewMatchService(
 	}
 }
 
-// GetMatchData gets the data of the match from the Riot API
+// GetMatchData gets the data of the match from the Riot API.
 func (m *MatchService) GetMatchData(matchId string) (*matchfetcher.MatchData, error) {
 	var matchData *matchfetcher.MatchData
 	var err error
@@ -68,7 +68,7 @@ func (m *MatchService) GetMatchData(matchId string) (*matchfetcher.MatchData, er
 	return matchData, nil
 }
 
-// ProcessMatchInfo retrieves the match info and inserts it into the database
+// ProcessMatchInfo retrieves the match info and inserts it into the database.
 func (m *MatchService) ProcessMatchInfo(
 	match *matchfetcher.MatchData,
 	matchId string,
@@ -85,11 +85,11 @@ func (m *MatchService) ProcessMatchInfo(
 	}
 
 	// Create the match.
-	// Return the match that we tried to insert and the error result of the insert (Nil or error)
+	// Return the match that we tried to insert and the error result of the insert (Nil or error).
 	return matchInfo, m.MatchRepository.CreateMatchInfo(matchInfo)
 }
 
-// ProcessMatchBans retrieves the bans and creates them
+// ProcessMatchBans retrieves the bans and creates them.
 func (m *MatchService) ProcessMatchBans(
 	matchTeams []matchfetcher.TeamInfo,
 	matchInfo *models.MatchInfo,
@@ -119,7 +119,7 @@ func (m *MatchService) ProcessMatchBans(
 	return bans, nil
 }
 
-// ProcessMatchData processes the match data and inserts it into the database
+// ProcessMatchData processes the match data and inserts it into the database.
 func (m *MatchService) ProcessMatchData(
 	match *matchfetcher.MatchData,
 	matchId string,
@@ -153,7 +153,7 @@ func (m *MatchService) ProcessMatchData(
 	return matchInfo, bans, stats, nil
 }
 
-// Processes and inserts match stats for each player
+// ProcessMatchStats procesesses and inserts match stats for each player.
 func (m *MatchService) ProcessMatchStats(
 	playersToUpsert []*models.PlayerInfo,
 	participants map[string]matchfetcher.MatchPlayer,

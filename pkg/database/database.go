@@ -18,9 +18,9 @@ var (
 	db   *gorm.DB
 )
 
-// Create the enums for the queue, tier and rank.
+// CreateEnums create the enums for the queue, tier and rank.
 func CreateEnums(db *gorm.DB) error {
-	// Check and create ENUM types if they do not exist
+	// Check and create ENUM types if they do not exist.
 	err = db.Exec(`
 		DO $$ 
 		BEGIN
@@ -41,8 +41,8 @@ func CreateEnums(db *gorm.DB) error {
 	return err
 }
 
-// Create the triggers for setting the player matches to be fetched when a new rating is inserted.
-// Since rating entries are only created when something changed.
+// createFetchMatchesTrigger create the triggers for setting the player matches to be fetched when a new rating is inserted.
+// New rating entries are only created when something changed, meaning the player has matches to fetch.
 func createFetchMatchesTrigger(db *gorm.DB) error {
 	return db.Exec(`
       CREATE OR REPLACE FUNCTION update_unfetched_match()
@@ -65,7 +65,7 @@ func createFetchMatchesTrigger(db *gorm.DB) error {
     `).Error
 }
 
-// Create any necessary triggers.
+// CreateTriggers create all necessary triggers for the database.
 func CreateTriggers(db *gorm.DB) error {
 	err := createFetchMatchesTrigger(db)
 	if err != nil {
@@ -75,7 +75,8 @@ func CreateTriggers(db *gorm.DB) error {
 	return nil
 }
 
-// Get or create a database connection as a singleton and return the connection.
+// GetConnections is a singleton implementation of the database.
+// Return the connection pool.
 func GetConnection() (*gorm.DB, error) {
 	// Create the database if doesn't exist, else just return it.
 	once.Do(

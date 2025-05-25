@@ -2,15 +2,15 @@ package subregionqueue
 
 import (
 	"fmt"
-	regionmanager "goleague/fetcher/region_manager"
+	regionmanager "goleague/fetcher/regionmanager"
 	"goleague/fetcher/regions"
-	subregionservice "goleague/fetcher/services/sub_region"
+	subregionservice "goleague/fetcher/services/subregion"
 	"goleague/pkg/logger"
 	"log"
 	"time"
 )
 
-// The configuration for the queues we will be executing.
+// SubRegionQueueConfig is the configuration for the queues that will be executed.
 type SubRegionQueueConfig struct {
 	Ranks         []string
 	HighElos      []string
@@ -19,7 +19,7 @@ type SubRegionQueueConfig struct {
 	Tiers         []string
 }
 
-// Type for the sub region main process.
+// SubRegionQueue is the type for the sub region main process.
 type SubRegionQueue struct {
 	config    SubRegionQueueConfig
 	logger    *logger.NewLogger
@@ -27,7 +27,7 @@ type SubRegionQueue struct {
 	subRegion regions.SubRegion
 }
 
-// Return a default configuration for the sub region.
+// NewDefaultQueueConfig returns a default configuration for the sub region.
 func NewDefaultQueueConfig() *SubRegionQueueConfig {
 	return &SubRegionQueueConfig{
 		Ranks:         []string{"I", "II", "III", "IV"},
@@ -46,7 +46,7 @@ func NewDefaultQueueConfig() *SubRegionQueueConfig {
 	}
 }
 
-// Create the sub region queue.
+// NewSubRegionQueue creates the sub region queue.
 func NewSubRegionQueue(region regions.SubRegion, rm *regionmanager.RegionManager) (*SubRegionQueue, error) {
 	// Create the service.
 	service, err := rm.GetSubService(region)
@@ -66,7 +66,7 @@ func NewSubRegionQueue(region regions.SubRegion, rm *regionmanager.RegionManager
 	}, nil
 }
 
-// Run the sub region queue.
+// Run starts the sub region queue.
 // Mainly responsible for getting the ratings for each player on the region.
 func (q *SubRegionQueue) Run() {
 	for {
@@ -90,7 +90,7 @@ func (q *SubRegionQueue) Run() {
 	}
 }
 
-// Process the high elo and the other leagues for each queue.
+// processQueues process the leagues for the SoloDuo and Flex queue.
 func (q *SubRegionQueue) processQueues() {
 	for _, queue := range q.config.Queues {
 		q.processHighElo(queue)
@@ -98,7 +98,7 @@ func (q *SubRegionQueue) processQueues() {
 	}
 }
 
-// Process the high elo league.
+// processHighElo process the high elo leagues.
 func (q *SubRegionQueue) processHighElo(queue string) {
 	// Go through each high elo entry.
 	for _, highElo := range q.config.HighElos {
@@ -114,7 +114,7 @@ func (q *SubRegionQueue) processHighElo(queue string) {
 	}
 }
 
-// Process each league and sub rank.
+// processLeagues process each league and sub rank.
 func (q *SubRegionQueue) processLeagues(queue string) {
 	// Loop through each available tier.
 	for _, tier := range q.config.Tiers {

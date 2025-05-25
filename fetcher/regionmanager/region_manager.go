@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"goleague/fetcher/data"
 	"goleague/fetcher/regions"
-	mainregion_service "goleague/fetcher/services/main_region"
-	subregion_service "goleague/fetcher/services/sub_region"
+	mainregionservice "goleague/fetcher/services/mainregion"
+	subregionservice "goleague/fetcher/services/subregion"
 	"log"
 	"sync"
 )
@@ -15,7 +15,7 @@ var (
 	regionManagerOnce     sync.Once
 )
 
-// Define the region manager.
+// RegionManager is the centralized region manager, with all embedded services.
 type RegionManager struct {
 	// Get which main region is the parent of the sub region.
 	subToMain map[regions.SubRegion]regions.MainRegion
@@ -24,15 +24,16 @@ type RegionManager struct {
 	mainToSub map[regions.MainRegion][]regions.SubRegion
 
 	// List of fetchers the main regions.
-	mainService map[regions.MainRegion]*mainregion_service.MainRegionService
+	mainService map[regions.MainRegion]*mainregionservice.MainRegionService
 
 	// List of fetchers the sub regions.
-	subService map[regions.SubRegion]*subregion_service.SubRegionService
+	subService map[regions.SubRegion]*subregionservice.SubRegionService
 
 	mu sync.RWMutex
 }
 
-// Create a region manager for the RiotAPI and populate it.
+// GetRegionManager is a sigleton for the region manager for the RiotAPI.
+// Creates and populates it if not created yet.
 func GetRegionManager() *RegionManager {
 	// Singleton for creating only one region manager.
 	regionManagerOnce.Do(func() {
@@ -40,8 +41,8 @@ func GetRegionManager() *RegionManager {
 		regionManagerInstance = &RegionManager{
 			subToMain:   make(map[regions.SubRegion]regions.MainRegion),
 			mainToSub:   make(map[regions.MainRegion][]regions.SubRegion),
-			mainService: make(map[regions.MainRegion]*mainregion_service.MainRegionService),
-			subService:  make(map[regions.SubRegion]*subregion_service.SubRegionService),
+			mainService: make(map[regions.MainRegion]*mainregionservice.MainRegionService),
+			subService:  make(map[regions.SubRegion]*subregionservice.SubRegionService),
 		}
 
 		// Loop through each region and populate it.
@@ -53,7 +54,7 @@ func GetRegionManager() *RegionManager {
 			fetcher := data.NewMainFetcher(string(MainRegion))
 
 			// Create the service.
-			service, err := mainregion_service.NewMainRegionService(fetcher, MainRegion)
+			service, err := mainregionservice.NewMainRegionService(fetcher, MainRegion)
 			if err != nil {
 				log.Fatalf("Couldn't create the service for region %s: %v", MainRegion, err)
 			}
@@ -68,7 +69,7 @@ func GetRegionManager() *RegionManager {
 				fetcher := data.NewSubFetcher(string(SubRegion))
 
 				// Create the service.
-				service, err := subregion_service.NewSubRegionService(fetcher, SubRegion)
+				service, err := subregionservice.NewSubRegionService(fetcher, SubRegion)
 				if err != nil {
 					log.Fatalf("Couldn't create the service for region %s: %v", SubRegion, err)
 				}
@@ -81,8 +82,8 @@ func GetRegionManager() *RegionManager {
 	return regionManagerInstance
 }
 
-// Get the fetcher for a given region
-func (m *RegionManager) GetMainService(region regions.MainRegion) (*mainregion_service.MainRegionService, error) {
+// GetMainService returns the service for a Main Region.
+func (m *RegionManager) GetMainService(region regions.MainRegion) (*mainregionservice.MainRegionService, error) {
 	// Lock for reading.
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -96,8 +97,8 @@ func (m *RegionManager) GetMainService(region regions.MainRegion) (*mainregion_s
 	return service, nil
 }
 
-// Get the service for a given region
-func (m *RegionManager) GetSubService(region regions.SubRegion) (*subregion_service.SubRegionService, error) {
+// GetSubService returns the service for a Sub Region.
+func (m *RegionManager) GetSubService(region regions.SubRegion) (*subregionservice.SubRegionService, error) {
 	// Lock for reading.
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -111,7 +112,7 @@ func (m *RegionManager) GetSubService(region regions.SubRegion) (*subregion_serv
 	return service, nil
 }
 
-// Get the parent of a sub region.
+// GetMainRegion returns the parent of a Sub Region.
 func (m *RegionManager) GetMainRegion(SubRegion regions.SubRegion) (regions.MainRegion, error) {
 	// Lock for reading.
 	m.mu.RLock()
@@ -126,7 +127,7 @@ func (m *RegionManager) GetMainRegion(SubRegion regions.SubRegion) (regions.Main
 	return MainRegion, nil
 }
 
-// Get all child sub regions to a given main region.
+// GetSubRegions returns all Sub Regions that are 'children' of a Main Region.
 func (m *RegionManager) GetSubRegions(MainRegion regions.MainRegion) ([]regions.SubRegion, error) {
 	// Lock for reading.
 	m.mu.RLock()

@@ -2,9 +2,9 @@ package mainregionqueue
 
 import (
 	"fmt"
-	regionmanager "goleague/fetcher/region_manager"
+	regionmanager "goleague/fetcher/regionmanager"
 	"goleague/fetcher/regions"
-	mainregionservice "goleague/fetcher/services/main_region"
+	mainregionservice "goleague/fetcher/services/mainregion"
 	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
 	queuevalues "goleague/pkg/riotvalues/queue"
@@ -13,12 +13,12 @@ import (
 	"time"
 )
 
-// The configuration for the queues we will be executing.
+// MainRegionQueueConfig is the configuration for the queues that will be executed.
 type MainRegionQueueConfig struct {
 	SleepDuration time.Duration
 }
 
-// Type for the sub region main process.
+// MainRegionQueue is the type for the main region main process.
 type MainRegionQueue struct {
 	config         MainRegionQueueConfig
 	fetchedMatches int
@@ -28,14 +28,14 @@ type MainRegionQueue struct {
 	subRegions     []regions.SubRegion
 }
 
-// Return a default configuration for the sub region.
+// NewDefaultQueueConfig returns a default configuration for the main region.
 func NewDefaultQueueConfig() *MainRegionQueueConfig {
 	return &MainRegionQueueConfig{
 		SleepDuration: 5 * time.Second,
 	}
 }
 
-// Create the main region queue.
+// NewMainRegionQueue creates the main region queue.
 func NewMainRegionQueue(region regions.MainRegion, rm *regionmanager.RegionManager) (*MainRegionQueue, error) {
 	// Create the service.
 	service, err := rm.GetMainService(region)
@@ -63,7 +63,7 @@ func NewMainRegionQueue(region regions.MainRegion, rm *regionmanager.RegionManag
 	}, nil
 }
 
-// Run the main region.
+// Run starts the main region.
 func (q *MainRegionQueue) Run() {
 	startTime := time.Now()
 
@@ -103,7 +103,7 @@ func (q *MainRegionQueue) Run() {
 	}
 }
 
-// Process each match in order.
+// processQueue gets a unfetched player and starts processing it's matches.
 func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
 	player, err := q.service.PlayerRepository.GetUnfetchedBySubRegions(subRegion)
 	if err != nil {
@@ -181,7 +181,7 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 		q.fetchedMatches++
 	}
 
-	// Set the last fetch regardless of any match processing errors
+	// Set the last fetch regardless of any match processing errors.
 	if err := q.service.PlayerRepository.SetFetched(player.ID); err != nil {
 		q.logger.Errorf("Couldn't set the last fetch date for the player with ID %d: %v", player.ID, err)
 	}

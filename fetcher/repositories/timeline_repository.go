@@ -8,18 +8,17 @@ import (
 	"gorm.io/gorm"
 )
 
-// Public Interface.
+// TimelineRepository is the public interface for handling timeline data.
 type TimelineRepository interface {
 	CreateBatchParticipantFrame(frames []*models.ParticipantFrame) error
-	GetDb() *gorm.DB
 }
 
-// Timeline repository structure.
+// timelineRepository is the repository instance.
 type timelineRepository struct {
 	db *gorm.DB
 }
 
-// Create a timeline repository.
+// NewTimelineRepository creates a new timeline repository and returns it.
 func NewTimelineRepository() (TimelineRepository, error) {
 	db, err := database.GetConnection()
 	if err != nil {
@@ -28,7 +27,7 @@ func NewTimelineRepository() (TimelineRepository, error) {
 	return &timelineRepository{db: db}, nil
 }
 
-// Create the participant frames in batches.
+// CreateBatchParticipantFrame creates the participant frames in batches of 1000.
 func (ts *timelineRepository) CreateBatchParticipantFrame(frames []*models.ParticipantFrame) error {
 	if len(frames) == 0 {
 		return nil
@@ -36,13 +35,7 @@ func (ts *timelineRepository) CreateBatchParticipantFrame(frames []*models.Parti
 	return ts.db.CreateInBatches(&frames, 1000).Error
 }
 
-// Create a way to make the timeline service available.
-// Need to access the function above, since Go doesn't support it as method.
-func (ts *timelineRepository) GetDb() *gorm.DB {
-	return ts.db
-}
-
-// Generic function for creating the events in batches.
+// CreateEventBatch is a generic function for creating the events in batches.
 func CreateEventBatch[T any](db *gorm.DB, entities []*T) error {
 	if len(entities) == 0 {
 		return nil

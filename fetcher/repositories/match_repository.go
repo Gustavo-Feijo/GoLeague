@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// Public Interface.
+// MatchRepository defines the public interface to interact with match data.
 type MatchRepository interface {
 	CreateMatchBans(bans []*models.MatchBans) error
 	CreateMatchInfo(match *models.MatchInfo) error
@@ -21,12 +21,12 @@ type MatchRepository interface {
 	SetMatchWinner(matchID uint, winner int) error
 }
 
-// Match repository structure.
+// matchRepository is the repository instance.
 type matchRepository struct {
 	db *gorm.DB
 }
 
-// Create a match repository.
+// NewMatchRepository creates and returns a match repository.
 func NewMatchRepository() (MatchRepository, error) {
 	db, err := database.GetConnection()
 	if err != nil {
@@ -35,7 +35,7 @@ func NewMatchRepository() (MatchRepository, error) {
 	return &matchRepository{db: db}, nil
 }
 
-// Simply create the bans of a given match.
+// CreateMatchBans inserts the bans in the database. Ignore duplicate picks for a given match.
 func (mr *matchRepository) CreateMatchBans(bans []*models.MatchBans) error {
 	return mr.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "match_id"}, {Name: "pick_turn"}}, // Use the composite key columns
@@ -43,12 +43,12 @@ func (mr *matchRepository) CreateMatchBans(bans []*models.MatchBans) error {
 	}).Create(&bans).Error
 }
 
-// Simply create a match information.
+// CreateMatchInfo creates a match metadata into the database and return the returned error.
 func (mr *matchRepository) CreateMatchInfo(match *models.MatchInfo) error {
 	return mr.db.Create(&match).Error
 }
 
-// Simply create the stats of a given match.
+// CreateMatchStats insert stats entries in the database. Ignores duplicate entries for a player in a given match.
 func (mr *matchRepository) CreateMatchStats(stats []*models.MatchStats) error {
 	return mr.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "match_id"}, {Name: "player_id"}}, // Use the composite key columns
@@ -56,7 +56,7 @@ func (mr *matchRepository) CreateMatchStats(stats []*models.MatchStats) error {
 	}).Create(&stats).Error
 }
 
-// Get all the already existing matches.
+// GetAlreadyFetchedMatches returns which matches from the received array are already fetched.
 func (mr *matchRepository) GetAlreadyFetchedMatches(riotMatchIDs []string) ([]models.MatchInfo, error) {
 	const batchSize = 1000
 	var allMatches []models.MatchInfo
@@ -76,27 +76,27 @@ func (mr *matchRepository) GetAlreadyFetchedMatches(riotMatchIDs []string) ([]mo
 	return allMatches, nil
 }
 
-// Set the average rating for a given match.
+// SetAverageRating set the average rating for a given match, used for calculating tier data.
 func (mr *matchRepository) SetAverageRating(matchID uint, rating float64) error {
 	return mr.updateMatchField(matchID, "average_rating", rating)
 }
 
-// Set the frame interval for the match timeline.
+// SetFrameInterval set the frame interval for the match timeline.
 func (mr *matchRepository) SetFrameInterval(matchID uint, interval int64) error {
 	return mr.updateMatchField(matchID, "frame_interval", interval)
 }
 
-// Set a match as fully fetched.
+// SetFullyFetched set the match as fetched, meaning it doesn't need to be fetched again.
 func (mr *matchRepository) SetFullyFetched(matchID uint) error {
 	return mr.updateMatchField(matchID, "fully_fetched", true)
 }
 
-// Set the match winner team id.
+// SetMatchWinner sets which team has won a given metch.
 func (mr *matchRepository) SetMatchWinner(matchID uint, winner int) error {
 	return mr.updateMatchField(matchID, "match_winner", winner)
 }
 
-// Generic update helper for a single field in MatchInfo.
+// updateMatchField is a generic update helper for a single field in MatchInfo.
 func (mr *matchRepository) updateMatchField(matchID uint, field string, value any) error {
 	return mr.db.Model(&models.MatchInfo{}).
 		Where("id = ?", matchID).

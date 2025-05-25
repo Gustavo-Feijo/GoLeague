@@ -1,6 +1,6 @@
 package matchfetcher
 
-// Match information.
+// MatchInfo contains the basic match metadata.
 type MatchInfo struct {
 	EndOfGameResult string        `json:"endOfGameResult"`
 	GameCreation    RiotTime      `json:"gameCreation"`
@@ -13,7 +13,7 @@ type MatchInfo struct {
 	Teams           []TeamInfo    `json:"teams"`
 }
 
-// Player results.
+// MatchPlayer contains the stats and information about a given player in a Match.
 type MatchPlayer struct {
 	Assists                        int        `json:"assists"`
 	AllInPings                     int        `json:"allInPings"`
@@ -82,7 +82,7 @@ type Challenges struct {
 	SkillshotsHit      int `json:"skillshotsHit"`
 }
 
-// Team information.
+// TeamInfo contains the bans, id and if the team won.
 type TeamInfo struct {
 	Bans   []Ban `json:"bans"`
 	TeamId int   `json:"teamId"`
