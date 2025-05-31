@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"goleague/api/cache"
+	"goleague/api/dto"
 	"goleague/api/repositories"
 	"strconv"
 	"time"
@@ -15,17 +16,6 @@ import (
 type TierlistService struct {
 	TierlistRepository repositories.TierlistRepository
 	grpcClient         *grpc.ClientConn
-}
-
-// The fulltierlist we will return.
-type FullTierlist struct {
-	Champion     map[string]any // Will be a simplified version of champion.Champion, without spell data.
-	BanCount     int
-	Banrate      float64
-	PickCount    int
-	PickRate     float64
-	TeamPosition string
-	WinRate      float64
 }
 
 // Create a tierlist service.
@@ -43,7 +33,7 @@ func NewTierlistService(grpcClient *grpc.ClientConn) (*TierlistService, error) {
 }
 
 // GetTierlist get the tierlist based on the filters.
-func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist, error) {
+func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*dto.FullTierlist, error) {
 	// Get the data from the repository.
 	results, err := ts.TierlistRepository.GetTierlist(filters)
 	if err != nil {
@@ -51,7 +41,7 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist,
 	}
 
 	// Create the array of  results.
-	fullResult := make([]*FullTierlist, len(results))
+	fullResult := make([]*dto.FullTierlist, len(results))
 	if len(results) == 0 {
 		return fullResult, nil
 	}
@@ -59,21 +49,13 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist,
 	// Get the champion cache instance.
 	cacheChampion := cache.GetChampionCache()
 	repo, _ := repositories.NewCacheRepository()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
+	// We return a error if the cache failed, while still returning the data.
+	cacheFailed := false
 	for index, entry := range results {
-		// Get a copy of the champion on the cache.
-		championData, err := cacheChampion.GetChampionCopy(ctx, strconv.Itoa(entry.ChampionId), repo)
-		if err != nil {
-			continue
-		}
-		// Remove the spells and passive from the copied map.
-		delete(championData, "spells")
-		delete(championData, "passive")
-
-		fullResult[index] = &FullTierlist{
-			Champion:     championData,
+		fullResult[index] = &dto.FullTierlist{
 			BanCount:     entry.Bancount,
 			Banrate:      entry.Banrate,
 			PickCount:    entry.Pickcount,
@@ -81,6 +63,26 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*FullTierlist,
 			TeamPosition: entry.TeamPosition,
 			WinRate:      entry.Winrate,
 		}
+
+		// Get a copy of the champion on the cache.
+		championData, err := cacheChampion.GetChampionCopy(ctx, strconv.Itoa(entry.ChampionId), repo)
+		if err != nil {
+			fullResult[index].Champion = map[string]any{"ID": strconv.Itoa(entry.ChampionId)}
+			cacheFailed = true
+			continue
+		}
+		// Remove the spells and passive from the copied map.
+		delete(championData, "spells")
+		delete(championData, "passive")
+
+		fullResult[index].Champion = championData
 	}
+
+	// Couldn't get all entries from the redis cache.
+	// Return the error so it can revalidate the tierlist cache.
+	if cacheFailed {
+		return fullResult, errors.New("cache failed")
+	}
+
 	return fullResult, nil
 }

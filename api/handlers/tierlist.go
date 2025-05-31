@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"goleague/api/cache"
+	"goleague/api/dto"
 	"goleague/api/filters"
 	"goleague/api/services"
 	"goleague/pkg/redis"
@@ -31,7 +32,7 @@ func NewTierlistHandler(service *services.TierlistService) *TierlistHandler {
 
 // Handler for getting the tierlist.
 func (h *TierlistHandler) GetTierlist(c *gin.Context) {
-	var qp filters.GetQueryParams
+	var qp filters.TierlistQueryParams
 
 	if err := c.ShouldBindQuery(&qp); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -54,7 +55,7 @@ func (h *TierlistHandler) GetTierlist(c *gin.Context) {
 	memCache := cache.GetSimpleCache()
 	memCachedData := memCache.Get(key)
 	if memCachedData != nil {
-		memCachedTierlist := memCachedData.([]*services.FullTierlist)
+		memCachedTierlist := memCachedData.([]*dto.FullTierlist)
 		c.JSON(http.StatusOK, gin.H{"result": memCachedTierlist})
 		return
 	}
@@ -67,7 +68,7 @@ func (h *TierlistHandler) GetTierlist(c *gin.Context) {
 	redisCached, err := redis.GetClient().Get(ctx, key)
 	if err == nil {
 		// Unmarshal the value to save it as binary on the cache.
-		var fulltierlist []*services.FullTierlist
+		var fulltierlist []*dto.FullTierlist
 		json.Unmarshal([]byte(redisCached), &fulltierlist)
 		memCache.Set(key, fulltierlist, 15*time.Minute)
 		c.JSON(http.StatusOK, gin.H{"result": redisCached})
@@ -76,6 +77,11 @@ func (h *TierlistHandler) GetTierlist(c *gin.Context) {
 
 	result, err := h.tierlistService.GetTierlist(filtersMap)
 	if err != nil {
+		if err.Error() == "cache failed" {
+			c.JSON(http.StatusOK, gin.H{"result": result})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

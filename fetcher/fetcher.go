@@ -71,6 +71,7 @@ func main() {
 		&models.EventSkillLevelUp{},
 		&models.EventWard{},
 		&models.ParticipantFrame{},
+		&models.CacheBackup{},
 	)
 	if err != nil {
 		log.Fatal(err)

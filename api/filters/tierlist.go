@@ -5,14 +5,14 @@ import (
 )
 
 // Query parameters for the tierlist filters.
-type GetQueryParams struct {
+type TierlistQueryParams struct {
 	Tier  string `form:"tier"`
 	Rank  string `form:"rank"`
 	Queue int    `form:"queue"`
 }
 
 // Get the query parameters as a map.
-func (q *GetQueryParams) AsMap() map[string]any {
+func (q *TierlistQueryParams) AsMap() map[string]any {
 	filters := make(map[string]any)
 
 	// Only add non-empty filters.

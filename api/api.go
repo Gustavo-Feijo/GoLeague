@@ -44,6 +44,7 @@ func main() {
 	router := routes.NewRouter(module.Router)
 	router.SetupRoutes(
 		module.TierlistHandler,
+		module.PlayerHandler,
 	)
 
 	server := &http.Server{

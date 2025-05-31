@@ -14,6 +14,7 @@ import (
 // Module containing the necessary handlers.
 type Module struct {
 	Router          *gin.Engine
+	PlayerHandler   *handlers.PlayerHandler
 	TierlistHandler *handlers.TierlistHandler
 }
 
@@ -32,9 +33,18 @@ func NewModule(grpcClient *grpc.ClientConn) (*Module, error) {
 	// Initialize the handlers.
 	tierlistHandler := handlers.NewTierlistHandler(tierlistService)
 
+	// Initialize the player service.
+	playerService, err := services.NewPlayerService(grpcClient)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't start the player service: %v", err)
+	}
+	// Initialize the handlers.
+	playerHandler := handlers.NewPlayerHandler(playerService)
+
 	// Return the module with all handlers.
 	return &Module{
 		Router:          router,
+		PlayerHandler:   playerHandler,
 		TierlistHandler: tierlistHandler,
 	}, nil
 }
