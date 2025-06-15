@@ -3,6 +3,7 @@ package repositories
 import (
 	"fmt"
 	"goleague/api/dto"
+	"goleague/fetcher/regions"
 	"goleague/pkg/database"
 	"goleague/pkg/database/models"
 	"strings"
@@ -15,6 +16,8 @@ const searchLimit = 20
 // PlayerRepository is the public interface for accessing the player repository.
 type PlayerRepository interface {
 	SearchPlayer(filters map[string]any) ([]*dto.PlayerSearch, error)
+	GetPlayerMatchHistory(filters map[string]any) error
+	GetPlayerIdByNameTagRegion(name string, tag string, region string) (*dto.PlayerId, error)
 }
 
 // playerRepository repository structure.
@@ -65,4 +68,28 @@ func (ps *playerRepository) SearchPlayer(filters map[string]any) ([]*dto.PlayerS
 	}
 
 	return players, nil
+}
+
+func (ps *playerRepository) GetPlayerMatchHistory(filters map[string]any) error {
+	return nil
+}
+
+// GetPlayerIdByNameTagRegion retrieves the id of a given player based on the params.
+func (ps *playerRepository) GetPlayerIdByNameTagRegion(name string, tag string, region string) (*dto.PlayerId, error) {
+	var result *dto.PlayerId
+
+	formattedRegion := regions.SubRegion(strings.ToUpper(region))
+	err := ps.db.
+		Model(&models.PlayerInfo{}).
+		Select("id").
+		Where(&models.PlayerInfo{
+			RiotIdGameName: name,
+			RiotIdTagline:  tag,
+			Region:         formattedRegion,
+		}).First(&result).Error
+	if err != nil {
+		return &dto.PlayerId{ID: 0}, err
+	}
+
+	return result, nil
 }

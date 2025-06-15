@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"goleague/api/dto"
 	"goleague/api/repositories"
 
@@ -28,7 +29,24 @@ func NewPlayerService(grpcClient *grpc.ClientConn) (*PlayerService, error) {
 	}, nil
 }
 
-// GetPlayerSearch returns the resullt of a given search.
+// GetPlayerSearch returns the result of a given search.
 func (ps *PlayerService) GetPlayerSearch(filters map[string]any) ([]*dto.PlayerSearch, error) {
 	return ps.PlayerRepository.SearchPlayer(filters)
+}
+
+// GetPlayerMatchHistory returns a player match list based on filters.
+func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (error, error) {
+	// Convert to string.
+	// Received through path params.
+	name := filters["gameName"].(string)
+	tag := filters["gameTag"].(string)
+	region := filters["region"].(string)
+
+	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find the playerId: %w", err)
+	}
+
+	filters["playerId"] = playerId.ID
+	return ps.PlayerRepository.GetPlayerMatchHistory(filters), nil
 }

@@ -10,3 +10,7 @@ type PlayerSearch struct {
 	SummonerLevel int
 	Tag           string
 }
+
+type PlayerId struct {
+	ID uint
+}
