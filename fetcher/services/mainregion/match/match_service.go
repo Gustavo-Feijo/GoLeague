@@ -43,13 +43,13 @@ func NewMatchService(
 }
 
 // GetMatchData gets the data of the match from the Riot API.
-func (m *MatchService) GetMatchData(matchId string) (*matchfetcher.MatchData, error) {
+func (m *MatchService) GetMatchData(matchId string, onDemand bool) (*matchfetcher.MatchData, error) {
 	var matchData *matchfetcher.MatchData
 	var err error
 
 	for attempt := 1; attempt < m.maxRetries; attempt++ {
 		// Get the match data.
-		matchData, err = m.fetcher.Match.GetMatchData(matchId, false)
+		matchData, err = m.fetcher.Match.GetMatchData(matchId, onDemand)
 
 		// Everything went right, just continue normally.
 		if err == nil {

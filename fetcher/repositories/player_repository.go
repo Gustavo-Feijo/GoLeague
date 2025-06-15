@@ -6,6 +6,7 @@ import (
 	"goleague/fetcher/regions"
 	"goleague/pkg/database"
 	"goleague/pkg/database/models"
+	"sort"
 	"strings"
 	"time"
 
@@ -124,6 +125,15 @@ func (ps *playerRepository) SetFetched(playerId uint) error {
 // The deadlock could be caused by the main region updating a given player or working with Goroutines for fetching matches.
 func (ps *playerRepository) UpsertPlayerBatch(players []*models.PlayerInfo) error {
 	const maxRetries = 3
+
+	// Sort to improve deadlock treatment.
+	sort.Slice(players, func(i, j int) bool {
+		if players[i].Puuid != players[j].Puuid {
+			return players[i].Puuid < players[j].Puuid
+		}
+		return players[i].Region < players[j].Region
+	})
+
 	for range maxRetries {
 		err := ps.db.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "puuid"}, {Name: "region"}},

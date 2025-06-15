@@ -35,13 +35,13 @@ func NewTimelineService(
 }
 
 // GetMatchTimeline gets the timeline data for a match.
-func (t *TimelineService) GetMatchTimeline(matchId string) (*matchfetcher.MatchTimeline, error) {
+func (t *TimelineService) GetMatchTimeline(matchId string, onDemand bool) (*matchfetcher.MatchTimeline, error) {
 	var matchData *matchfetcher.MatchTimeline
 	var err error
 
 	for attempt := 1; attempt < t.maxRetries; attempt++ {
 		// Get the match timeline.
-		matchData, err = t.fetcher.Match.GetMatchTimelineData(matchId, false)
+		matchData, err = t.fetcher.Match.GetMatchTimelineData(matchId, onDemand)
 
 		// Everything went right, just continue normally..
 		if err == nil {

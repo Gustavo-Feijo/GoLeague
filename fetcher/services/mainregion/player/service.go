@@ -7,6 +7,7 @@ import (
 	"goleague/pkg/database/models"
 	queuevalues "goleague/pkg/riotvalues/queue"
 	"log"
+	"sync"
 )
 
 // PlayerService is a separated service for player operations.
@@ -14,6 +15,7 @@ type PlayerService struct {
 	MatchRepository  repositories.MatchRepository
 	PlayerRepository repositories.PlayerRepository
 	RatingRepository repositories.RatingRepository
+	upsertMu         sync.Mutex
 }
 
 // NewPlayerService creates a new player service.
@@ -58,10 +60,15 @@ func (p *PlayerService) ProcessPlayersFromMatch(
 	}
 
 	// Create/update the players.
+	// Get the mutex for the player service to avoid deadlocks when using goroutines.
+	// Need to be in the service to not slow other regions.
+	p.upsertMu.Lock()
 	if err := p.PlayerRepository.UpsertPlayerBatch(playersToUpsert); err != nil {
 		log.Printf("Couldn't create/update the players for the match %s: %v", matchInfo.MatchId, err)
+		p.upsertMu.Unlock()
 		return nil, nil, err
 	}
+	p.upsertMu.Unlock()
 
 	var playerIds []uint
 

@@ -3,22 +3,35 @@ package mainregionservice
 import (
 	"errors"
 	"fmt"
-
 	"goleague/fetcher/data"
-	matchfetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
+	"goleague/pkg/database/models"
+	"goleague/pkg/logger"
+	queuevalues "goleague/pkg/riotvalues/queue"
+	"slices"
+	"sync"
+	"time"
+
+	matchfetcher "goleague/fetcher/data/match"
+
 	eventservice "goleague/fetcher/services/mainregion/events"
 	matchservice "goleague/fetcher/services/mainregion/match"
 	playerservice "goleague/fetcher/services/mainregion/player"
-	"goleague/pkg/database/models"
-	"goleague/pkg/logger"
-	"time"
 )
 
 // MainRegionConfig is the configuration of the main region.
 type MainRegionConfig struct {
 	MaxRetries int
+}
+
+// Result of a single match fetch.
+type matchResult struct {
+	matchId     string
+	totalTime   time.Duration
+	fetchTime   time.Duration
+	processTime time.Duration
+	err         error
 }
 
 // MainRegionService coordinates data fetching and processing for a specific main region.
@@ -202,8 +215,9 @@ func (p *MainRegionService) GetTrueMatchList(
 // GetMatchData retrives the data of the match from the Riot API.
 func (p *MainRegionService) GetMatchData(
 	matchId string,
+	onDemand bool,
 ) (*matchfetcher.MatchData, error) {
-	return p.matchService.GetMatchData(matchId)
+	return p.matchService.GetMatchData(matchId, onDemand)
 }
 
 // ProcessMatchData process the match data to insert it into the database.
@@ -219,8 +233,9 @@ func (p *MainRegionService) ProcessMatchData(
 // GetMatchTimeline retrives the match timeline from the Riot API.
 func (p *MainRegionService) GetMatchTimeline(
 	matchId string,
+	onDemand bool,
 ) (*matchfetcher.MatchTimeline, error) {
-	return p.timelineService.GetMatchTimeline(matchId)
+	return p.timelineService.GetMatchTimeline(matchId, onDemand)
 }
 
 // ProcessMatchTimeline process the match timeline to insert it into the database.
@@ -231,4 +246,159 @@ func (p *MainRegionService) ProcessMatchTimeline(
 	matchInfo *models.MatchInfo,
 ) error {
 	return p.timelineService.ProcessMatchTimeline(matchTimeline, statIdByPuuid, matchInfo, p.MatchRepository)
+}
+
+// ProcessPlayerHistory process the player match history with Goroutines.
+func (p *MainRegionService) ProcessPlayerHistory(
+	player *models.PlayerInfo,
+	subRegion regions.SubRegion,
+	logger *logger.NewLogger,
+	maxConcurrency int,
+	onDemand bool,
+) (
+	*models.PlayerInfo,
+	int,
+	error,
+) {
+	trueMatchList, err := p.GetTrueMatchList(player)
+	if err != nil {
+		logger.Errorf("Couldn't get the true match list: %v", err)
+		return player, 0, err
+	}
+
+	matchChan := make(chan string, len(trueMatchList))
+	resultChan := make(chan matchResult, len(trueMatchList))
+
+	// Fill the match channel
+	for _, matchId := range trueMatchList {
+		matchChan <- matchId
+	}
+	close(matchChan)
+
+	// Start worker goroutines
+	var wg sync.WaitGroup
+
+	for range maxConcurrency {
+		wg.Add(1)
+		go p.matchWorker(matchChan, resultChan, subRegion, &wg, onDemand)
+	}
+
+	// Close result channel when all workers are done
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// Collect results
+	fetchedMatches := 0
+	var firstError error
+
+	for result := range resultChan {
+		if result.err != nil {
+			logger.Errorf("Error processing match %s: %v", result.matchId, result.err)
+			if firstError == nil {
+				firstError = result.err
+			}
+			continue
+		}
+		fetchedMatches++
+		logger.Infof("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
+			result.matchId,
+			result.totalTime.Seconds(),
+			result.fetchTime.Seconds(),
+			result.processTime.Seconds(),
+		)
+	}
+
+	// Set the last fetch regardless of any match processing errors
+	if err := p.PlayerRepository.SetFetched(player.ID); err != nil {
+		logger.Errorf("Couldn't set the last fetch date for the player with ID %d: %v", player.ID, err)
+	}
+
+	return player, fetchedMatches, firstError
+}
+
+// matchWorker processes matches from the channel.
+func (p *MainRegionService) matchWorker(
+	matchChan <-chan string,
+	resultChan chan<- matchResult,
+	subRegion regions.SubRegion,
+	wg *sync.WaitGroup,
+	onDemand bool,
+) {
+	defer wg.Done()
+
+	for matchId := range matchChan {
+		result := p.processMatch(matchId, subRegion, onDemand)
+		resultChan <- result
+	}
+}
+
+func (p *MainRegionService) processMatch(
+	matchId string,
+	subRegion regions.SubRegion,
+	onDemand bool,
+) matchResult {
+	matchfetchStart := time.Now()
+	matchData, err := p.GetMatchData(matchId, onDemand)
+	if err != nil {
+		return matchResult{
+			matchId: matchId,
+			err:     fmt.Errorf("couldn't get the match data for the match %s: %v", matchId, err),
+		}
+	}
+
+	// Skip modes that are not treated.
+	// They can have bots, which mess with the PUUIDs logic.
+	if !slices.Contains(queuevalues.TreatedQueues, matchData.Info.QueueId) {
+		return matchResult{
+			matchId: matchId,
+			err:     fmt.Errorf("match %s is of untreated gamemode: %d", matchId, matchData.Info.QueueId),
+		}
+	}
+
+	matchParseStart := time.Now()
+
+	matchInfo, _, matchStats, err := p.ProcessMatchData(matchData, matchId, subRegion)
+	if err != nil {
+		return matchResult{
+			matchId: matchId,
+			err:     fmt.Errorf("couldn't process the data for the match %s: %v", matchId, err),
+		}
+	}
+
+	// Create a map of each inserted stat id by the puuid.
+	statByPuuid := make(map[string]uint64)
+	for _, stat := range matchStats {
+		statByPuuid[stat.PlayerData.Puuid] = stat.ID
+	}
+
+	timelineFetchStart := time.Now()
+	matchTimeline, err := p.GetMatchTimeline(matchId, onDemand)
+	if err != nil {
+		return matchResult{
+			matchId: matchId,
+			err:     fmt.Errorf("couldn't get the match timeline for the match %s: %v", matchId, err),
+		}
+
+	}
+
+	timelineParseStart := time.Now()
+	err = p.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo)
+	if err != nil {
+		return matchResult{
+			matchId: matchId,
+			err:     fmt.Errorf("couldn't process the timeline data for the match %s: %v", matchId, err),
+		}
+	}
+
+	p.MatchRepository.SetFullyFetched(matchInfo.ID)
+
+	return matchResult{
+		matchId:     matchId,
+		err:         nil,
+		totalTime:   time.Since(matchfetchStart),
+		fetchTime:   matchParseStart.Sub(matchfetchStart) + timelineParseStart.Sub(timelineFetchStart),
+		processTime: timelineFetchStart.Sub(matchParseStart) + time.Since(timelineParseStart),
+	}
 }
