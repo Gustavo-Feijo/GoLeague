@@ -75,6 +75,18 @@ func CreateTriggers(db *gorm.DB) error {
 	return nil
 }
 
+// CreateCustomIndexes creates any necessary custom index.
+func CreateCustomIndexes(db *gorm.DB) error {
+	// Creates a index for improving player searching time.
+	searchIndex := `
+		CREATE INDEX idx_player_search_all ON player_infos (
+		  lower(region), 
+		  riot_id_game_name text_pattern_ops, 
+		  lower(riot_id_tagline) text_pattern_ops
+		) WHERE riot_id_game_name != '';`
+	return db.Exec(searchIndex).Error
+}
+
 // GetConnections is a singleton implementation of the database.
 // Return the connection pool.
 func GetConnection() (*gorm.DB, error) {

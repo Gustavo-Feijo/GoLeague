@@ -71,7 +71,7 @@ func (h *TierlistHandler) GetTierlist(c *gin.Context) {
 		var fulltierlist []*dto.FullTierlist
 		json.Unmarshal([]byte(redisCached), &fulltierlist)
 		memCache.Set(key, fulltierlist, 15*time.Minute)
-		c.JSON(http.StatusOK, gin.H{"result": redisCached})
+		c.JSON(http.StatusOK, gin.H{"result": fulltierlist})
 		return
 	}
 

@@ -53,8 +53,13 @@ func (h *PlayerHandler) GetPlayerMatchHistory(c *gin.Context) {
 	filtersMap["gameTag"] = c.Params.ByName("gameTag")
 	filtersMap["region"] = c.Params.ByName("region")
 
-	h.playerService.GetPlayerMatchHistory(filtersMap)
-	c.JSON(http.StatusOK, gin.H{"teste": c.Params.ByName("gameName")})
+	matchList, err := h.playerService.GetPlayerMatchHistory(filtersMap)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, matchList)
 }
 
 // GetPlayerStats handles requests for retrieving a player average status.

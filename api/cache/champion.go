@@ -21,24 +21,24 @@ type ChampionCache struct {
 
 // Singleton.
 var (
-	instance *ChampionCache
-	once     sync.Once
+	championInstance *ChampionCache
+	championOnce     sync.Once
 )
 
 // Get the instance of the champion cache.
 func GetChampionCache() *ChampionCache {
-	once.Do(func() {
-		instance = &ChampionCache{
+	championOnce.Do(func() {
+		championInstance = &ChampionCache{
 			redis:     redis.GetClient(),
 			TTL:       30 * time.Minute,
 			lastReset: time.Now(),
 		}
 
 		// Start the worker that will reset the cache.
-		go instance.cacheExpirationWorker()
+		go championInstance.cacheExpirationWorker()
 	})
 
-	return instance
+	return championInstance
 }
 
 // Invalidate the current cache.

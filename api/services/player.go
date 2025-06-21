@@ -1,18 +1,22 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"goleague/api/cache"
 	"goleague/api/dto"
 	"goleague/api/repositories"
+	"time"
 
 	"google.golang.org/grpc"
 )
 
 // PlayerService service with the  repositories and the gRPC client in case we need to force fetch something (Unlikely).
 type PlayerService struct {
-	PlayerRepository repositories.PlayerRepository
 	grpcClient       *grpc.ClientConn
+	MatchRepository  repositories.MatchRepository
+	PlayerRepository repositories.PlayerRepository
 }
 
 // NewPlayerService creates a service for handling player services.
@@ -23,8 +27,14 @@ func NewPlayerService(grpcClient *grpc.ClientConn) (*PlayerService, error) {
 		return nil, errors.New("failed to start the player repository")
 	}
 
+	matchRepo, err := repositories.NewMatchRepository()
+	if err != nil {
+		return nil, errors.New("failed to start the match repository")
+	}
+
 	return &PlayerService{
 		grpcClient:       grpcClient,
+		MatchRepository:  matchRepo,
 		PlayerRepository: repo,
 	}, nil
 }
@@ -35,7 +45,7 @@ func (ps *PlayerService) GetPlayerSearch(filters map[string]any) ([]*dto.PlayerS
 }
 
 // GetPlayerMatchHistory returns a player match list based on filters.
-func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (error, error) {
+func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (dto.MatchPreviewList, error) {
 	// Convert to string.
 	// Received through path params.
 	name := filters["gameName"].(string)
@@ -47,6 +57,56 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (error, e
 		return nil, fmt.Errorf("couldn't find the playerId: %w", err)
 	}
 
-	filters["playerId"] = playerId.ID
-	return ps.PlayerRepository.GetPlayerMatchHistory(filters), nil
+	filters["playerId"] = playerId
+	matchesIds, err := ps.PlayerRepository.GetPlayerMatchHistoryIds(filters)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get the match ids: %w", err)
+	}
+
+	if len(matchesIds) == 0 {
+		return nil, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	// Get all the cached matches previews.
+	// Match previews shouldn't change, using cache to reduce load into the database.
+	matchCache := cache.GetMatchCache()
+	cachedMatches, missingMatches, err := matchCache.GetMatchesPreviewByMatchIds(ctx, matchesIds)
+	if err == nil {
+		// All matches in cache.
+		if len(missingMatches) == 0 {
+			matchPreviews := make(dto.MatchPreviewList)
+			handleCachedMatches(cachedMatches, matchPreviews)
+			return matchPreviews, nil
+		}
+
+		matchesIds = missingMatches
+	}
+
+	// Get the non cached matches from the database.
+	matchPreviews, err := ps.MatchRepository.GetMatchPreviews(matchesIds)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get the match history for the player: %w", err)
+	}
+
+	// Some matches came from cache, others from db.
+	if len(missingMatches) > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		for _, match := range matchPreviews {
+			matchCache.SetMatchPreview(ctx, *match)
+		}
+		handleCachedMatches(cachedMatches, matchPreviews)
+	}
+
+	return matchPreviews, nil
+}
+
+func handleCachedMatches(cachedMatches []dto.MatchPreview, matchesDto dto.MatchPreviewList) {
+	for _, match := range cachedMatches {
+		m := match
+		matchesDto[match.Metadata.MatchId] = &m
+	}
 }

@@ -16,8 +16,8 @@ const searchLimit = 20
 // PlayerRepository is the public interface for accessing the player repository.
 type PlayerRepository interface {
 	SearchPlayer(filters map[string]any) ([]*dto.PlayerSearch, error)
-	GetPlayerMatchHistory(filters map[string]any) error
-	GetPlayerIdByNameTagRegion(name string, tag string, region string) (*dto.PlayerId, error)
+	GetPlayerMatchHistoryIds(filters map[string]any) ([]uint, error)
+	GetPlayerIdByNameTagRegion(name string, tag string, region string) (uint, error)
 }
 
 // playerRepository repository structure.
@@ -70,13 +70,43 @@ func (ps *playerRepository) SearchPlayer(filters map[string]any) ([]*dto.PlayerS
 	return players, nil
 }
 
-func (ps *playerRepository) GetPlayerMatchHistory(filters map[string]any) error {
-	return nil
+// GetPlayerMatchHistoryIds returns the internal ids of the matches that a given player played.
+func (ps *playerRepository) GetPlayerMatchHistoryIds(filters map[string]any) ([]uint, error) {
+	var ids []uint
+
+	defaultLimit := 10
+	playerId := filters["playerId"]
+	queueId, queueSetted := filters["queue"]
+
+	query := ps.db.Model(&models.MatchInfo{}).
+		Select("match_infos.id").
+		Joins("JOIN match_stats ms on match_infos.id=ms.match_id").
+		Where("ms.player_id = ?", playerId)
+
+	if queueSetted && queueId != 0 {
+		query = query.Where("match_infos.queue_id = ?", queueId)
+	}
+
+	query = query.Limit(defaultLimit)
+
+	offset, hasOffset := filters["page"]
+	if hasOffset {
+		if page, ok := offset.(int); ok {
+			query = query.Offset(page * defaultLimit)
+		}
+	}
+
+	err := query.Pluck("id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
 }
 
 // GetPlayerIdByNameTagRegion retrieves the id of a given player based on the params.
-func (ps *playerRepository) GetPlayerIdByNameTagRegion(name string, tag string, region string) (*dto.PlayerId, error) {
-	var result *dto.PlayerId
+func (ps *playerRepository) GetPlayerIdByNameTagRegion(name string, tag string, region string) (uint, error) {
+	var result uint
 
 	formattedRegion := regions.SubRegion(strings.ToUpper(region))
 	err := ps.db.
@@ -88,7 +118,7 @@ func (ps *playerRepository) GetPlayerIdByNameTagRegion(name string, tag string, 
 			Region:         formattedRegion,
 		}).First(&result).Error
 	if err != nil {
-		return &dto.PlayerId{ID: 0}, err
+		return 0, err
 	}
 
 	return result, nil

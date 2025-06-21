@@ -20,8 +20,8 @@ func (q *PlayerSearchParams) AsMap() map[string]any {
 
 // Query params for the player match history.
 type PlayerMatchHistoryParams struct {
-	Page  int    `form:"page"`
-	Queue string `form:"queue"`
+	Page  int `form:"page"`
+	Queue int `form:"queue"`
 }
 
 // Get the query parameters as a map.

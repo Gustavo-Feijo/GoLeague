@@ -82,6 +82,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = database.CreateCustomIndexes(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	log.Println("Starting the queues...")
 
 	// Start the queue.
