@@ -18,6 +18,8 @@ import (
 	eventservice "goleague/fetcher/services/mainregion/events"
 	matchservice "goleague/fetcher/services/mainregion/match"
 	playerservice "goleague/fetcher/services/mainregion/player"
+
+	"gorm.io/gorm"
 )
 
 // MainRegionConfig is the configuration of the main region.
@@ -59,26 +61,27 @@ func newMainRegionConfig() *MainRegionConfig {
 
 // NewMainRegionService creates the main region service.
 func NewMainRegionService(
+	db *gorm.DB,
 	fetcher *data.MainFetcher,
 	region regions.MainRegion,
 ) (*MainRegionService, error) {
 	// Create the repositores.
-	ratingRepository, err := repositories.NewRatingRepository()
+	ratingRepository, err := repositories.NewRatingRepository(db)
 	if err != nil {
 		return nil, errors.New("failed to start the rating service")
 	}
 
-	playerRepository, err := repositories.NewPlayerRepository()
+	playerRepository, err := repositories.NewPlayerRepository(db)
 	if err != nil {
 		return nil, errors.New("failed to start the player service")
 	}
 
-	matchRepository, err := repositories.NewMatchRepository()
+	matchRepository, err := repositories.NewMatchRepository(db)
 	if err != nil {
 		return nil, errors.New("failed to start the match service")
 	}
 
-	timelineRepository, err := repositories.NewTimelineRepository()
+	timelineRepository, err := repositories.NewTimelineRepository(db)
 	if err != nil {
 		return nil, errors.New("failed to start the timeline service")
 	}
@@ -111,7 +114,9 @@ func NewMainRegionService(
 		ratingRepository,
 	)
 
+	// Passing the raw db as well to use in the batch collector.
 	timelineService := matchservice.NewTimelineService(
+		db,
 		*fetcher,
 		timelineRepository,
 		config.MaxRetries,

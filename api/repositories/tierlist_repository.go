@@ -1,9 +1,7 @@
 package repositories
 
 import (
-	"fmt"
 	"goleague/api/dto"
-	"goleague/pkg/database"
 	queuevalues "goleague/pkg/riotvalues/queue"
 	"slices"
 	"strings"
@@ -22,11 +20,7 @@ type tierlistRepository struct {
 }
 
 // Create a tierlist repository.
-func NewTierlistRepository() (TierlistRepository, error) {
-	db, err := database.GetConnection()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get database connection: %w", err)
-	}
+func NewTierlistRepository(db *gorm.DB) (TierlistRepository, error) {
 	return &tierlistRepository{db: db}, nil
 }
 

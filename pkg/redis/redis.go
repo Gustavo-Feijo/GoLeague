@@ -2,8 +2,8 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"goleague/pkg/config"
-	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -14,32 +14,33 @@ type RedisClient struct {
 	*redis.Client
 }
 
-var (
-	once     sync.Once
-	instance *RedisClient
-)
-
-// GetClient is a singleton that returns a redis connection pool.
-func GetClient() *RedisClient {
-	once.Do(func() {
-		client := redis.NewClient(&redis.Options{
-			Addr:         config.Redis.Host + ":" + config.Redis.Port,
-			Password:     config.Redis.Password,
-			DB:           0,
-			MaxRetries:   3,
-			PoolSize:     100,
-			MinIdleConns: 10,
-			PoolTimeout:  30 * time.Second,
-		})
-
-		instance = &RedisClient{
-			Client: client,
-		}
+// NewClient creates and returns a new redis connection pool.
+func NewClient() (*RedisClient, error) {
+	client := redis.NewClient(&redis.Options{
+		Addr:         config.Redis.Host + ":" + config.Redis.Port,
+		Password:     config.Redis.Password,
+		DB:           0,
+		MaxRetries:   3,
+		PoolSize:     100,
+		MinIdleConns: 10,
+		PoolTimeout:  30 * time.Second,
 	})
-	return instance
+
+	instance := &RedisClient{
+		Client: client,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		return instance, fmt.Errorf("failed to connect to Redis: %w", err)
+	}
+
+	return instance, nil
 }
 
-// Close clopses the client connection.
+// Close closes the client connection.
 func (r *RedisClient) Close() error {
 	return r.Client.Close()
 }

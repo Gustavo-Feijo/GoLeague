@@ -3,7 +3,6 @@ package repositories
 import (
 	"fmt"
 	leaguefetcher "goleague/fetcher/data/league"
-	"goleague/pkg/database"
 	"goleague/pkg/database/models"
 	"strings"
 	"time"
@@ -25,11 +24,7 @@ type ratingRepository struct {
 }
 
 // NewRatingRepository creates a new repository and return it.
-func NewRatingRepository() (RatingRepository, error) {
-	db, err := database.GetConnection()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get database connection: %w", err)
-	}
+func NewRatingRepository(db *gorm.DB) (RatingRepository, error) {
 	return &ratingRepository{db: db}, nil
 }
 

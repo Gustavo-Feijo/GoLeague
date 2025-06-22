@@ -6,14 +6,14 @@ import (
 	"goleague/fetcher/regions"
 	mainregionservice "goleague/fetcher/services/mainregion"
 	subregionservice "goleague/fetcher/services/subregion"
-	"log"
 	"sync"
+
+	"gorm.io/gorm"
 )
 
-var (
-	regionManagerInstance *RegionManager
-	regionManagerOnce     sync.Once
-)
+type RegionManagerDependencies struct {
+	DB *gorm.DB
+}
 
 // RegionManager is the centralized region manager, with all embedded services.
 type RegionManager struct {
@@ -29,57 +29,79 @@ type RegionManager struct {
 	// List of fetchers the sub regions.
 	subService map[regions.SubRegion]*subregionservice.SubRegionService
 
+	// Passed necessary dependencies.
+	deps RegionManagerDependencies
+
 	mu sync.RWMutex
 }
 
-// GetRegionManager is a sigleton for the region manager for the RiotAPI.
-// Creates and populates it if not created yet.
-func GetRegionManager() *RegionManager {
-	// Singleton for creating only one region manager.
-	regionManagerOnce.Do(func() {
-		// Create the region manager.
-		regionManagerInstance = &RegionManager{
-			subToMain:   make(map[regions.SubRegion]regions.MainRegion),
-			mainToSub:   make(map[regions.MainRegion][]regions.SubRegion),
-			mainService: make(map[regions.MainRegion]*mainregionservice.MainRegionService),
-			subService:  make(map[regions.SubRegion]*subregionservice.SubRegionService),
+// NewRegionManager creates a new region manager instance.
+func NewRegionManager(deps RegionManagerDependencies) (*RegionManager, error) {
+	rm := &RegionManager{
+		subToMain:   make(map[regions.SubRegion]regions.MainRegion),
+		mainToSub:   make(map[regions.MainRegion][]regions.SubRegion),
+		mainService: make(map[regions.MainRegion]*mainregionservice.MainRegionService),
+		subService:  make(map[regions.SubRegion]*subregionservice.SubRegionService),
+		deps:        deps,
+	}
+
+	if err := rm.initialize(); err != nil {
+		return nil, fmt.Errorf("couldn't initialize the region manager: %w", err)
+	}
+
+	return rm, nil
+}
+
+// initialize creates the instances for the main regions and subregions.
+func (rm *RegionManager) initialize() error {
+	for mainRegion, subRegions := range regions.RegionList {
+		if err := rm.initializeMainRegion(mainRegion, subRegions); err != nil {
+			return fmt.Errorf("failed to initialize main region %s: %w", mainRegion, err)
 		}
 
-		// Loop through each region and populate it.
-		for MainRegion, SubRegions := range regions.RegionList {
-			// Create the relationship between the main regions and the regions.SubRegions.
-			regionManagerInstance.mainToSub[MainRegion] = SubRegions
-
-			// Create  the main region fetcher.
-			fetcher := data.NewMainFetcher(string(MainRegion))
-
-			// Create the service.
-			service, err := mainregionservice.NewMainRegionService(fetcher, MainRegion)
-			if err != nil {
-				log.Fatalf("Couldn't create the service for region %s: %v", MainRegion, err)
-			}
-
-			regionManagerInstance.mainService[MainRegion] = service
-
-			for _, SubRegion := range SubRegions {
-				// Save the parent of this sub regions.
-				regionManagerInstance.subToMain[SubRegion] = MainRegion
-
-				// Create the sub region fetcher.
-				fetcher := data.NewSubFetcher(string(SubRegion))
-
-				// Create the service.
-				service, err := subregionservice.NewSubRegionService(fetcher, SubRegion)
-				if err != nil {
-					log.Fatalf("Couldn't create the service for region %s: %v", SubRegion, err)
-				}
-
-				regionManagerInstance.subService[SubRegion] = service
+		for _, subRegion := range subRegions {
+			if err := rm.initializeSubRegion(subRegion, mainRegion); err != nil {
+				return fmt.Errorf("failed to initialize sub region %s: %w", subRegion, err)
 			}
 		}
-	})
+	}
+	return nil
+}
 
-	return regionManagerInstance
+// initializeMainRegion creates the main fetcher and service for a main region.
+func (rm *RegionManager) initializeMainRegion(mainRegion regions.MainRegion, subRegions []regions.SubRegion) error {
+	// Create the relationship between main and sub regions
+	rm.mainToSub[mainRegion] = subRegions
+
+	// Create the main region fetcher
+	fetcher := data.NewMainFetcher(string(mainRegion))
+
+	// Create the service
+	service, err := mainregionservice.NewMainRegionService(rm.deps.DB, fetcher, mainRegion)
+	if err != nil {
+		return fmt.Errorf("couldn't create service: %w", err)
+	}
+
+	rm.mainService[mainRegion] = service
+	return nil
+}
+
+// initializeSubRegion creates the sub region fetcher and service.
+func (rm *RegionManager) initializeSubRegion(subRegion regions.SubRegion, mainRegion regions.MainRegion) error {
+	// Save the parent of this sub region
+	rm.subToMain[subRegion] = mainRegion
+
+	// Create the sub region fetcher
+	fetcher := data.NewSubFetcher(string(subRegion))
+
+	// Create the service
+	service, err := subregionservice.NewSubRegionService(rm.deps.DB, fetcher, subRegion)
+	if err != nil {
+		return fmt.Errorf("couldn't create service: %w", err)
+	}
+
+	rm.subService[subRegion] = service
+	return nil
 }
 
 // GetMainService returns the service for a Main Region.

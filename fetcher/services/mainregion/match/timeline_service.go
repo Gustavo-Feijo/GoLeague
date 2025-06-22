@@ -12,10 +12,13 @@ import (
 	"log"
 	"strconv"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // TimelineService handles match timeline operations.
 type TimelineService struct {
+	db                 *gorm.DB
 	fetcher            data.MainFetcher
 	TimelineRepository repositories.TimelineRepository
 	maxRetries         int
@@ -23,11 +26,13 @@ type TimelineService struct {
 
 // NewTimelineService creates a new timeline service.
 func NewTimelineService(
+	db *gorm.DB,
 	fetcher data.MainFetcher,
 	timelineRepo repositories.TimelineRepository,
 	maxRetries int,
 ) *TimelineService {
 	return &TimelineService{
+		db:                 db,
 		fetcher:            fetcher,
 		TimelineRepository: timelineRepo,
 		maxRetries:         maxRetries,
@@ -82,7 +87,7 @@ func (t *TimelineService) ProcessMatchTimeline(
 
 	// Create the frames slice and the event collector for handling batch insert.
 	var framesToInsert []*models.ParticipantFrame
-	eventCollector := batchservice.NewBatchCollector()
+	eventCollector := batchservice.NewBatchCollector(t.db)
 
 	// Loop through each available frame.
 	for frameIndex, frame := range matchTimeline.Info.Frames {

@@ -9,20 +9,22 @@ import (
 	"goleague/pkg/redis"
 	"log"
 	"sync"
+
+	"gorm.io/gorm"
 )
 
 // Get the champion from the datadragon based on it's key.
 // If a champion key is passed, also return the given champion.
-func RevalidateChampionCache(language string, championId string) (*champion.Champion, error) {
-	repo, _ := repositories.NewCacheRepository()
+func RevalidateChampionCache(redis *redis.RedisClient, db *gorm.DB, language string, championId string) (*champion.Champion, error) {
+	repo, _ := repositories.NewCacheRepository(db)
 
 	// Get the latest version.
 	// Usually only GetLatestVersion should be used to get the current running latest.
 	// But we are using GetNewVersion to also revalidate the versions.
 	latestVersion := ""
-	versions, err := GetNewVersion()
+	versions, err := GetNewVersion(redis)
 	if err != nil {
-		latestVersion, err = GetLatestVersion()
+		latestVersion, err = GetLatestVersion(redis)
 		if err != nil {
 			log.Fatalf("Can't get the latest version: %v", err)
 		}
@@ -55,7 +57,7 @@ func RevalidateChampionCache(language string, championId string) (*champion.Cham
 	for range workerCount {
 		go func() {
 			for championKey := range championKeys {
-				RevalidateSingleChampionByKey(language, championKey, repo)
+				RevalidateSingleChampionByKey(redis, language, championKey, repo)
 				wg.Done()
 			}
 		}()
@@ -75,8 +77,7 @@ func RevalidateChampionCache(language string, championId string) (*champion.Cham
 	if championId != "" {
 
 		// Get the redis client to read the champion.
-		client := redis.GetClient()
-		championReturn, err := client.Get(ctx, championPrefix+championId)
+		championReturn, err := redis.Get(ctx, championPrefix+championId)
 		if err != nil {
 			return nil, fmt.Errorf("can't get the new fetched champion from the redis client: %v", err)
 		}
@@ -93,8 +94,8 @@ func RevalidateChampionCache(language string, championId string) (*champion.Cham
 	return nil, nil
 }
 
-func RevalidateSingleChampionByKey(language string, championKey string, repo repositories.CacheRepository) (*champion.Champion, error) {
-	latestVersion, err := GetLatestVersion()
+func RevalidateSingleChampionByKey(redis *redis.RedisClient, language string, championKey string, repo repositories.CacheRepository) (*champion.Champion, error) {
+	latestVersion, err := GetLatestVersion(redis)
 	if err != nil {
 		log.Fatalf("Can't get the latest version: %v", err)
 	}
@@ -155,8 +156,10 @@ func RevalidateSingleChampionByKey(language string, championKey string, repo rep
 	keyWithId := fmt.Sprint(championPrefix, champ.ID)
 
 	// Get the client and set the champion.
-	client := redis.GetClient()
-	if err := client.Set(ctx, keyWithId, champJson, 0); err != nil {
+	if err := redis.Set(ctx, keyWithId, champJson, 0); err != nil {
+		if repo != nil {
+			repo.Setkey(keyWithId, string(champJson))
+		}
 		return nil, fmt.Errorf("can't set the champion json on redis: %v", err)
 	}
 

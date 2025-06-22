@@ -10,13 +10,17 @@ import (
 
 // PlayerHandler is the handler for the player endpoints.
 type PlayerHandler struct {
-	playerService services.PlayerService
+	playerService *services.PlayerService
+}
+
+type PlayerHandlerDependencies struct {
+	PlayerService *services.PlayerService
 }
 
 // NewPlayerHandler creates a new instance of the player handler.
-func NewPlayerHandler(service *services.PlayerService) *PlayerHandler {
+func NewPlayerHandler(deps *PlayerHandlerDependencies) *PlayerHandler {
 	return &PlayerHandler{
-		playerService: *service,
+		playerService: deps.PlayerService,
 	}
 }
 

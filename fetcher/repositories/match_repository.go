@@ -1,8 +1,6 @@
 package repositories
 
 import (
-	"fmt"
-	"goleague/pkg/database"
 	"goleague/pkg/database/models"
 
 	"gorm.io/gorm"
@@ -27,11 +25,7 @@ type matchRepository struct {
 }
 
 // NewMatchRepository creates and returns a match repository.
-func NewMatchRepository() (MatchRepository, error) {
-	db, err := database.GetConnection()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get database connection: %w", err)
-	}
+func NewMatchRepository(db *gorm.DB) (MatchRepository, error) {
 	return &matchRepository{db: db}, nil
 }
 

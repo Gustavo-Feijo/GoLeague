@@ -10,24 +10,36 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"gorm.io/gorm"
 )
 
 // Tierlist service with the  repositories and the gRPC client in case we need to force fetch something (Unlikely).
 type TierlistService struct {
-	TierlistRepository repositories.TierlistRepository
+	championCache      *cache.ChampionCache
+	db                 *gorm.DB
 	grpcClient         *grpc.ClientConn
+	TierlistRepository repositories.TierlistRepository
 }
 
-// Create a tierlist service.
-func NewTierlistService(grpcClient *grpc.ClientConn) (*TierlistService, error) {
+// TierlistServiceDeps is the dependency list for the tierlist service.
+type TierlistServiceDeps struct {
+	GrpcClient    *grpc.ClientConn
+	DB            *gorm.DB
+	ChampionCache *cache.ChampionCache
+}
+
+// NewTierlistService creates a tierlist service.
+func NewTierlistService(deps *TierlistServiceDeps) (*TierlistService, error) {
 	// Create the repository.
-	repo, err := repositories.NewTierlistRepository()
+	repo, err := repositories.NewTierlistRepository(deps.DB)
 	if err != nil {
 		return nil, errors.New("failed to start the tierlist repository")
 	}
 
 	return &TierlistService{
-		grpcClient:         grpcClient,
+		championCache:      deps.ChampionCache,
+		db:                 deps.DB,
+		grpcClient:         deps.GrpcClient,
 		TierlistRepository: repo,
 	}, nil
 }
@@ -47,8 +59,7 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*dto.FullTierl
 	}
 
 	// Get the champion cache instance.
-	cacheChampion := cache.GetChampionCache()
-	repo, _ := repositories.NewCacheRepository()
+	repo, _ := repositories.NewCacheRepository(ts.db)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -65,7 +76,7 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*dto.FullTierl
 		}
 
 		// Get a copy of the champion on the cache.
-		championData, err := cacheChampion.GetChampionCopy(ctx, strconv.Itoa(entry.ChampionId), repo)
+		championData, err := ts.championCache.GetChampionCopy(ctx, strconv.Itoa(entry.ChampionId), repo)
 		if err != nil {
 			fullResult[index].Champion = map[string]any{"ID": strconv.Itoa(entry.ChampionId)}
 			cacheFailed = true

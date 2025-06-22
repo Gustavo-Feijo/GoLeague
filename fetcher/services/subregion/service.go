@@ -11,6 +11,8 @@ import (
 	playerservice "goleague/fetcher/services/subregion/player"
 	ratingservice "goleague/fetcher/services/subregion/rating"
 	"goleague/pkg/logger"
+
+	"gorm.io/gorm"
 )
 
 // SubRegionService coordinates data fetching and processing for a specific sub-region.
@@ -24,14 +26,14 @@ type SubRegionService struct {
 }
 
 // NewSubRegionService creates a new sub-region service.
-func NewSubRegionService(fetcher *data.SubFetcher, region regions.SubRegion) (*SubRegionService, error) {
+func NewSubRegionService(db *gorm.DB, fetcher *data.SubFetcher, region regions.SubRegion) (*SubRegionService, error) {
 	// Create the repositories.
-	ratingRepository, err := repositories.NewRatingRepository()
+	ratingRepository, err := repositories.NewRatingRepository(db)
 	if err != nil {
 		return nil, errors.New("failed to start the rating repository")
 	}
 
-	playerRepository, err := repositories.NewPlayerRepository()
+	playerRepository, err := repositories.NewPlayerRepository(db)
 	if err != nil {
 		return nil, errors.New("failed to start the player repository")
 	}

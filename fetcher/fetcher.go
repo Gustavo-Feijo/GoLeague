@@ -35,16 +35,10 @@ func main() {
 
 	defer stop()
 
-	log.Println("Instanciating Region Managers...")
-
-	// Create the manager that will be used to handle all the regions fetching.
-	// Will be passed by reference to any place that make requests.
-	manager := regionmanager.GetRegionManager()
-
 	log.Println("Running migration and creating triggers/enums...")
 
-	// Migrate all necessary models.
-	db, err := database.GetConnection()
+	// Creates the database connection.
+	db, err := database.NewConnection()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -87,8 +81,22 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Println("Starting the queues...")
+	log.Println("Instanciating Region Managers...")
 
+	// Pass down the necessary dependencies.
+	deps := regionmanager.RegionManagerDependencies{
+		DB: db,
+	}
+
+	// Create the manager that will be used to handle all the regions fetching.
+	manager, err := regionmanager.NewRegionManager(deps)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("Region Managers created...")
+
+	log.Println("Starting the queues...")
 	// Start the queue.
 	go queue.StartQueue(manager)
 

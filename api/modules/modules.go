@@ -6,9 +6,11 @@ import (
 	"goleague/api/cache"
 	"goleague/api/handlers"
 	"goleague/api/services"
+	"goleague/pkg/redis"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
+	"gorm.io/gorm"
 )
 
 // Module containing the necessary handlers.
@@ -18,28 +20,60 @@ type Module struct {
 	TierlistHandler *handlers.TierlistHandler
 }
 
+// ModuleDependencies holds the necessary dependencies to the module start.
+type ModuleDependencies struct {
+	DB         *gorm.DB
+	GrpcClient *grpc.ClientConn
+	MemCache   *cache.MemCache
+	Redis      *redis.RedisClient
+}
+
 // Create a new module with all the necessary handlers initialized.
-func NewModule(grpcClient *grpc.ClientConn) (*Module, error) {
+func NewModule(deps *ModuleDependencies) (*Module, error) {
 	router := gin.Default()
 
 	// Preload the cache.
-	cache.GetChampionCache().Initialize(context.Background())
+	championCache := cache.NewChampionCache(deps.DB, deps.Redis, deps.MemCache)
+	championCache.Initialize(context.Background())
 
-	// Initialize the services.
-	tierlistService, err := services.NewTierlistService(grpcClient)
+	matchCache := cache.NewMatchCache(deps.Redis)
+
+	// Initialize the tierlist service and handler.
+	tierlistDeps := &services.TierlistServiceDeps{
+		DB:            deps.DB,
+		GrpcClient:    deps.GrpcClient,
+		ChampionCache: championCache,
+	}
+
+	tierlistService, err := services.NewTierlistService(tierlistDeps)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't start the tierlist service: %v", err)
 	}
-	// Initialize the handlers.
-	tierlistHandler := handlers.NewTierlistHandler(tierlistService)
 
-	// Initialize the player service.
-	playerService, err := services.NewPlayerService(grpcClient)
+	tierlistHandlerDeps := &handlers.TierlistHandlerDependencies{
+		MemCache:        deps.MemCache,
+		Redis:           deps.Redis,
+		TierlistService: tierlistService,
+	}
+	tierlistHandler := handlers.NewTierlistHandler(tierlistHandlerDeps)
+
+	// Initialize the player service and handler.
+	playerDeps := &services.PlayerServiceDeps{
+		DB:         deps.DB,
+		GrpcClient: deps.GrpcClient,
+		MatchCache: matchCache,
+	}
+
+	playerService, err := services.NewPlayerService(playerDeps)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't start the player service: %v", err)
 	}
-	// Initialize the handlers.
-	playerHandler := handlers.NewPlayerHandler(playerService)
+
+	playerHandlerDeps := &handlers.PlayerHandlerDependencies{
+		PlayerService: playerService,
+	}
+
+	playerHandler := handlers.NewPlayerHandler(playerHandlerDeps)
 
 	// Return the module with all handlers.
 	return &Module{

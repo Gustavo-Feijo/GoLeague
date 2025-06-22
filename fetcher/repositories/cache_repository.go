@@ -1,8 +1,6 @@
 package repositories
 
 import (
-	"fmt"
-	"goleague/pkg/database"
 	"goleague/pkg/database/models"
 
 	"gorm.io/gorm"
@@ -20,11 +18,7 @@ type cacheRepository struct {
 }
 
 // NewCacheRepository creates a new cache repository and return it.
-func NewCacheRepository() (CacheRepository, error) {
-	db, err := database.GetConnection()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get database connection: %w", err)
-	}
+func NewCacheRepository(db *gorm.DB) (CacheRepository, error) {
 	return &cacheRepository{db: db}, nil
 }
 

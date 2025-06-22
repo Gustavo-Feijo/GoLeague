@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"goleague/api/dto"
 	"goleague/pkg/redis"
-	"sync"
 	"time"
 )
 
+// Default key for the match previews.
 const matchPreviewKey = "match:previews:%d"
 
 // Create a redis cache client.
@@ -17,32 +17,22 @@ type MatchCache struct {
 	redis *redis.RedisClient
 }
 
-// Singleton.
-var (
-	matchInstance *MatchCache
-	matchOnce     sync.Once
-)
+// NewMatchCache creates a new  instance of the match redis client.
+func NewMatchCache(redis *redis.RedisClient) *MatchCache {
+	mc := &MatchCache{
+		redis: redis,
+	}
 
-// GetMatchCache gets the instance of the match cache.
-func GetMatchCache() *MatchCache {
-	matchOnce.Do(func() {
-		matchInstance = &MatchCache{
-			redis: redis.GetClient(),
-		}
-
-	})
-
-	return matchInstance
+	return mc
 }
 
 // GetMatchesPreviewByMatchIds retrieves the match preview from a list of match ids.
-func (m *MatchCache) GetMatchesPreviewByMatchIds(ctx context.Context, matchIds []uint) ([]dto.MatchPreview, []uint, error) {
+func (mc *MatchCache) GetMatchesPreviewByMatchIds(ctx context.Context, matchIds []uint) ([]dto.MatchPreview, []uint, error) {
 	keys := make([]string, len(matchIds))
 	for i, matchID := range matchIds {
 		keys[i] = fmt.Sprintf(matchPreviewKey, matchID)
 	}
-
-	results, err := m.redis.MGet(ctx, keys...).Result()
+	results, err := mc.redis.MGet(ctx, keys...).Result()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -72,11 +62,11 @@ func (m *MatchCache) GetMatchesPreviewByMatchIds(ctx context.Context, matchIds [
 }
 
 // SetMatchPreview saves a given match preview in cache.
-func (m *MatchCache) SetMatchPreview(ctx context.Context, preview dto.MatchPreview) error {
+func (mc *MatchCache) SetMatchPreview(ctx context.Context, preview dto.MatchPreview) error {
 	j, err := json.Marshal(preview)
 	if err == nil {
 		key := fmt.Sprintf(matchPreviewKey, preview.Metadata.InternalId)
-		m.redis.Set(context.Background(), key, string(j), time.Hour)
+		mc.redis.Set(context.Background(), key, string(j), time.Hour)
 	}
 	return err
 }

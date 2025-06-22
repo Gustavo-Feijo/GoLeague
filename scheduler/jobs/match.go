@@ -1,16 +1,25 @@
 package jobs
 
 import (
+	"fmt"
 	"goleague/pkg/database"
 	"log"
 )
 
-func RecalculateMatchRating() {
+// RecalculateMatchRating calculates the average rating from all matches that happened in the last one day.
+func RecalculateMatchRating() error {
 	log.Println("Starting recalculate match rating.")
-	db, err := database.GetConnection()
+
+	// Create a new connection pool.
+	db, err := database.NewConnection()
 	if err != nil {
-		log.Printf("Couldn't get the database connection: %v", err)
+		return fmt.Errorf("couldn't get database connection: %w", err)
 	}
+	defer func() {
+		if sqlDB, err := db.DB(); err == nil {
+			sqlDB.Close()
+		}
+	}()
 
 	// Run the querty to revalidate the match ratings.
 	err = db.Exec(`
@@ -43,7 +52,8 @@ func RecalculateMatchRating() {
 `).Error
 
 	if err != nil {
-		log.Printf("Update of match scores failed: %v", err)
+		return fmt.Errorf("update of match scores failed: %v", err)
 	}
 	log.Println("Finished job")
+	return nil
 }

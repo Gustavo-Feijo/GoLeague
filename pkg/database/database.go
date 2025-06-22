@@ -3,8 +3,6 @@ package database
 import (
 	"fmt"
 	"goleague/pkg/config"
-	"log"
-	"sync"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -12,16 +10,10 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var (
-	err  error
-	once sync.Once
-	db   *gorm.DB
-)
-
 // CreateEnums create the enums for the queue, tier and rank.
 func CreateEnums(db *gorm.DB) error {
 	// Check and create ENUM types if they do not exist.
-	err = db.Exec(`
+	err := db.Exec(`
 		DO $$ 
 		BEGIN
 		    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'queue_type') THEN
@@ -79,7 +71,7 @@ func CreateTriggers(db *gorm.DB) error {
 func CreateCustomIndexes(db *gorm.DB) error {
 	// Creates a index for improving player searching time.
 	searchIndex := `
-		CREATE INDEX idx_player_search_all ON player_infos (
+		CREATE INDEX IF NOT EXISTS idx_player_search_all ON player_infos (
 		  lower(region), 
 		  riot_id_game_name text_pattern_ops, 
 		  lower(riot_id_tagline) text_pattern_ops
@@ -89,33 +81,35 @@ func CreateCustomIndexes(db *gorm.DB) error {
 
 // GetConnections is a singleton implementation of the database.
 // Return the connection pool.
-func GetConnection() (*gorm.DB, error) {
-	// Create the database if doesn't exist, else just return it.
-	once.Do(
-		func() {
-			// Create the database instance.
-			db, err = gorm.Open(postgres.Open(config.Database.URL), &gorm.Config{
-				Logger: logger.Default.LogMode(logger.Silent),
-			})
-			if err != nil {
-				// Can't run without connection to the database.
-				log.Fatalf("Failed to connect to database: %v", err)
-			}
+func NewConnection() (*gorm.DB, error) {
 
-			// Get the SQL database itself.
-			sqlDb, sqlErr := db.DB()
+	// Create the database instance.
+	db, err := gorm.Open(postgres.Open(config.Database.URL), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %v", err)
+	}
 
-			// Verify if could get the connection.
-			if sqlErr != nil {
-				log.Fatalf("Faild to get the SQL connection: %v", err)
-			}
+	// Get the SQL database itself.
+	sqlDb, sqlErr := db.DB()
 
-			// Set the pool values.
-			sqlDb.SetMaxOpenConns(400)
-			sqlDb.SetMaxIdleConns(10)
-			sqlDb.SetConnMaxLifetime(time.Hour)
-			sqlDb.SetConnMaxIdleTime(time.Hour)
-		})
+	// Verify if could get the connection.
+	if sqlErr != nil {
+		return nil, fmt.Errorf("failed to get the sql connection: %v", err)
+	}
+
+	// Set the pool values.
+	sqlDb.SetMaxOpenConns(400)
+	sqlDb.SetMaxIdleConns(10)
+	sqlDb.SetConnMaxLifetime(time.Hour)
+	sqlDb.SetConnMaxIdleTime(time.Hour)
+
+	// Test the connection
+	if err := sqlDb.Ping(); err != nil {
+		sqlDb.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
 
 	return db, err
 }

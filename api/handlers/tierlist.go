@@ -20,13 +20,23 @@ import (
 
 // Tier list handler.
 type TierlistHandler struct {
-	tierlistService services.TierlistService
+	memCache        *cache.MemCache
+	redis           *redis.RedisClient
+	tierlistService *services.TierlistService
+}
+
+type TierlistHandlerDependencies struct {
+	MemCache        *cache.MemCache
+	Redis           *redis.RedisClient
+	TierlistService *services.TierlistService
 }
 
 // Create a new instance of the tierlist handler.
-func NewTierlistHandler(service *services.TierlistService) *TierlistHandler {
+func NewTierlistHandler(deps *TierlistHandlerDependencies) *TierlistHandler {
 	return &TierlistHandler{
-		tierlistService: *service,
+		memCache:        deps.MemCache,
+		redis:           deps.Redis,
+		tierlistService: deps.TierlistService,
 	}
 }
 
@@ -52,8 +62,7 @@ func (h *TierlistHandler) GetTierlist(c *gin.Context) {
 	key := getTierlistKey(filtersMap)
 
 	// Get a instance of the memory cache and retrieve the key.
-	memCache := cache.GetSimpleCache()
-	memCachedData := memCache.Get(key)
+	memCachedData := h.memCache.Get(key)
 	if memCachedData != nil {
 		memCachedTierlist := memCachedData.([]*dto.FullTierlist)
 		c.JSON(http.StatusOK, gin.H{"result": memCachedTierlist})
@@ -65,12 +74,12 @@ func (h *TierlistHandler) GetTierlist(c *gin.Context) {
 	defer cancel()
 
 	// Try to get it on redis.
-	redisCached, err := redis.GetClient().Get(ctx, key)
+	redisCached, err := h.redis.Get(ctx, key)
 	if err == nil {
 		// Unmarshal the value to save it as binary on the cache.
 		var fulltierlist []*dto.FullTierlist
 		json.Unmarshal([]byte(redisCached), &fulltierlist)
-		memCache.Set(key, fulltierlist, 15*time.Minute)
+		h.memCache.Set(key, fulltierlist, 15*time.Minute)
 		c.JSON(http.StatusOK, gin.H{"result": fulltierlist})
 		return
 	}
@@ -87,12 +96,12 @@ func (h *TierlistHandler) GetTierlist(c *gin.Context) {
 	}
 
 	// Set the value in memory and redis.
-	memCache.Set(key, result, 15*time.Minute)
+	h.memCache.Set(key, result, 15*time.Minute)
 
 	// Marshal it to set on Redis.
 	j, err := json.Marshal(result)
 	if err == nil {
-		redis.GetClient().Set(context.Background(), key, string(j), time.Hour)
+		h.redis.Set(context.Background(), key, string(j), time.Hour)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"result": result})

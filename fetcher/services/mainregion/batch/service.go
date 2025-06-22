@@ -3,7 +3,6 @@ package batchservice
 import (
 	"errors"
 	"goleague/fetcher/repositories"
-	"goleague/pkg/database"
 	"goleague/pkg/database/models"
 	"log"
 	"sync"
@@ -27,16 +26,18 @@ const (
 	EventTypeEliteMonsterKill   = "ELITE_MONSTER_KILL"
 )
 
-// Batch collector used for handling events insertion.
+// BatchCollector is used for handling events insertion.
 type BatchCollector struct {
 	batches map[string][]any
+	db      *gorm.DB
 	mu      sync.RWMutex
 }
 
-// Create the batch collector.
-func NewBatchCollector() *BatchCollector {
+// NewBatchCollector creates the batch collector.
+func NewBatchCollector(db *gorm.DB) *BatchCollector {
 	return &BatchCollector{
 		batches: make(map[string][]any),
+		db:      db,
 	}
 }
 
@@ -62,40 +63,34 @@ func (bc *BatchCollector) ProcessBatches() error {
 		return nil
 	}
 
-	// Get a direct connection to the database.
-	db, err := database.GetConnection()
-	if err != nil {
-		return err
-	}
-
 	var errs []error
 
 	// Handle each event type and conversion to the respective model.
 	for eventType, events := range bc.batches {
 		switch eventType {
 		case EventTypeBuildingKill, EventTypeTurretPlateDestroy:
-			processBatchEvents[models.EventKillStruct](db, events, eventType, &errs)
+			processBatchEvents[models.EventKillStruct](bc.db, events, eventType, &errs)
 
 		case EventTypeChampionKill:
-			processBatchEvents[models.EventPlayerKill](db, events, eventType, &errs)
+			processBatchEvents[models.EventPlayerKill](bc.db, events, eventType, &errs)
 
 		case EventTypeFeatUpdate:
-			processBatchEvents[models.EventFeatUpdate](db, events, eventType, &errs)
+			processBatchEvents[models.EventFeatUpdate](bc.db, events, eventType, &errs)
 
 		case EventTypeItemDestroyed, EventTypeItemPurchased, EventTypeItemSold:
-			processBatchEvents[models.EventItem](db, events, eventType, &errs)
+			processBatchEvents[models.EventItem](bc.db, events, eventType, &errs)
 
 		case EventTypeLevelUp:
-			processBatchEvents[models.EventLevelUp](db, events, eventType, &errs)
+			processBatchEvents[models.EventLevelUp](bc.db, events, eventType, &errs)
 
 		case EventTypeSkillLevelUp:
-			processBatchEvents[models.EventSkillLevelUp](db, events, eventType, &errs)
+			processBatchEvents[models.EventSkillLevelUp](bc.db, events, eventType, &errs)
 
 		case EventTypeWardKill, EventTypeWardPlaced:
-			processBatchEvents[models.EventWard](db, events, eventType, &errs)
+			processBatchEvents[models.EventWard](bc.db, events, eventType, &errs)
 
 		case EventTypeEliteMonsterKill:
-			processBatchEvents[models.EventMonsterKill](db, events, eventType, &errs)
+			processBatchEvents[models.EventMonsterKill](bc.db, events, eventType, &errs)
 		}
 	}
 

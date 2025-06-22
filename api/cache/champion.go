@@ -6,70 +6,44 @@ import (
 	"fmt"
 	"goleague/api/repositories"
 	"goleague/pkg/redis"
-	"sync"
 	"time"
+
+	"gorm.io/gorm"
 )
 
-// Create a in-memory cache with small TTL to minimize Redis calls.
+// ChampionCache  uses the in-memory cache with small TTL to minimize Redis calls.
+// Uses db as a fallback as last resource if Redis isn't available.
 type ChampionCache struct {
-	redis       *redis.RedisClient
-	memoryCache sync.Map
-	TTL         time.Duration
-	lastReset   time.Time
-	mu          sync.RWMutex
+	db       *gorm.DB
+	memCache *MemCache
+	redis    *redis.RedisClient
 }
 
-// Singleton.
-var (
-	championInstance *ChampionCache
-	championOnce     sync.Once
-)
-
-// Get the instance of the champion cache.
-func GetChampionCache() *ChampionCache {
-	championOnce.Do(func() {
-		championInstance = &ChampionCache{
-			redis:     redis.GetClient(),
-			TTL:       30 * time.Minute,
-			lastReset: time.Now(),
-		}
-
-		// Start the worker that will reset the cache.
-		go championInstance.cacheExpirationWorker()
-	})
-
-	return championInstance
-}
-
-// Invalidate the current cache.
-func (c *ChampionCache) cacheExpirationWorker() {
-	// Create the ticker.
-	ticker := time.NewTicker(c.TTL)
-	defer ticker.Stop()
-
-	// For each tick, reset the last reset and empty the cache.
-	for range ticker.C {
-		c.memoryCache = sync.Map{}
-		c.mu.Lock()
-		c.lastReset = time.Now()
-		c.mu.Unlock()
+// NewChampionCache creates the instance of the champion cache.
+func NewChampionCache(db *gorm.DB, redis *redis.RedisClient, memCache *MemCache) *ChampionCache {
+	cc := &ChampionCache{
+		memCache: memCache,
+		db:       db,
+		redis:    redis,
 	}
+
+	return cc
 }
 
-// Get a champion from the in memory cache, if not already in there, get from the redis.
+// GetChampionCopy returns a champion from the in memory cache, if not already in there, get from the redis.
 // Returns a deep copy, so it's safe to change the returned value directly.
 func (c *ChampionCache) GetChampionCopy(ctx context.Context, championId string, repo repositories.CacheRepository) (map[string]any, error) {
-	// Create a copy from the map.
+	// Cache key for memCache and Redis.
+	cacheKey := fmt.Sprintf("ddragon:champion:%s", championId)
 
 	// Try to get directly from memory.
-	if champCache, exists := c.memoryCache.Load(championId); exists {
+	if champCache := c.memCache.Get(cacheKey); champCache != nil {
 		if champEntry, ok := champCache.(map[string]any); ok {
 			return deepCopyMap(champEntry), nil
 		}
 	}
 
 	// Get from the redis if doesn't found.
-	cacheKey := fmt.Sprintf("ddragon:champion:%s", championId)
 	champRedis, err := c.redis.Get(ctx, cacheKey)
 	if err != nil {
 		if repo == nil {
@@ -94,18 +68,19 @@ func (c *ChampionCache) GetChampionCopy(ctx context.Context, championId string, 
 		return nil, fmt.Errorf("failed to unmarshal champion data: %w", err)
 	}
 
-	c.memoryCache.Store(championId, champJson)
+	c.memCache.Set(cacheKey, champJson, time.Hour)
 	return deepCopyMap(champJson), nil
 
 }
 
+// Initialize pre-loads the cache into memory for faster access without cold start.
 func (c *ChampionCache) Initialize(ctx context.Context) error {
 	cachePrefix := "ddragon:champion:"
 
 	// Get all the keys by prefix.
-	keys, err := redis.GetClient().GetKeysByPrefix(ctx, cachePrefix)
+	keys, err := c.redis.GetKeysByPrefix(ctx, cachePrefix)
 	if err != nil {
-		repo, err := repositories.NewCacheRepository()
+		repo, err := repositories.NewCacheRepository(c.db)
 		if err != nil {
 			return err
 		}
@@ -118,15 +93,14 @@ func (c *ChampionCache) Initialize(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			championId := champJson["id"].(string)
-			c.memoryCache.Store(championId, champJson)
+			c.memCache.Set(champion.CacheKey, champJson, time.Hour)
 		}
 		return nil
 	}
 
 	// Loop through each redis key and store it on memory.
 	for _, key := range keys {
-		champRedis, err := redis.GetClient().Get(ctx, key)
+		champRedis, err := c.redis.Get(ctx, key)
 		if err != nil {
 			continue
 		}
@@ -135,8 +109,7 @@ func (c *ChampionCache) Initialize(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal champion data: %w", err)
 		}
-		championId := champJson["id"].(string)
-		c.memoryCache.Store(championId, champJson)
+		c.memCache.Set(key, champJson, time.Hour)
 	}
 	return nil
 }

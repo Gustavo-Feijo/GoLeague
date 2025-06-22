@@ -8,21 +8,23 @@ import (
 	"goleague/pkg/models/item"
 	"goleague/pkg/redis"
 	"log"
+
+	"gorm.io/gorm"
 )
 
 // Revalidate the full item cache.
 // Returns a specific item if a id was passed.
-func RevalidateItemCache(language string, itemId string) (*item.Item, error) {
+func RevalidateItemCache(redis *redis.RedisClient, db *gorm.DB, language string, itemId string) (*item.Item, error) {
 
-	repo, _ := repositories.NewCacheRepository()
+	repo, _ := repositories.NewCacheRepository(db)
 
 	// Get the latest version.
 	// Usually only GetLatestVersion should be used to get the current running latest.
 	// But we are using GetNewVersion to also revalidate the versions.
 	latestVersion := ""
-	versions, err := GetNewVersion()
+	versions, err := GetNewVersion(redis)
 	if err != nil {
-		latestVersion, err = GetLatestVersion()
+		latestVersion, err = GetLatestVersion(redis)
 		if err != nil {
 			log.Fatalf("Can't get the latest version: %v", err)
 		}
@@ -82,8 +84,10 @@ func RevalidateItemCache(language string, itemId string) (*item.Item, error) {
 		keyWithId := fmt.Sprint(itemPrefix, itemKey)
 
 		// Get the client and set the champion.
-		client := redis.GetClient()
-		if err := client.Set(ctx, keyWithId, itemJson, 0); err != nil {
+		if err := redis.Set(ctx, keyWithId, itemJson, 0); err != nil {
+			if repo != nil {
+				repo.Setkey(keyWithId, string(itemJson))
+			}
 			return nil, fmt.Errorf("can't set the item json on redis: %v", err)
 		}
 

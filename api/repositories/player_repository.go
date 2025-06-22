@@ -1,10 +1,8 @@
 package repositories
 
 import (
-	"fmt"
 	"goleague/api/dto"
 	"goleague/fetcher/regions"
-	"goleague/pkg/database"
 	"goleague/pkg/database/models"
 	"strings"
 
@@ -26,11 +24,7 @@ type playerRepository struct {
 }
 
 // NewPlayerRepository creates a player repository.
-func NewPlayerRepository() (PlayerRepository, error) {
-	db, err := database.GetConnection()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get database connection: %w", err)
-	}
+func NewPlayerRepository(db *gorm.DB) (PlayerRepository, error) {
 	return &playerRepository{db: db}, nil
 }
 

@@ -9,16 +9,15 @@ import (
 )
 
 // Get the latest version of the data from the ddragon.
-func GetLatestVersion() (string, error) {
+func GetLatestVersion(redis *redis.RedisClient) (string, error) {
 	// Try to find the latest version in the redis cache.
-	client := redis.GetClient()
-	result, err := client.LIndex(ctx, versionKey, 0).Result()
+	result, err := redis.LIndex(ctx, versionKey, 0).Result()
 	if err == nil {
 		return result, nil
 	}
 
 	// The version was not found, fetch from ddragon.
-	newVersions, err := GetNewVersion()
+	newVersions, err := GetNewVersion(redis)
 	if err != nil {
 		// In that case, can't proceed with the fetching.
 		panic("Can't get the latest version.")
@@ -28,7 +27,7 @@ func GetLatestVersion() (string, error) {
 
 // Get all the versions from the ddragon.
 // Set the latest three on the Redis cache and return.
-func GetNewVersion() ([]string, error) {
+func GetNewVersion(redis *redis.RedisClient) ([]string, error) {
 	// Format the versions api url.
 	url := fmt.Sprint(ddragon, "api/versions.json")
 	resp, err := requests.Request(url, "GET")
@@ -48,23 +47,20 @@ func GetNewVersion() ([]string, error) {
 		return nil, errors.New("no versions available")
 	}
 
-	client := redis.GetClient()
-
 	// Delete the version key.
-	err = client.Del(ctx, versionKey).Err()
+	err = redis.Del(ctx, versionKey).Err()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't delete the Redis key: %v", err)
 	}
 
 	// Push the version to the redis.
-	client.RPush(ctx, versionKey, []any{version[0], version[1], version[2]}).Result()
+	redis.RPush(ctx, versionKey, []any{version[0], version[1], version[2]}).Result()
 	return version[:3], nil
 }
 
 // Get the versions from the cache and return.
-func GetVersion() ([]string, error) {
-	client := redis.GetClient()
-	result, err := client.LRange(ctx, versionKey, 0, 3).Result()
+func GetVersion(redis *redis.RedisClient) ([]string, error) {
+	result, err := redis.LRange(ctx, versionKey, 0, 3).Result()
 	if err != nil {
 		return nil, err
 	}

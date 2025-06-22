@@ -10,30 +10,42 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"gorm.io/gorm"
 )
 
 // PlayerService service with the  repositories and the gRPC client in case we need to force fetch something (Unlikely).
 type PlayerService struct {
-	grpcClient       *grpc.ClientConn
+	db         *gorm.DB
+	grpcClient *grpc.ClientConn
+	matchCache *cache.MatchCache
+
 	MatchRepository  repositories.MatchRepository
 	PlayerRepository repositories.PlayerRepository
 }
 
+type PlayerServiceDeps struct {
+	DB         *gorm.DB
+	GrpcClient *grpc.ClientConn
+	MatchCache *cache.MatchCache
+}
+
 // NewPlayerService creates a service for handling player services.
-func NewPlayerService(grpcClient *grpc.ClientConn) (*PlayerService, error) {
+func NewPlayerService(deps *PlayerServiceDeps) (*PlayerService, error) {
 	// Create the repository.
-	repo, err := repositories.NewPlayerRepository()
+	repo, err := repositories.NewPlayerRepository(deps.DB)
 	if err != nil {
 		return nil, errors.New("failed to start the player repository")
 	}
 
-	matchRepo, err := repositories.NewMatchRepository()
+	matchRepo, err := repositories.NewMatchRepository(deps.DB)
 	if err != nil {
 		return nil, errors.New("failed to start the match repository")
 	}
 
 	return &PlayerService{
-		grpcClient:       grpcClient,
+		db:               deps.DB,
+		grpcClient:       deps.GrpcClient,
+		matchCache:       deps.MatchCache,
 		MatchRepository:  matchRepo,
 		PlayerRepository: repo,
 	}, nil
@@ -72,8 +84,7 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (dto.Matc
 
 	// Get all the cached matches previews.
 	// Match previews shouldn't change, using cache to reduce load into the database.
-	matchCache := cache.GetMatchCache()
-	cachedMatches, missingMatches, err := matchCache.GetMatchesPreviewByMatchIds(ctx, matchesIds)
+	cachedMatches, missingMatches, err := ps.matchCache.GetMatchesPreviewByMatchIds(ctx, matchesIds)
 	if err == nil {
 		// All matches in cache.
 		if len(missingMatches) == 0 {
@@ -96,7 +107,7 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (dto.Matc
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		for _, match := range matchPreviews {
-			matchCache.SetMatchPreview(ctx, *match)
+			ps.matchCache.SetMatchPreview(ctx, *match)
 		}
 		handleCachedMatches(cachedMatches, matchPreviews)
 	}
