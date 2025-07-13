@@ -24,6 +24,24 @@ func NewPlayerHandler(deps *PlayerHandlerDependencies) *PlayerHandler {
 	}
 }
 
+// ForceFetchPlayer calls the Fetcher service via gRPC to save a given player in the database.
+func (h *PlayerHandler) ForceFetchPlayer(c *gin.Context) {
+	// Path params.
+	var pp filters.PlayerForceFetchParams
+	if err := c.ShouldBindUri(&pp); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	summoner, err := h.playerService.ForceFetchPlayer(pp)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"result": summoner})
+}
+
 // GetPlayerSearch handles requests for player searching.
 func (h *PlayerHandler) GetPlayerSearch(c *gin.Context) {
 	var qp filters.PlayerSearchParams
@@ -63,7 +81,7 @@ func (h *PlayerHandler) GetPlayerMatchHistory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, matchList)
+	c.JSON(http.StatusOK, gin.H{"result": matchList})
 }
 
 // GetPlayerStats handles requests for retrieving a player average status.

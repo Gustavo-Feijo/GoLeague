@@ -49,7 +49,6 @@ func (p *PlayerService) ProcessPlayersFromMatch(
 			Puuid:          participant.Puuid,
 			RiotIdGameName: participant.RiotIdGameName,
 			RiotIdTagline:  participant.RiotIdTagline,
-			SummonerId:     participant.SummonerId,
 			SummonerLevel:  participant.SummonerLevel,
 			Region:         region,
 			UpdatedAt:      matchInfo.MatchStart,

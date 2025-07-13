@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"goleague/fetcher/data"
+	playerfetcher "goleague/fetcher/data/player"
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
 	batchservice "goleague/fetcher/services/subregion/batch"
 	leagueservice "goleague/fetcher/services/subregion/league"
 	playerservice "goleague/fetcher/services/subregion/player"
 	ratingservice "goleague/fetcher/services/subregion/rating"
+	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
 
 	"gorm.io/gorm"
@@ -46,7 +48,7 @@ func NewSubRegionService(db *gorm.DB, fetcher *data.SubFetcher, region regions.S
 
 	// Create the services.
 	leagueService := leagueservice.NewLeagueService(*fetcher, leagueservice.DefaultConfig())
-	playerService := playerservice.NewPlayerService(playerRepository, region)
+	playerService := playerservice.NewPlayerService(*fetcher, playerRepository, region)
 	ratingService := ratingservice.NewRatingService(ratingRepository, region)
 	batchService := batchservice.NewBatchService(leagueService, playerService, ratingService, logger, region)
 
@@ -107,4 +109,9 @@ func (s *SubRegionService) ProcessLeagueRank(tier string, rank string, queue str
 	}
 
 	return nil
+}
+
+// ProcessSummonerData is a wrapper for the player service call.
+func (s *SubRegionService) ProcessSummonerData(playerAccount *playerfetcher.Account, onDemand bool) (*models.PlayerInfo, error) {
+	return s.playerService.ProcessSummonerData(playerAccount, onDemand)
 }

@@ -6,10 +6,14 @@ import (
 	"fmt"
 	"goleague/api/cache"
 	"goleague/api/dto"
+	"goleague/api/filters"
 	"goleague/api/repositories"
 	"time"
 
+	pb "goleague/pkg/grpc"
+
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
 )
 
@@ -113,6 +117,31 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (dto.Matc
 	}
 
 	return matchPreviews, nil
+}
+
+// ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
+func (ps *PlayerService) ForceFetchPlayer(filters filters.PlayerForceFetchParams) (*pb.Summoner, error) {
+	client := pb.NewServiceClient(ps.grpcClient)
+
+	request := &pb.SummonerRequest{
+		GameName: filters.GameName,
+		TagLine:  filters.GameTag,
+		Region:   filters.Region,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	defer cancel()
+
+	// Make the request
+	resp, err := client.GetSummonerData(ctx, request)
+	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			return nil, fmt.Errorf("couldn't force fetch the player: %w", errors.New(st.Message()))
+		}
+		return nil, fmt.Errorf("couldn't force fetch the player: %w", err)
+	}
+
+	return resp, nil
 }
 
 func handleCachedMatches(cachedMatches []dto.MatchPreview, matchesDto dto.MatchPreviewList) {

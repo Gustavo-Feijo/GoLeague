@@ -9,13 +9,11 @@ type PlayerSearchParams struct {
 
 // Get the query parameters as a map.
 func (q *PlayerSearchParams) AsMap() map[string]any {
-	filters := make(map[string]any)
-
-	filters["name"] = q.Name
-	filters["tag"] = q.Tag
-	filters["region"] = q.Region
-
-	return filters
+	return map[string]any{
+		"name":   q.Name,
+		"tag":    q.Tag,
+		"region": q.Region,
+	}
 }
 
 // Query params for the player match history.
@@ -26,10 +24,24 @@ type PlayerMatchHistoryParams struct {
 
 // Get the query parameters as a map.
 func (q *PlayerMatchHistoryParams) AsMap() map[string]any {
-	filters := make(map[string]any)
+	return map[string]any{
+		"page":  q.Page,
+		"queue": q.Queue,
+	}
+}
 
-	filters["page"] = q.Page
-	filters["queue"] = q.Queue
+// Path params for the player force fetch.
+type PlayerForceFetchParams struct {
+	GameName string `uri:"gameName" binding:"required"`
+	GameTag  string `uri:"gameTag" binding:"required"`
+	Region   string `uri:"region" binding:"required"`
+}
 
-	return filters
+// Get the path params as a map.
+func (q *PlayerForceFetchParams) AsMap() map[string]any {
+	return map[string]any{
+		"gameName": q.GameName,
+		"gameTag":  q.GameTag,
+		"region":   q.Region,
+	}
 }

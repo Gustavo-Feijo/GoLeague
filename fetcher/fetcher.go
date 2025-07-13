@@ -118,7 +118,7 @@ func startGRPCServer(regionManager *regionmanager.RegionManager) (*grpc.Server, 
 	// Create the server, register it and serve.
 	grpcServer := grpc.NewServer()
 	srv := &server{regionManager: regionManager}
-	pb.RegisterAssetsServiceServer(grpcServer, srv)
+	pb.RegisterServiceServer(grpcServer, srv)
 
 	// Register the health check.
 	healthServer := health.NewServer()

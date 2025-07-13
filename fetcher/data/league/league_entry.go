@@ -9,7 +9,6 @@ type LeagueEntry struct {
 	Puuid        string  `json:"puuid"`
 	QueueType    *string `json:"queueType,omitempty"`
 	Rank         *string `json:"rank,omitempty"`
-	SummonerId   string  `json:"summonerId"`
 	Tier         *string `json:"tier,omitempty"`
 	Wins         int     `json:"wins"`
 }

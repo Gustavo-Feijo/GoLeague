@@ -78,8 +78,43 @@ func (p *PlayerFetcher) GetMatchList(puuid string, lastFetch time.Time, offset i
 	return matches, nil
 }
 
+// GetPlayerAccount returns a given player account info.
+func (p *PlayerFetcher) GetPlayerAccount(gameName string, tagLine string, onDemand bool) (*Account, error) {
+	ctx := context.Background()
+	if onDemand {
+		p.limiter.Wait(ctx)
+	} else {
+		p.limiter.WaitEvenly(ctx, "job")
+	}
+	// Format the URL and create the params.
+	url := fmt.Sprintf("https://%s.api.riotgames.com/riot/account/v1/accounts/by-riot-id/%s/%s", p.region, gameName, tagLine)
+
+	params := map[string]string{}
+
+	resp, err := requests.AuthRequest(url, "GET", params)
+	if err != nil {
+		return nil, fmt.Errorf("API request failed: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	// Check the status code.
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
+	}
+
+	// Parse the account data.
+	var account Account
+	if err := json.NewDecoder(resp.Body).Decode(&account); err != nil {
+		return nil, fmt.Errorf("failed to parse API response: %w", err)
+	}
+
+	// Return the account data.
+	return &account, nil
+}
+
 // GetSummonerData returns a players summoner data.
-func (p *SubPlayerFetcher) GetSummonerData(puuid string, onDemand bool) (*SummonerByPuuid, error) {
+func (p *SubPlayerFetcher) GetSummonerDataByPuuid(puuid string, onDemand bool) (*SummonerByPuuid, error) {
 	ctx := context.Background()
 	if onDemand {
 		p.limiter.Wait(ctx)

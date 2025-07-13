@@ -1,0 +1,25 @@
+syntax = "proto3";
+package grpc;
+
+option go_package = "goleague/pkg/grpc";
+
+// gRPC service used for getting data onDemand from the API on the fetcher gRPC server.
+service Service{
+    rpc GetSummonerData(SummonerRequest) returns (Summoner) {}; 
+}
+
+message SummonerRequest{
+    string gameName = 1;
+    string tagLine = 2;
+    string region = 3;
+}
+
+// Fetched summoner data.
+message Summoner{
+    string puuid = 1;
+    string gameName = 2;
+    string tagLine = 3;
+    string region = 4;
+    int32 summonerLevel = 5;
+    int32 profileIconId = 6;
+}

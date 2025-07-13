@@ -7,8 +7,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy the used code.
-COPY fetcher ./fetcher
-COPY pkg ./pkg
+COPY . . 
 
 # Run the build.
 RUN CGO_ENABLED=0 GOOS=linux go build -o fetcher ./fetcher

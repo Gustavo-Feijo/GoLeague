@@ -2,7 +2,10 @@ package playerservice
 
 import (
 	"fmt"
+	"goleague/fetcher/data"
 	leaguefetcher "goleague/fetcher/data/league"
+	playerfetcher "goleague/fetcher/data/player"
+
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
 	"goleague/pkg/database/models"
@@ -10,13 +13,15 @@ import (
 
 // PlayerService handles all player-related operations.
 type PlayerService struct {
+	fetcher    data.SubFetcher
 	repository repositories.PlayerRepository
 	subRegion  regions.SubRegion
 }
 
 // NewPlayerService creates a new player service.
-func NewPlayerService(repository repositories.PlayerRepository, subRegion regions.SubRegion) *PlayerService {
+func NewPlayerService(fetcher data.SubFetcher, repository repositories.PlayerRepository, subRegion regions.SubRegion) *PlayerService {
 	return &PlayerService{
+		fetcher:    fetcher,
 		repository: repository,
 		subRegion:  subRegion,
 	}
@@ -36,6 +41,11 @@ func (s *PlayerService) GetPlayersByPuuids(puuids []string) (map[string]*models.
 	return s.repository.GetPlayersByPuuids(puuids)
 }
 
+// Wrapper for getting the summoner data from the fetcher.
+func (s *PlayerService) GetSummonerData(puuid string, onDemand bool) (*playerfetcher.SummonerByPuuid, error) {
+	return s.fetcher.Player.GetSummonerDataByPuuid(puuid, onDemand)
+}
+
 // ProcessPlayersFromEntries processes players from league entries, creating any that don't exist.
 func (s *PlayerService) ProcessPlayersFromEntries(
 	entries []leaguefetcher.LeagueEntry,
@@ -49,9 +59,8 @@ func (s *PlayerService) ProcessPlayersFromEntries(
 		// The player doesn't exist.
 		if !exists {
 			playersToCreate = append(playersToCreate, &models.PlayerInfo{
-				SummonerId: entry.SummonerId,
-				Puuid:      entry.Puuid,
-				Region:     s.subRegion,
+				Puuid:  entry.Puuid,
+				Region: s.subRegion,
 			})
 		}
 	}
@@ -69,4 +78,33 @@ func (s *PlayerService) ProcessPlayersFromEntries(
 	}
 
 	return playersToCreate, nil
+}
+
+// ProcessSummonerData gets a summoner info from the Riot API and upserts the entry in the database.
+func (s *PlayerService) ProcessSummonerData(playeraccount *playerfetcher.Account, onDemand bool) (*models.PlayerInfo, error) {
+	summonerData, err := s.GetSummonerData(playeraccount.Puuid, onDemand)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get summoner data: %w", err)
+	}
+
+	fullSummoner := &models.PlayerInfo{
+		ProfileIcon:    summonerData.ProfileIconId,
+		Puuid:          playeraccount.Puuid,
+		RiotIdGameName: playeraccount.GameName,
+		RiotIdTagline:  playeraccount.TagLine,
+		SummonerLevel:  summonerData.SummonerLevel,
+		Region:         s.subRegion,
+	}
+
+	// Make it as a array to reuse the upsert in batches, but using a batch of only one player.
+	fullSummonerArray := []*models.PlayerInfo{
+		fullSummoner,
+	}
+
+	err = s.repository.UpsertPlayerBatch(fullSummonerArray)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't save player on database: %w", err)
+	}
+
+	return fullSummoner, nil
 }

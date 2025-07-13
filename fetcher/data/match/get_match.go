@@ -54,7 +54,6 @@ type MatchPlayer struct {
 	RetreatPings                   int        `json:"retreatPings"`
 	RiotIdGameName                 string     `json:"riotIdGameName" gorm:"-"`
 	RiotIdTagline                  string     `json:"riotIdTagline" gorm:"-"`
-	SummonerId                     string     `json:"summonerId" gorm:"-"`
 	SummonerLevel                  int        `json:"summonerLevel" gorm:"-"`
 	LongestTimeSpentLiving         int        `json:"longestTimeSpentLiving"`
 	MagicDamageDealt               int        `json:"magicDamageDealt"`

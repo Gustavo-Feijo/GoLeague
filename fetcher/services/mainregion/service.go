@@ -14,6 +14,7 @@ import (
 	"time"
 
 	matchfetcher "goleague/fetcher/data/match"
+	playerfetcher "goleague/fetcher/data/player"
 
 	eventservice "goleague/fetcher/services/mainregion/events"
 	matchservice "goleague/fetcher/services/mainregion/match"
@@ -215,6 +216,20 @@ func (p *MainRegionService) GetTrueMatchList(
 		}
 	}
 	return trueMatchList, nil
+}
+
+// GetTrueMatchList retrieves the matches that need to be fetched for a given player.
+// Remove all matches that were already fetched.
+func (p *MainRegionService) GetAccount(
+	gameName string,
+	tagLine string,
+) (*playerfetcher.Account, error) {
+	account, err := p.fetcher.Player.GetPlayerAccount(gameName, tagLine, true)
+	if err != nil {
+		return nil, fmt.Errorf("player not found: %v", err)
+	}
+
+	return account, nil
 }
 
 // GetMatchData retrives the data of the match from the Riot API.

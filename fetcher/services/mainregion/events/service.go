@@ -7,6 +7,7 @@ import (
 	"goleague/fetcher/repositories"
 	batchservice "goleague/fetcher/services/mainregion/batch"
 	"goleague/pkg/database/models"
+	"reflect"
 
 	"strconv"
 )
@@ -130,7 +131,7 @@ func (es *EventService) PrepareEvents(
 
 	// Add the generated event data.
 	// Mostly this verification is not relevant, since nil will still be passed and handled on the processing.
-	if eventData != nil {
+	if eventData != nil && !reflect.ValueOf(eventData).IsNil() {
 		batchCollector.Add(event.Type, eventData)
 	}
 
