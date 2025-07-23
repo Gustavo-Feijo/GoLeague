@@ -72,7 +72,8 @@ func initializeModuleDependencies() (*modules.ModuleDependencies, func(), error)
 		}
 	}
 	// Connect to the fetcher grpc.
-	grpcClient, err := grpc.NewClient("fetcher:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	fetcherHost := config.Grpc.Host + ":" + config.Grpc.Port
+	grpcClient, err := grpc.NewClient(fetcherHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		cleanup()
 		return nil, nil, err

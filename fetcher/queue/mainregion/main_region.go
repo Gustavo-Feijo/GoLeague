@@ -1,6 +1,7 @@
 package mainregionqueue
 
 import (
+	"context"
 	"fmt"
 	regionmanager "goleague/fetcher/regionmanager"
 	"goleague/fetcher/regions"
@@ -117,7 +118,8 @@ func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.Pla
 
 	// Background fetching needs only 1 worker at a time.
 	jobWorkers := 1
-	player, fetched, err := q.service.ProcessPlayerHistory(player, subRegion, q.logger, jobWorkers, false)
+	ctx := context.Background()
+	player, fetched, err := q.service.ProcessPlayerHistory(ctx, player, subRegion, q.logger, jobWorkers, false)
 	q.fetchedMatches += fetched
 
 	return player, err

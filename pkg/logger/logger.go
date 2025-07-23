@@ -17,9 +17,10 @@ import (
 // NewLogger is a very simple logging implementation.
 // Writes logs to a temporary file that is later sent to a Bucket and cleaned.
 type NewLogger struct {
-	mu       sync.Mutex
-	logFile  *os.File
-	filePath string
+	mu           sync.Mutex
+	logFile      *os.File
+	filePath     string
+	writesNumber int
 }
 
 // CreateLogger creates a new temporary file and return the logger.
@@ -30,8 +31,9 @@ func CreateLogger() (*NewLogger, error) {
 	}
 
 	return &NewLogger{
-		logFile:  f,
-		filePath: f.Name(),
+		logFile:      f,
+		filePath:     f.Name(),
+		writesNumber: 0,
 	}, nil
 }
 
@@ -56,6 +58,7 @@ func (l *NewLogger) write(infoType string, format string, args ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	l.writesNumber++
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	line := fmt.Sprintf("%-8s %s %s\n", infoType, timestamp, fmt.Sprintf(format, args...))
 
@@ -67,9 +70,17 @@ func (l *NewLogger) CleanFile() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	l.writesNumber = 0
 	l.logFile.Truncate(0)
 
 	l.logFile.Seek(0, 0)
+}
+
+// GetNumberOfWrites return the total amount of writes.
+func (l *NewLogger) GetNumberOfWrites() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.writesNumber
 }
 
 // UploadToS3Bucket send the temporary log to the bucket and clean the temporary file for reuse.

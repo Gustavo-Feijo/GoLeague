@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Service_GetSummonerData_FullMethodName = "/grpc.Service/GetSummonerData"
+	Service_GetSummonerData_FullMethodName   = "/grpc.Service/GetSummonerData"
+	Service_FetchMatchHistory_FullMethodName = "/grpc.Service/FetchMatchHistory"
 )
 
 // ServiceClient is the client API for Service service.
@@ -29,6 +30,7 @@ const (
 // gRPC service used for getting data onDemand from the API on the fetcher gRPC server.
 type ServiceClient interface {
 	GetSummonerData(ctx context.Context, in *SummonerRequest, opts ...grpc.CallOption) (*Summoner, error)
+	FetchMatchHistory(ctx context.Context, in *SummonerRequest, opts ...grpc.CallOption) (*MatchHistoryFetchNotification, error)
 }
 
 type serviceClient struct {
@@ -49,6 +51,16 @@ func (c *serviceClient) GetSummonerData(ctx context.Context, in *SummonerRequest
 	return out, nil
 }
 
+func (c *serviceClient) FetchMatchHistory(ctx context.Context, in *SummonerRequest, opts ...grpc.CallOption) (*MatchHistoryFetchNotification, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MatchHistoryFetchNotification)
+	err := c.cc.Invoke(ctx, Service_FetchMatchHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations must embed UnimplementedServiceServer
 // for forward compatibility.
@@ -56,6 +68,7 @@ func (c *serviceClient) GetSummonerData(ctx context.Context, in *SummonerRequest
 // gRPC service used for getting data onDemand from the API on the fetcher gRPC server.
 type ServiceServer interface {
 	GetSummonerData(context.Context, *SummonerRequest) (*Summoner, error)
+	FetchMatchHistory(context.Context, *SummonerRequest) (*MatchHistoryFetchNotification, error)
 	mustEmbedUnimplementedServiceServer()
 }
 
@@ -68,6 +81,9 @@ type UnimplementedServiceServer struct{}
 
 func (UnimplementedServiceServer) GetSummonerData(context.Context, *SummonerRequest) (*Summoner, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSummonerData not implemented")
+}
+func (UnimplementedServiceServer) FetchMatchHistory(context.Context, *SummonerRequest) (*MatchHistoryFetchNotification, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchMatchHistory not implemented")
 }
 func (UnimplementedServiceServer) mustEmbedUnimplementedServiceServer() {}
 func (UnimplementedServiceServer) testEmbeddedByValue()                 {}
@@ -108,6 +124,24 @@ func _Service_GetSummonerData_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_FetchMatchHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SummonerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).FetchMatchHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_FetchMatchHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).FetchMatchHistory(ctx, req.(*SummonerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -118,6 +152,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSummonerData",
 			Handler:    _Service_GetSummonerData_Handler,
+		},
+		{
+			MethodName: "FetchMatchHistory",
+			Handler:    _Service_FetchMatchHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

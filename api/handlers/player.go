@@ -42,6 +42,25 @@ func (h *PlayerHandler) ForceFetchPlayer(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"result": summoner})
 }
 
+// ForceFetchPlayerMatchHistory forcefully fetches a given player match history.
+// Don't return the match history, only a confirmation, since the fetching can take some time.
+func (h *PlayerHandler) ForceFetchPlayerMatchHistory(c *gin.Context) {
+	// Path params.
+	var pp filters.PlayerForceFetchMatchHistoryParams
+	if err := c.ShouldBindUri(&pp); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	confirm, err := h.playerService.ForceFetchPlayerMatchHistory(pp)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"result": confirm})
+}
+
 // GetPlayerSearch handles requests for player searching.
 func (h *PlayerHandler) GetPlayerSearch(c *gin.Context) {
 	var qp filters.PlayerSearchParams

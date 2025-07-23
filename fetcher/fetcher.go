@@ -8,6 +8,7 @@ import (
 	"goleague/pkg/database"
 	"goleague/pkg/database/models"
 	pb "goleague/pkg/grpc"
+	"goleague/pkg/logger"
 	"log"
 	"net"
 	"os"
@@ -110,14 +111,25 @@ func main() {
 // Start the grpc server for handling cache on demand.
 func startGRPCServer(regionManager *regionmanager.RegionManager) (*grpc.Server, *health.Server) {
 	// Start a TPC listener.
-	list, err := net.Listen("tcp", ":50051")
+	list, err := net.Listen("tcp", ":"+config.Grpc.Port)
 	if err != nil {
 		log.Fatalf("Couldn't start the tcp server: %v", err)
 	}
 
 	// Create the server, register it and serve.
 	grpcServer := grpc.NewServer()
-	srv := &server{regionManager: regionManager}
+
+	// Create a logger for thge gRPC server requests.
+	logger, err := logger.CreateLogger()
+	if err != nil {
+		log.Fatalf("Couldn't start the gRPC server logger: %v", err)
+	}
+
+	srv := &server{
+		logger:        logger,
+		regionManager: regionManager,
+	}
+
 	pb.RegisterServiceServer(grpcServer, srv)
 
 	// Register the health check.

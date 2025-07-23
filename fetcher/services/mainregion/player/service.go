@@ -1,6 +1,8 @@
 package playerservice
 
 import (
+	"errors"
+	"fmt"
 	matchfetcher "goleague/fetcher/data/match"
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
@@ -29,6 +31,24 @@ func NewPlayerService(
 		PlayerRepository: playerRepo,
 		RatingRepository: ratingRepo,
 	}
+}
+
+// GetPlayerByNameTagRegion get the player data from the database based on the provided conditions.
+func (p *PlayerService) GetPlayerByNameTagRegion(
+	gameName string,
+	gameTag string,
+	region string,
+) (*models.PlayerInfo, error) {
+	player, err := p.PlayerRepository.GetPlayerByNameTagRegion(gameName, gameTag, region)
+	if err != nil {
+		return nil, fmt.Errorf("player not found: %v", err)
+	}
+
+	if player == nil {
+		return nil, errors.New("player not found")
+	}
+
+	return player, nil
 }
 
 // ProcessPlayersFromMatch process each player from a given match.

@@ -166,6 +166,58 @@ func (x *Summoner) GetProfileIconId() int32 {
 	return 0
 }
 
+type MatchHistoryFetchNotification struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	WillProcess   bool                   `protobuf:"varint,2,opt,name=willProcess,proto3" json:"willProcess,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MatchHistoryFetchNotification) Reset() {
+	*x = MatchHistoryFetchNotification{}
+	mi := &file_pkg_grpc_services_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MatchHistoryFetchNotification) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MatchHistoryFetchNotification) ProtoMessage() {}
+
+func (x *MatchHistoryFetchNotification) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_grpc_services_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MatchHistoryFetchNotification.ProtoReflect.Descriptor instead.
+func (*MatchHistoryFetchNotification) Descriptor() ([]byte, []int) {
+	return file_pkg_grpc_services_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *MatchHistoryFetchNotification) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *MatchHistoryFetchNotification) GetWillProcess() bool {
+	if x != nil {
+		return x.WillProcess
+	}
+	return false
+}
+
 var File_pkg_grpc_services_proto protoreflect.FileDescriptor
 
 const file_pkg_grpc_services_proto_rawDesc = "" +
@@ -181,9 +233,13 @@ const file_pkg_grpc_services_proto_rawDesc = "" +
 	"\atagLine\x18\x03 \x01(\tR\atagLine\x12\x16\n" +
 	"\x06region\x18\x04 \x01(\tR\x06region\x12$\n" +
 	"\rsummonerLevel\x18\x05 \x01(\x05R\rsummonerLevel\x12$\n" +
-	"\rprofileIconId\x18\x06 \x01(\x05R\rprofileIconId2E\n" +
+	"\rprofileIconId\x18\x06 \x01(\x05R\rprofileIconId\"[\n" +
+	"\x1dMatchHistoryFetchNotification\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\x12 \n" +
+	"\vwillProcess\x18\x02 \x01(\bR\vwillProcess2\x98\x01\n" +
 	"\aService\x12:\n" +
-	"\x0fGetSummonerData\x12\x15.grpc.SummonerRequest\x1a\x0e.grpc.Summoner\"\x00B\x13Z\x11goleague/pkg/grpcb\x06proto3"
+	"\x0fGetSummonerData\x12\x15.grpc.SummonerRequest\x1a\x0e.grpc.Summoner\"\x00\x12Q\n" +
+	"\x11FetchMatchHistory\x12\x15.grpc.SummonerRequest\x1a#.grpc.MatchHistoryFetchNotification\"\x00B\x13Z\x11goleague/pkg/grpcb\x06proto3"
 
 var (
 	file_pkg_grpc_services_proto_rawDescOnce sync.Once
@@ -197,16 +253,19 @@ func file_pkg_grpc_services_proto_rawDescGZIP() []byte {
 	return file_pkg_grpc_services_proto_rawDescData
 }
 
-var file_pkg_grpc_services_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_pkg_grpc_services_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_pkg_grpc_services_proto_goTypes = []any{
-	(*SummonerRequest)(nil), // 0: grpc.SummonerRequest
-	(*Summoner)(nil),        // 1: grpc.Summoner
+	(*SummonerRequest)(nil),               // 0: grpc.SummonerRequest
+	(*Summoner)(nil),                      // 1: grpc.Summoner
+	(*MatchHistoryFetchNotification)(nil), // 2: grpc.MatchHistoryFetchNotification
 }
 var file_pkg_grpc_services_proto_depIdxs = []int32{
 	0, // 0: grpc.Service.GetSummonerData:input_type -> grpc.SummonerRequest
-	1, // 1: grpc.Service.GetSummonerData:output_type -> grpc.Summoner
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	0, // 1: grpc.Service.FetchMatchHistory:input_type -> grpc.SummonerRequest
+	1, // 2: grpc.Service.GetSummonerData:output_type -> grpc.Summoner
+	2, // 3: grpc.Service.FetchMatchHistory:output_type -> grpc.MatchHistoryFetchNotification
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -223,7 +282,7 @@ func file_pkg_grpc_services_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_grpc_services_proto_rawDesc), len(file_pkg_grpc_services_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

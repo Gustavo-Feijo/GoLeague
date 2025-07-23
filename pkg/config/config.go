@@ -27,6 +27,19 @@ type DatabaseConfiguration struct {
 	URL      string
 }
 
+// gRPC configuration struct.
+type GrpcConfiguration struct {
+	Host string
+	Port string
+}
+
+// Redis configuration struct.
+type RedisConfiguration struct {
+	Host     string
+	Password string
+	Port     string
+}
+
 type riotLimits struct {
 	Count         int
 	ResetInterval time.Duration
@@ -36,13 +49,6 @@ type RiotLimiterConfiguration struct {
 	Lower        riotLimits
 	Higher       riotLimits
 	SlowInterval time.Duration
-}
-
-// Redis configuration struct.
-type RedisConfiguration struct {
-	Host     string
-	Password string
-	Port     string
 }
 
 // Constant valuues based on the personal/development Riot key.
@@ -57,25 +63,13 @@ var (
 	ApiKey   string
 	Bucket   BucketConfig
 	Database DatabaseConfiguration
-	Redis    RedisConfiguration
+	Grpc     GrpcConfiguration
 	Limits   RiotLimiterConfiguration
+	Redis    RedisConfiguration
 )
 
 // Load the variables.
 func LoadEnv() {
-	// Load the Redis configuration.
-	Redis.Host = os.Getenv("REDIS_HOST")
-	Redis.Password = os.Getenv("REDIS_PASSWORD")
-	Redis.Port = os.Getenv("REDIS_PORT")
-
-	// Load the database configuration.
-	Database.Database = os.Getenv("POSTGRES_DATABASE")
-	Database.Host = os.Getenv("POSTGRES_HOST")
-	Database.Password = os.Getenv("POSTGRES_PASSWORD")
-	Database.Port = os.Getenv("POSTGRES_PORT")
-	Database.User = os.Getenv("POSTGRES_USER")
-	Database.URL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC", Database.Host, Database.User, Database.Password, Database.Database, Database.Port)
-
 	// Get the Riot API Key.
 	ApiKey = os.Getenv("API_KEY")
 
@@ -86,14 +80,31 @@ func LoadEnv() {
 	Bucket.LogBucket = os.Getenv("BUCKET_LOGGER_NAME")
 	Bucket.Region = os.Getenv("BUCKET_REGION")
 
+	// Load the database configuration.
+	Database.Database = os.Getenv("POSTGRES_DATABASE")
+	Database.Host = os.Getenv("POSTGRES_HOST")
+	Database.Password = os.Getenv("POSTGRES_PASSWORD")
+	Database.Port = os.Getenv("POSTGRES_PORT")
+	Database.User = os.Getenv("POSTGRES_USER")
+	Database.URL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC", Database.Host, Database.User, Database.Password, Database.Database, Database.Port)
+
+	// Load the gRPC settings.
+	Grpc.Host = os.Getenv("GRPC_HOST")
+	Grpc.Port = os.Getenv("GRPC_PORT")
+
+	// Load higher limit settings.
+	higherCount := getEnvInt("LIMIT_HIGHER_COUNT", defaultHigherCount)
+	higherReset := getEnvInt("LIMIT_HIGHER_RESET", defaultHigherReset)
+
 	// Get the API Limits.
 	// Load lower limit settings.
 	lowerCount := getEnvInt("LIMIT_LOWER_COUNT", defaultLowerCount)
 	lowerReset := getEnvInt("LIMIT_LOWER_RESET", defaultLowerReset)
 
-	// Load higher limit settings.
-	higherCount := getEnvInt("LIMIT_HIGHER_COUNT", defaultHigherCount)
-	higherReset := getEnvInt("LIMIT_HIGHER_RESET", defaultHigherReset)
+	// Load the Redis configuration.
+	Redis.Host = os.Getenv("REDIS_HOST")
+	Redis.Password = os.Getenv("REDIS_PASSWORD")
+	Redis.Port = os.Getenv("REDIS_PORT")
 
 	// The job interval is how much queries you can run during the higher reset at a consistent rate.
 	// Multiply by 1000 to get in milliseconds.

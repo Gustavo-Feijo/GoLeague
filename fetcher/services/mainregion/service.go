@@ -1,6 +1,7 @@
 package mainregionservice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"goleague/fetcher/data"
@@ -232,6 +233,15 @@ func (p *MainRegionService) GetAccount(
 	return account, nil
 }
 
+// GetPlayerByNameTagRegion is a wripper to the player service call..
+func (p *MainRegionService) GetPlayerByNameTagRegion(
+	gameName string,
+	gameTag string,
+	region string,
+) (*models.PlayerInfo, error) {
+	return p.playerService.GetPlayerByNameTagRegion(gameName, gameTag, region)
+}
+
 // GetMatchData retrives the data of the match from the Riot API.
 func (p *MainRegionService) GetMatchData(
 	matchId string,
@@ -270,6 +280,7 @@ func (p *MainRegionService) ProcessMatchTimeline(
 
 // ProcessPlayerHistory process the player match history with Goroutines.
 func (p *MainRegionService) ProcessPlayerHistory(
+	ctx context.Context,
 	player *models.PlayerInfo,
 	subRegion regions.SubRegion,
 	logger *logger.NewLogger,
@@ -280,62 +291,67 @@ func (p *MainRegionService) ProcessPlayerHistory(
 	int,
 	error,
 ) {
-	trueMatchList, err := p.GetTrueMatchList(player)
-	if err != nil {
-		logger.Errorf("Couldn't get the true match list: %v", err)
-		return player, 0, err
-	}
-
-	matchChan := make(chan string, len(trueMatchList))
-	resultChan := make(chan matchResult, len(trueMatchList))
-
-	// Fill the match channel
-	for _, matchId := range trueMatchList {
-		matchChan <- matchId
-	}
-	close(matchChan)
-
-	// Start worker goroutines
-	var wg sync.WaitGroup
-
-	for range maxConcurrency {
-		wg.Add(1)
-		go p.matchWorker(matchChan, resultChan, subRegion, &wg, onDemand)
-	}
-
-	// Close result channel when all workers are done
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
-
-	// Collect results
 	fetchedMatches := 0
-	var firstError error
-
-	for result := range resultChan {
-		if result.err != nil {
-			logger.Errorf("Error processing match %s: %v", result.matchId, result.err)
-			if firstError == nil {
-				firstError = result.err
-			}
-			continue
+	select {
+	default:
+		trueMatchList, err := p.GetTrueMatchList(player)
+		if err != nil {
+			logger.Errorf("Couldn't get the true match list: %v", err)
+			return player, 0, err
 		}
-		fetchedMatches++
-		logger.Infof("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
-			result.matchId,
-			result.totalTime.Seconds(),
-			result.fetchTime.Seconds(),
-			result.processTime.Seconds(),
-		)
-	}
 
-	// Set the last fetch regardless of any match processing errors
-	if err := p.PlayerRepository.SetFetched(player.ID); err != nil {
-		logger.Errorf("Couldn't set the last fetch date for the player with ID %d: %v", player.ID, err)
-	}
+		matchChan := make(chan string, len(trueMatchList))
+		resultChan := make(chan matchResult, len(trueMatchList))
 
-	return player, fetchedMatches, firstError
+		// Fill the match channel
+		for _, matchId := range trueMatchList {
+			matchChan <- matchId
+		}
+		close(matchChan)
+
+		// Start worker goroutines
+		var wg sync.WaitGroup
+
+		for range maxConcurrency {
+			wg.Add(1)
+			go p.matchWorker(matchChan, resultChan, subRegion, &wg, onDemand)
+		}
+
+		// Close result channel when all workers are done
+		go func() {
+			wg.Wait()
+			close(resultChan)
+		}()
+
+		// Collect results
+		var firstError error
+
+		for result := range resultChan {
+			if result.err != nil {
+				logger.Errorf("Error processing match %s: %v", result.matchId, result.err)
+				if firstError == nil {
+					firstError = result.err
+				}
+				continue
+			}
+			fetchedMatches++
+			logger.Infof("Created: Match %-15s on %1.2f seconds: FetchTime (%1.2f) - ProcessingTime(%1.2f)",
+				result.matchId,
+				result.totalTime.Seconds(),
+				result.fetchTime.Seconds(),
+				result.processTime.Seconds(),
+			)
+		}
+
+		// Set the last fetch regardless of any match processing errors
+		if err := p.PlayerRepository.SetFetched(player.ID); err != nil {
+			logger.Errorf("Couldn't set the last fetch date for the player with ID %d: %v", player.ID, err)
+		}
+
+		return player, fetchedMatches, firstError
+	case <-ctx.Done():
+		return nil, fetchedMatches, ctx.Err()
+	}
 }
 
 // matchWorker processes matches from the channel.

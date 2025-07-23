@@ -128,7 +128,7 @@ func (ps *PlayerService) ForceFetchPlayer(filters filters.PlayerForceFetchParams
 		TagLine:  filters.GameTag,
 		Region:   filters.Region,
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	// Make the request
@@ -139,6 +139,31 @@ func (ps *PlayerService) ForceFetchPlayer(filters filters.PlayerForceFetchParams
 			return nil, fmt.Errorf("couldn't force fetch the player: %w", errors.New(st.Message()))
 		}
 		return nil, fmt.Errorf("couldn't force fetch the player: %w", err)
+	}
+
+	return resp, nil
+}
+
+// ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
+func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters filters.PlayerForceFetchMatchHistoryParams) (*pb.MatchHistoryFetchNotification, error) {
+	client := pb.NewServiceClient(ps.grpcClient)
+
+	request := &pb.SummonerRequest{
+		GameName: filters.GameName,
+		TagLine:  filters.GameTag,
+		Region:   filters.Region,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	// Make the request
+	resp, err := client.FetchMatchHistory(ctx, request)
+	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			return nil, fmt.Errorf("couldn't force fetch the player match history: %w", st.Err())
+		}
+		return nil, fmt.Errorf("couldn't force fetch the player match history: %w", err)
 	}
 
 	return resp, nil

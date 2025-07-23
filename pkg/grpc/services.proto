@@ -6,6 +6,7 @@ option go_package = "goleague/pkg/grpc";
 // gRPC service used for getting data onDemand from the API on the fetcher gRPC server.
 service Service{
     rpc GetSummonerData(SummonerRequest) returns (Summoner) {}; 
+    rpc FetchMatchHistory(SummonerRequest) returns (MatchHistoryFetchNotification){};
 }
 
 message SummonerRequest{
@@ -22,4 +23,9 @@ message Summoner{
     string region = 4;
     int32 summonerLevel = 5;
     int32 profileIconId = 6;
+}
+
+message MatchHistoryFetchNotification{
+    string message = 1;
+    bool willProcess = 2;
 }

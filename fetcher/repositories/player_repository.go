@@ -16,6 +16,7 @@ import (
 // PlayerRepository defines the public interface for handling player related data.
 type PlayerRepository interface {
 	CreatePlayersBatch(players []*models.PlayerInfo) error
+	GetPlayerByNameTagRegion(gameName string, gameTag string, region string) (*models.PlayerInfo, error)
 	GetPlayerByPuuid(puuid string) (*models.PlayerInfo, error)
 	GetPlayersByPuuids(puuids []string) (map[string]*models.PlayerInfo, error)
 	GetUnfetchedBySubRegions(subRegion regions.SubRegion) (*models.PlayerInfo, error)
@@ -42,6 +43,24 @@ func (ps *playerRepository) CreatePlayersBatch(players []*models.PlayerInfo) err
 
 	// Creates in batches of 1000.
 	return ps.db.CreateInBatches(&players, 1000).Error
+}
+
+// GetPlayerByNameTagRegion returns a given player by his gamename, tag and region.
+func (ps *playerRepository) GetPlayerByNameTagRegion(gameName string, gameTag string, region string) (*models.PlayerInfo, error) {
+	var player models.PlayerInfo
+	if err := ps.db.
+		Where("riot_id_game_name = ? AND riot_id_tagline = ? AND region = ?", gameName, gameTag, region).
+		First(&player).Error; err != nil {
+
+		// If the record was not found, doesn't need to return a error.
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		// Other database error.
+		return nil, fmt.Errorf("player not found: %v", err)
+	}
+
+	return &player, nil
 }
 
 // GetPlayerByPuuid returns a given player by his PUUID.
