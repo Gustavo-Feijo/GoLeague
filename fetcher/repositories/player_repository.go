@@ -49,7 +49,7 @@ func (ps *playerRepository) CreatePlayersBatch(players []*models.PlayerInfo) err
 func (ps *playerRepository) GetPlayerByNameTagRegion(gameName string, gameTag string, region string) (*models.PlayerInfo, error) {
 	var player models.PlayerInfo
 	if err := ps.db.
-		Where("riot_id_game_name = ? AND riot_id_tagline = ? AND region = ?", gameName, gameTag, region).
+		Where("LOWER(riot_id_game_name) = LOWER(?) AND LOWER(riot_id_tagline) = LOWER(?) AND region = ?", gameName, gameTag, region).
 		First(&player).Error; err != nil {
 
 		// If the record was not found, doesn't need to return a error.

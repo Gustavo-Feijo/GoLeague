@@ -2,15 +2,19 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"goleague/api/cache"
 	"goleague/api/dto"
 	"goleague/api/filters"
 	"goleague/api/repositories"
+	"strings"
 	"time"
 
 	pb "goleague/pkg/grpc"
+	"goleague/pkg/redis"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
@@ -22,6 +26,7 @@ type PlayerService struct {
 	db         *gorm.DB
 	grpcClient *grpc.ClientConn
 	matchCache *cache.MatchCache
+	redis      *redis.RedisClient
 
 	MatchRepository  repositories.MatchRepository
 	PlayerRepository repositories.PlayerRepository
@@ -31,6 +36,7 @@ type PlayerServiceDeps struct {
 	DB         *gorm.DB
 	GrpcClient *grpc.ClientConn
 	MatchCache *cache.MatchCache
+	Redis      *redis.RedisClient
 }
 
 // NewPlayerService creates a service for handling player services.
@@ -52,7 +58,52 @@ func NewPlayerService(deps *PlayerServiceDeps) (*PlayerService, error) {
 		matchCache:       deps.MatchCache,
 		MatchRepository:  matchRepo,
 		PlayerRepository: repo,
+		redis:            deps.Redis,
 	}, nil
+}
+
+// createPlayerRateLimitKey generates a consistent hash-based key for rate limiting
+func (ps *PlayerService) createPlayerRateLimitKey(gameName, gameTag, region, prefix string) string {
+	keyData := fmt.Sprintf("%s|%s|%s",
+		strings.ToLower(gameName),
+		strings.ToLower(gameTag),
+		strings.ToLower(region))
+
+	hasher := sha256.New()
+	hasher.Write([]byte(keyData))
+	keyHash := hex.EncodeToString(hasher.Sum(nil)) // Use full hash for safety
+
+	return fmt.Sprintf("%s:%s", prefix, keyHash)
+}
+
+// checkRateLimit checks if a rate limit is active and returns TTL if blocked.
+func (ps *PlayerService) checkRateLimit(ctx context.Context, rateLimitKey string, lockDuration time.Duration) error {
+	lockAcquired, err := ps.redis.SetNX(ctx, rateLimitKey, "processing", lockDuration).Result()
+	if err != nil {
+		return fmt.Errorf("couldn't check rate limits on redis: %w", err)
+	}
+
+	if !lockAcquired {
+		ttl, err := ps.redis.TTL(ctx, rateLimitKey).Result()
+		if err != nil {
+			return fmt.Errorf("operation already in progress, please wait")
+		}
+
+		switch {
+		case ttl == -2:
+			// Key doesn't exist (race condition)
+			return fmt.Errorf("request conflict detected, please retry")
+		case ttl == -1:
+			// Key exists but no expiration
+			return fmt.Errorf("operation already in progress, please wait")
+		case ttl > 0:
+			return fmt.Errorf("operation already in progress, try again in %d seconds", int(ttl.Seconds()))
+		default:
+			return fmt.Errorf("operation already in progress, please wait")
+		}
+	}
+
+	return nil
 }
 
 // GetPlayerSearch returns the result of a given search.
@@ -121,6 +172,13 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (dto.Matc
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
 func (ps *PlayerService) ForceFetchPlayer(filters filters.PlayerForceFetchParams) (*pb.Summoner, error) {
+	rateLimitKey := ps.createPlayerRateLimitKey(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player")
+	redisCtx, cancelRedis := context.WithTimeout(context.Background(), time.Second)
+	defer cancelRedis()
+	if err := ps.checkRateLimit(redisCtx, rateLimitKey, time.Minute*5); err != nil {
+		return nil, err
+	}
+
 	client := pb.NewServiceClient(ps.grpcClient)
 
 	request := &pb.SummonerRequest{
@@ -146,6 +204,13 @@ func (ps *PlayerService) ForceFetchPlayer(filters filters.PlayerForceFetchParams
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
 func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters filters.PlayerForceFetchMatchHistoryParams) (*pb.MatchHistoryFetchNotification, error) {
+	rateLimitKey := ps.createPlayerRateLimitKey(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player_matches")
+	redisCtx, cancelRedis := context.WithTimeout(context.Background(), time.Second)
+	defer cancelRedis()
+	if err := ps.checkRateLimit(redisCtx, rateLimitKey, time.Minute*5); err != nil {
+		return nil, err
+	}
+
 	client := pb.NewServiceClient(ps.grpcClient)
 
 	request := &pb.SummonerRequest{

@@ -62,6 +62,7 @@ func NewModule(deps *ModuleDependencies) (*Module, error) {
 		DB:         deps.DB,
 		GrpcClient: deps.GrpcClient,
 		MatchCache: matchCache,
+		Redis:      deps.Redis,
 	}
 
 	playerService, err := services.NewPlayerService(playerDeps)
