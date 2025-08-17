@@ -30,6 +30,18 @@ func (q *PlayerMatchHistoryParams) AsMap() map[string]any {
 	}
 }
 
+// Query params for the player match history.
+type PlayerStatsParams struct {
+	Interval int `form:"interval"`
+}
+
+// Get the query parameters as a map.
+func (q *PlayerStatsParams) AsMap() map[string]any {
+	return map[string]any{
+		"interval": q.Interval,
+	}
+}
+
 // Path params for the player force fetch.
 type PlayerForceFetchParams struct {
 	GameName string `uri:"gameName" binding:"required"`

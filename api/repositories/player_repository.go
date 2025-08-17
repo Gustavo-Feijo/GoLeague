@@ -1,10 +1,12 @@
 package repositories
 
 import (
-	"goleague/api/dto"
+	"errors"
+	"fmt"
 	"goleague/fetcher/regions"
 	"goleague/pkg/database/models"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -13,9 +15,10 @@ const searchLimit = 20
 
 // PlayerRepository is the public interface for accessing the player repository.
 type PlayerRepository interface {
-	SearchPlayer(filters map[string]any) ([]*dto.PlayerSearch, error)
-	GetPlayerMatchHistoryIds(filters map[string]any) ([]uint, error)
+	SearchPlayer(filters map[string]any) ([]*models.PlayerInfo, error)
 	GetPlayerIdByNameTagRegion(name string, tag string, region string) (uint, error)
+	GetPlayerMatchHistoryIds(filters map[string]any) ([]uint, error)
+	GetPlayerStats(filters map[string]any) ([]*RawPlayerStatsStruct, error)
 }
 
 // playerRepository repository structure.
@@ -28,9 +31,24 @@ func NewPlayerRepository(db *gorm.DB) (PlayerRepository, error) {
 	return &playerRepository{db: db}, nil
 }
 
+// RawPlayerStatsStruct is the raw data from the player stats analysis.
+type RawPlayerStatsStruct struct {
+	Matches          int     `gorm:"column:matches"`
+	QueueId          int     `gorm:"column:queue_id"`
+	TeamPosition     string  `gorm:"column:team_position"`
+	ChampionId       int     `gorm:"column:champion_id"`
+	WinRate          float32 `gorm:"column:win_rate"`
+	AverageKills     float32 `gorm:"column:avg_kills"`
+	AverageDeaths    float32 `gorm:"column:avg_deaths"`
+	AverageAssists   float32 `gorm:"column:avg_assists"`
+	CsPerMin         float32 `gorm:"column:cs_per_min"`
+	KDA              float32 `gorm:"column:kda"`
+	AggregationLevel string  `gorm:"column:aggregation_level"`
+}
+
 // SearchPlayer searchs a given player by it's name, tag and region.
-func (ps *playerRepository) SearchPlayer(filters map[string]any) ([]*dto.PlayerSearch, error) {
-	var players []*dto.PlayerSearch
+func (ps *playerRepository) SearchPlayer(filters map[string]any) ([]*models.PlayerInfo, error) {
+	var players []*models.PlayerInfo
 	query := ps.db
 
 	name := strings.TrimSpace(filters["name"].(string))
@@ -98,22 +116,116 @@ func (ps *playerRepository) GetPlayerMatchHistoryIds(filters map[string]any) ([]
 	return ids, nil
 }
 
-// GetPlayerIdByNameTagRegion retrieves the id of a given player based on the params.
-func (ps *playerRepository) GetPlayerIdByNameTagRegion(name string, tag string, region string) (uint, error) {
-	var result uint
+// GetPlayerStats returns the raw player stats.
+func (ps *playerRepository) GetPlayerStats(filters map[string]any) ([]*RawPlayerStatsStruct, error) {
+	var playerStats []*RawPlayerStatsStruct
+	playerId := filters["playerId"]
+	interval := filters["interval"]
 
-	formattedRegion := regions.SubRegion(strings.ToUpper(region))
-	err := ps.db.
-		Model(&models.PlayerInfo{}).
-		Select("id").
-		Where(&models.PlayerInfo{
-			RiotIdGameName: name,
-			RiotIdTagline:  tag,
-			Region:         formattedRegion,
-		}).First(&result).Error
-	if err != nil {
-		return 0, err
+	// Set a default interval if not provided.
+	if interval == 0 {
+		interval = 30
 	}
 
-	return result, nil
+	timeThreshold := time.Now().AddDate(0, 0, -interval.(int))
+
+	query := `
+		WITH top_champions AS (
+		    SELECT champion_id
+		    FROM match_stats ms
+		    JOIN match_infos mi ON ms.match_id = mi.id
+		    WHERE ms.player_id = ? 
+		      AND mi.match_start >= ?
+		      AND ms.champion_id IS NOT NULL
+		    GROUP BY champion_id
+		    ORDER BY COUNT(*) DESC
+		    LIMIT 10
+		),
+		base_stats AS (
+		    SELECT 
+		        COUNT(*) AS matches,
+		        mi.queue_id,
+		        ms.team_position,
+		        ms.champion_id,
+		        AVG(ms.win::int) * 100 AS win_rate,
+		        AVG(ms.kills) AS avg_kills,
+		        AVG(ms.deaths) AS avg_deaths,
+		        AVG(ms.assists) AS avg_assists,
+		        AVG(ms.total_minions_killed + ms.neutral_minions_killed) / (AVG(mi.match_duration) / 60) AS cs_per_min,
+		        CASE
+		            WHEN AVG(ms.deaths) = 0 THEN AVG(ms.kills) + AVG(ms.assists)
+		            ELSE (AVG(ms.kills) + AVG(ms.assists)) / AVG(ms.deaths)
+		        END AS kda,
+		        MIN(mi.match_start) AS first_game,
+		        MAX(mi.match_start) AS last_game,
+		        GROUPING(mi.queue_id) AS is_queue_total,
+		        GROUPING(ms.team_position) AS is_position_total,
+		        GROUPING(ms.champion_id) AS is_champion_total
+		    FROM match_stats ms
+		    JOIN match_infos mi ON ms.match_id = mi.id
+		    WHERE ms.player_id = ?
+		      AND mi.match_start >= ?
+			  AND mi.queue_id != 1700
+		    GROUP BY GROUPING SETS (
+		        (),
+		        (mi.queue_id),
+		        (ms.team_position),
+		        (ms.champion_id),
+		        (mi.queue_id, ms.team_position),
+		        (mi.queue_id, ms.champion_id)
+		    )
+		    HAVING (GROUPING(ms.champion_id) = 1 OR ms.champion_id IN (SELECT champion_id FROM top_champions))
+		)
+		SELECT 
+		    matches,
+		    COALESCE(queue_id, -1) AS queue_id,
+		    COALESCE(team_position, 'ALL') AS team_position,
+		    COALESCE(champion_id, -1) AS champion_id,
+		    ROUND(win_rate, 2) AS win_rate,
+		    ROUND(avg_kills, 2) AS avg_kills,
+		    ROUND(avg_deaths, 2) AS avg_deaths,
+		    ROUND(avg_assists, 2) AS avg_assists,
+		    ROUND(cs_per_min, 2) AS cs_per_min,
+		    ROUND(kda, 2) AS kda,
+		    CASE 
+		        WHEN is_queue_total = 1 AND is_position_total = 1 AND is_champion_total = 1 THEN 'overall'
+		        WHEN is_queue_total = 0 AND is_position_total = 1 AND is_champion_total = 1 THEN 'by_queue'
+		        WHEN is_queue_total = 1 AND is_position_total = 0 AND is_champion_total = 1 THEN 'by_position'
+		        WHEN is_queue_total = 1 AND is_position_total = 1 AND is_champion_total = 0 THEN 'by_champion'
+		        WHEN is_queue_total = 0 AND is_position_total = 0 AND is_champion_total = 1 THEN 'by_queue_position'
+		        WHEN is_queue_total = 0 AND is_position_total = 1 AND is_champion_total = 0 THEN 'by_queue_champion'
+		        ELSE 'detailed'
+		    END AS aggregation_level
+		FROM base_stats
+	`
+
+	if err := ps.db.Raw(query, playerId, timeThreshold, playerId, timeThreshold).Scan(&playerStats).Error; err != nil {
+		return nil, err
+	}
+
+	return playerStats, nil
+}
+
+// GetPlayerIdByNameTagRegion retrieves the id of a given player based on the params.
+func (ps *playerRepository) GetPlayerIdByNameTagRegion(name string, tag string, region string) (uint, error) {
+	var id uint
+
+	formattedRegion := regions.SubRegion(strings.ToUpper(region))
+
+	if err := ps.db.
+		Model(&models.PlayerInfo{}).
+		Select("id").
+		Where("LOWER(riot_id_game_name) = LOWER(?) AND LOWER(riot_id_tagline) = LOWER(?) AND region = ?", name, tag, formattedRegion).
+		First(&id).Error; err != nil {
+
+		// If the record was not found, doesn't need to return an error.
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
+
+		// Other database error.
+		return 0, fmt.Errorf("could not fetch player id: %v", err)
+	}
+
+	return id, nil
 }

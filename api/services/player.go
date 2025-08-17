@@ -10,11 +10,13 @@ import (
 	"goleague/api/dto"
 	"goleague/api/filters"
 	"goleague/api/repositories"
+	"strconv"
 	"strings"
 	"time"
 
 	pb "goleague/pkg/grpc"
 	"goleague/pkg/redis"
+	tiervalues "goleague/pkg/riotvalues/tier"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
@@ -108,7 +110,25 @@ func (ps *PlayerService) checkRateLimit(ctx context.Context, rateLimitKey string
 
 // GetPlayerSearch returns the result of a given search.
 func (ps *PlayerService) GetPlayerSearch(filters map[string]any) ([]*dto.PlayerSearch, error) {
-	return ps.PlayerRepository.SearchPlayer(filters)
+	players, err := ps.PlayerRepository.SearchPlayer(filters)
+	if err != nil {
+		return nil, err
+	}
+
+	playerDto := make([]*dto.PlayerSearch, len(players))
+	for key, player := range players {
+		playerDto[key] = &dto.PlayerSearch{
+			Id:            player.ID,
+			Name:          player.RiotIdGameName,
+			ProfileIcon:   player.ProfileIcon,
+			Puuid:         player.Puuid,
+			Region:        string(player.Region),
+			SummonerLevel: player.SummonerLevel,
+			Tag:           player.RiotIdTagline,
+		}
+	}
+
+	return playerDto, nil
 }
 
 // GetPlayerMatchHistory returns a player match list based on filters.
@@ -157,17 +177,106 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (dto.Matc
 		return nil, fmt.Errorf("couldn't get the match history for the player: %w", err)
 	}
 
+	formatedPreviews := formatMatchPreviews(matchPreviews)
+
 	// Some matches came from cache, others from db.
 	if len(missingMatches) > 0 {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		for _, match := range matchPreviews {
+		for _, match := range formatedPreviews {
 			ps.matchCache.SetMatchPreview(ctx, *match)
 		}
-		handleCachedMatches(cachedMatches, matchPreviews)
+		handleCachedMatches(cachedMatches, formatedPreviews)
 	}
 
-	return matchPreviews, nil
+	return formatedPreviews, nil
+}
+
+// GetPlayerStats returns the player stats for a given player.
+func (ps *PlayerService) GetPlayerStats(filters map[string]any) (dto.FullPlayerStats, error) {
+	// Convert to string.
+	// Received through path params.
+	name := filters["gameName"].(string)
+	tag := filters["gameTag"].(string)
+	region := filters["region"].(string)
+
+	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find the playerId: %w", err)
+	}
+
+	filters["playerId"] = playerId
+	playerStats, err := ps.PlayerRepository.GetPlayerStats(filters)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get the player stats: %w", err)
+	}
+
+	if len(playerStats) == 0 {
+		return nil, nil
+	}
+
+	playerStatsDto := make(dto.FullPlayerStats)
+
+	for _, stats := range playerStats {
+		var champion string
+		var lane string
+		var queue string
+
+		// Handle value conversion.
+		if stats.ChampionId == -1 {
+			champion = "ALL"
+		} else {
+			champion = strconv.Itoa(stats.ChampionId)
+		}
+
+		if stats.TeamPosition == "" || stats.TeamPosition == "ALL" {
+			lane = "ALL"
+		} else {
+			lane = stats.TeamPosition
+		}
+
+		if stats.QueueId == -1 {
+			queue = "ALL"
+		} else {
+			queue = strconv.Itoa(stats.QueueId)
+		}
+
+		// Initialize the queue entry if it doesn't exist
+		if playerStatsDto[queue] == nil {
+			playerStatsDto[queue] = &dto.PlayerStatsQueue{
+				Unfiltered:   nil,
+				ChampionData: make(map[string]*dto.StatsEntry),
+				LaneData:     make(map[string]*dto.StatsEntry),
+			}
+		}
+
+		entry := &dto.StatsEntry{
+			AverageAssists: stats.AverageAssists,
+			AverageDeaths:  stats.AverageDeaths,
+			AverageKills:   stats.AverageKills,
+			CsPerMin:       stats.CsPerMin,
+			KDA:            stats.KDA,
+			Matches:        stats.Matches,
+			WinRate:        stats.WinRate,
+		}
+
+		// Only add the entries with no champion or lane filter.
+		if stats.AggregationLevel == "by_queue" || stats.AggregationLevel == "overall" {
+			playerStatsDto[queue].Unfiltered = entry
+			continue
+		}
+
+		// Add the stats entries
+		if champion != "ALL" {
+			playerStatsDto[queue].ChampionData[champion] = entry
+		}
+
+		if lane != "ALL" {
+			playerStatsDto[queue].LaneData[lane] = entry
+		}
+	}
+
+	return playerStatsDto, nil
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
@@ -232,6 +341,71 @@ func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters filters.PlayerForc
 	}
 
 	return resp, nil
+}
+
+// formatMatchPreviews return the formatted dto for the matches.
+func formatMatchPreviews(rawPreviews []repositories.RawMatchPreview) dto.MatchPreviewList {
+	fullPreview := make(dto.MatchPreviewList)
+
+	// Range through each raw preview and format it.
+	for _, r := range rawPreviews {
+
+		// Initialize the full preview.
+		if _, ok := fullPreview[r.MatchID]; !ok {
+			fullPreview[r.MatchID] = &dto.MatchPreview{
+				Metadata: &dto.MatchPreviewMetadata{
+					AverageElo: tiervalues.CalculateInverseRank(int(r.AverageRating)),
+					Date:       r.Date,
+					Duration:   r.Duration,
+					InternalId: r.InternalId,
+					MatchId:    r.MatchID,
+					QueueId:    r.QueueID,
+				},
+				Data: make([]*dto.MatchPreviewData, 0),
+			}
+		}
+
+		items := make([]int, 0, 6)
+
+		// Add non-null items to the array
+		if r.Item0 != nil && *r.Item0 != 0 {
+			items = append(items, *r.Item0)
+		}
+		if r.Item1 != nil && *r.Item1 != 0 {
+			items = append(items, *r.Item1)
+		}
+		if r.Item2 != nil && *r.Item2 != 0 {
+			items = append(items, *r.Item2)
+		}
+		if r.Item3 != nil && *r.Item3 != 0 {
+			items = append(items, *r.Item3)
+		}
+		if r.Item4 != nil && *r.Item4 != 0 {
+			items = append(items, *r.Item4)
+		}
+		if r.Item5 != nil && *r.Item5 != 0 {
+			items = append(items, *r.Item5)
+		}
+
+		preview := &dto.MatchPreviewData{
+			GameName:      r.RiotIDGameName,
+			Tag:           r.RiotIDTagline,
+			Region:        r.Region,
+			Assists:       r.Assists,
+			Kills:         r.Kills,
+			Deaths:        r.Deaths,
+			ChampionLevel: r.ChampionLevel,
+			ChampionID:    r.ChampionID,
+			TotalCs:       r.TotalMinionsKilled + r.NeutralMinionsKilled,
+			Items:         items,
+			Win:           r.Win,
+			QueueID:       r.QueueID,
+		}
+
+		fullPreview[r.MatchID].Data = append(fullPreview[r.MatchID].Data, preview)
+	}
+
+	return fullPreview
 }
 
 func handleCachedMatches(cachedMatches []dto.MatchPreview, matchesDto dto.MatchPreviewList) {

@@ -1,8 +1,6 @@
 package repositories
 
 import (
-	"goleague/api/dto"
-	tiervalues "goleague/pkg/riotvalues/tier"
 	"time"
 
 	"gorm.io/gorm"
@@ -10,7 +8,7 @@ import (
 
 // MatchRepository is the public interface for accessing the player repository.
 type MatchRepository interface {
-	GetMatchPreviews(matchIDs []uint) (dto.MatchPreviewList, error)
+	GetMatchPreviews(matchIDs []uint) ([]RawMatchPreview, error)
 }
 
 // matchRepository repository structure.
@@ -51,7 +49,7 @@ type RawMatchPreview struct {
 }
 
 // GetMatchPreviews gets the formatted preview for a list of matches.
-func (ms *matchRepository) GetMatchPreviews(matchIDs []uint) (dto.MatchPreviewList, error) {
+func (ms *matchRepository) GetMatchPreviews(matchIDs []uint) ([]RawMatchPreview, error) {
 	var rawResults []RawMatchPreview
 
 	query := `
@@ -89,70 +87,5 @@ func (ms *matchRepository) GetMatchPreviews(matchIDs []uint) (dto.MatchPreviewLi
 		return nil, err
 	}
 
-	return formatPreviews(rawResults), nil
-}
-
-// formatPreviews return the formatted dto
-func formatPreviews(rawPreviews []RawMatchPreview) dto.MatchPreviewList {
-	fullPreview := make(dto.MatchPreviewList)
-
-	// Range through each raw preview and format it.
-	for _, r := range rawPreviews {
-
-		// Initialize the full preview.
-		if _, ok := fullPreview[r.MatchID]; !ok {
-			fullPreview[r.MatchID] = &dto.MatchPreview{
-				Metadata: &dto.MatchPreviewMetadata{
-					AverageElo: tiervalues.CalculateInverseRank(int(r.AverageRating)),
-					Date:       r.Date,
-					Duration:   r.Duration,
-					InternalId: r.InternalId,
-					MatchId:    r.MatchID,
-					QueueId:    r.QueueID,
-				},
-				Data: make([]*dto.MatchPreviewData, 0),
-			}
-		}
-
-		items := make([]int, 0, 6)
-
-		// Add non-null items to the array
-		if r.Item0 != nil && *r.Item0 != 0 {
-			items = append(items, *r.Item0)
-		}
-		if r.Item1 != nil && *r.Item1 != 0 {
-			items = append(items, *r.Item1)
-		}
-		if r.Item2 != nil && *r.Item2 != 0 {
-			items = append(items, *r.Item2)
-		}
-		if r.Item3 != nil && *r.Item3 != 0 {
-			items = append(items, *r.Item3)
-		}
-		if r.Item4 != nil && *r.Item4 != 0 {
-			items = append(items, *r.Item4)
-		}
-		if r.Item5 != nil && *r.Item5 != 0 {
-			items = append(items, *r.Item5)
-		}
-
-		preview := &dto.MatchPreviewData{
-			GameName:      r.RiotIDGameName,
-			Tag:           r.RiotIDTagline,
-			Region:        r.Region,
-			Assists:       r.Assists,
-			Kills:         r.Kills,
-			Deaths:        r.Deaths,
-			ChampionLevel: r.ChampionLevel,
-			ChampionID:    r.ChampionID,
-			TotalCs:       r.TotalMinionsKilled + r.NeutralMinionsKilled,
-			Items:         items,
-			Win:           r.Win,
-			QueueID:       r.QueueID,
-		}
-
-		fullPreview[r.MatchID].Data = append(fullPreview[r.MatchID].Data, preview)
-	}
-
-	return fullPreview
+	return rawResults, nil
 }

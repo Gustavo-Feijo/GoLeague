@@ -105,6 +105,25 @@ func (h *PlayerHandler) GetPlayerMatchHistory(c *gin.Context) {
 
 // GetPlayerStats handles requests for retrieving a player average status.
 func (h *PlayerHandler) GetPlayerStats(c *gin.Context) {
+	var qp filters.PlayerStatsParams
+
+	if err := c.ShouldBindQuery(&qp); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	filtersMap := qp.AsMap()
+	filtersMap["gameName"] = c.Params.ByName("gameName")
+	filtersMap["gameTag"] = c.Params.ByName("gameTag")
+	filtersMap["region"] = c.Params.ByName("region")
+
+	playerStats, err := h.playerService.GetPlayerStats(filtersMap)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"result": playerStats})
 }
 
 // GetPlayerElo handles rating related data from a player.

@@ -46,6 +46,7 @@ func (r *Router) registerPlayerHandler(handler *handlers.PlayerHandler) {
 	{
 		player.GET("search", handler.GetPlayerSearch)
 		player.GET(":region/:gameName/:gameTag/matches", handler.GetPlayerMatchHistory)
+		player.GET(":region/:gameName/:gameTag/stats", handler.GetPlayerStats)
 		player.POST(":region/:gameName/:gameTag", handler.ForceFetchPlayer)
 		player.POST(":region/:gameName/:gameTag/matches", handler.ForceFetchPlayerMatchHistory)
 	}
