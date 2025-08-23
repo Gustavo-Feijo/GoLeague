@@ -43,6 +43,8 @@ func NewModule(deps *ModuleDependencies) (*Module, error) {
 		DB:            deps.DB,
 		GrpcClient:    deps.GrpcClient,
 		ChampionCache: championCache,
+		MemCache:      deps.MemCache,
+		Redis:         deps.Redis,
 	}
 
 	tierlistService, err := services.NewTierlistService(tierlistDeps)

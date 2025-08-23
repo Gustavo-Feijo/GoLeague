@@ -280,7 +280,7 @@ func (ps *PlayerService) GetPlayerStats(filters map[string]any) (dto.FullPlayerS
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
-func (ps *PlayerService) ForceFetchPlayer(filters filters.PlayerForceFetchParams) (*pb.Summoner, error) {
+func (ps *PlayerService) ForceFetchPlayer(filters *filters.PlayerURIParams) (*pb.Summoner, error) {
 	rateLimitKey := ps.createPlayerRateLimitKey(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player")
 	redisCtx, cancelRedis := context.WithTimeout(context.Background(), time.Second)
 	defer cancelRedis()
@@ -312,7 +312,7 @@ func (ps *PlayerService) ForceFetchPlayer(filters filters.PlayerForceFetchParams
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
-func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters filters.PlayerForceFetchMatchHistoryParams) (*pb.MatchHistoryFetchNotification, error) {
+func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters *filters.PlayerURIParams) (*pb.MatchHistoryFetchNotification, error) {
 	rateLimitKey := ps.createPlayerRateLimitKey(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player_matches")
 	redisCtx, cancelRedis := context.WithTimeout(context.Background(), time.Second)
 	defer cancelRedis()

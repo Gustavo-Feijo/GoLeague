@@ -42,31 +42,15 @@ func (q *PlayerStatsParams) AsMap() map[string]any {
 	}
 }
 
-// Path params for the player force fetch.
-type PlayerForceFetchParams struct {
+// URI params for the player endpoitns.
+type PlayerURIParams struct {
 	GameName string `uri:"gameName" binding:"required"`
 	GameTag  string `uri:"gameTag" binding:"required"`
 	Region   string `uri:"region" binding:"required"`
 }
 
 // Get the path params as a map.
-func (q *PlayerForceFetchParams) AsMap() map[string]any {
-	return map[string]any{
-		"gameName": q.GameName,
-		"gameTag":  q.GameTag,
-		"region":   q.Region,
-	}
-}
-
-// Path params for the player force fetch.
-type PlayerForceFetchMatchHistoryParams struct {
-	GameName string `uri:"gameName" binding:"required"`
-	GameTag  string `uri:"gameTag" binding:"required"`
-	Region   string `uri:"region" binding:"required"`
-}
-
-// Get the path params as a map.
-func (q *PlayerForceFetchMatchHistoryParams) AsMap() map[string]any {
+func (q *PlayerURIParams) AsMap() map[string]any {
 	return map[string]any{
 		"gameName": q.GameName,
 		"gameTag":  q.GameTag,

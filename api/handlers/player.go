@@ -24,11 +24,27 @@ func NewPlayerHandler(deps *PlayerHandlerDependencies) *PlayerHandler {
 	}
 }
 
+// Helper to bind the default URI params for players.
+func (h *PlayerHandler) bindURIParams(c *gin.Context) (*filters.PlayerURIParams, error) {
+	var pp filters.PlayerURIParams
+	if err := c.ShouldBindUri(&pp); err != nil {
+		return nil, err
+	}
+	return &pp, nil
+}
+
+// Helper method to add URI params to filters map.
+func (h *PlayerHandler) addURIParamsToFilterMap(pp *filters.PlayerURIParams, filtersMap map[string]interface{}) {
+	filtersMap["gameName"] = pp.GameName
+	filtersMap["gameTag"] = pp.GameTag
+	filtersMap["region"] = pp.Region
+}
+
 // ForceFetchPlayer calls the Fetcher service via gRPC to save a given player in the database.
 func (h *PlayerHandler) ForceFetchPlayer(c *gin.Context) {
 	// Path params.
-	var pp filters.PlayerForceFetchParams
-	if err := c.ShouldBindUri(&pp); err != nil {
+	pp, err := h.bindURIParams(c)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -46,8 +62,8 @@ func (h *PlayerHandler) ForceFetchPlayer(c *gin.Context) {
 // Don't return the match history, only a confirmation, since the fetching can take some time.
 func (h *PlayerHandler) ForceFetchPlayerMatchHistory(c *gin.Context) {
 	// Path params.
-	var pp filters.PlayerForceFetchMatchHistoryParams
-	if err := c.ShouldBindUri(&pp); err != nil {
+	pp, err := h.bindURIParams(c)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -83,16 +99,21 @@ func (h *PlayerHandler) GetPlayerSearch(c *gin.Context) {
 // GetPlayerMatchHistory handles requests for retrieving a player match history.
 func (h *PlayerHandler) GetPlayerMatchHistory(c *gin.Context) {
 	var qp filters.PlayerMatchHistoryParams
-
 	if err := c.ShouldBindQuery(&qp); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	filtersMap := qp.AsMap()
-	filtersMap["gameName"] = c.Params.ByName("gameName")
-	filtersMap["gameTag"] = c.Params.ByName("gameTag")
-	filtersMap["region"] = c.Params.ByName("region")
+
+	// Path params.
+	pp, err := h.bindURIParams(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.addURIParamsToFilterMap(pp, filtersMap)
 
 	matchList, err := h.playerService.GetPlayerMatchHistory(filtersMap)
 	if err != nil {
@@ -113,9 +134,15 @@ func (h *PlayerHandler) GetPlayerStats(c *gin.Context) {
 	}
 
 	filtersMap := qp.AsMap()
-	filtersMap["gameName"] = c.Params.ByName("gameName")
-	filtersMap["gameTag"] = c.Params.ByName("gameTag")
-	filtersMap["region"] = c.Params.ByName("region")
+
+	// Path params.
+	pp, err := h.bindURIParams(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.addURIParamsToFilterMap(pp, filtersMap)
 
 	playerStats, err := h.playerService.GetPlayerStats(filtersMap)
 	if err != nil {
