@@ -80,25 +80,28 @@ func (ts *tierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*d
 	args = append(args, singleQueryArgs...)
 	args = append(args, singleQueryArgs...)
 	args = append(args, singleQueryArgs...)
-	args = append(args, singleQueryArgs...)
 
 	// Construct CTE subqueries with proper WHERE clause placement.
 	// Should have only 6 possible values, 5 from normal queue and empty for Aram.
-	positionCountsCTE := `
-	WITH positionCounts AS (
+	championStatsCTE := `
+	WITH champion_stats AS (
 		SELECT
-			team_position,
-			COUNT(*) AS positionCount
+			ms.champion_id,
+			ms.team_position,
+			COUNT(*) as pick_count,
+			SUM(ms.win::int) as wins,
+			SUM(COUNT(*)) OVER (PARTITION BY ms.team_position) as position_total
 		FROM
 			match_stats ms
-		JOIN
+		JOIN 
 			match_infos mi ON mi.id = ms.match_id
-		` + whereClause + ` GROUP BY
-			team_position
-	)`
+		` + positionFix + `
+		GROUP BY ms.champion_id, ms.team_position
+	)
+	`
 
 	championBansCTE := `
-	, championBans AS (
+	, champion_bans AS (
 		SELECT
 			mb.champion_id,
 			COUNT(*) AS ban_count
@@ -111,42 +114,32 @@ func (ts *tierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*d
 	)`
 
 	totalMatchesCTE := `
-	, totalMatches AS (
-    SELECT COUNT(*) AS total
-    FROM match_infos mi ` + whereClause + `)`
+	, total_matches AS (
+    	SELECT COUNT(*) AS total_match_count
+    	FROM match_infos mi 
+	` + whereClause +
+		`)`
 
 	// Construct the main query.
 	mainQuery := `
 	SELECT
-		COUNT(*) AS pickCount,
-		ms.champion_id,
-		ms.team_position,
-		AVG(ms.win::int) * 100 AS winRate,
-		(COUNT(*) * 100.0) / pc.positionCount AS pickRate,
-		COALESCE(cb.ban_count, 0) AS banCount,
-		(COALESCE(cb.ban_count, 0) * 100.0) / tm.total AS banRate
+		cs.pick_count,
+    	cs.champion_id,
+    	cs.team_position,
+    	ROUND((cs.wins * 100.0) / cs.pick_count, 2) AS win_rate,
+    	ROUND((cs.pick_count * 100.0) / cs.position_total, 2) AS pick_rate,
+    	COALESCE(cb.ban_count, 0) AS ban_count,
+    	ROUND((COALESCE(cb.ban_count, 0) * 100.0) / tm.total_match_count, 2) AS ban_rate
 	FROM
-		match_stats ms
-	JOIN
-		match_infos mi ON mi.id = ms.match_id
-	JOIN
-		positionCounts pc ON ms.team_position = pc.team_position
+		champion_stats cs
 	LEFT JOIN
-		championBans cb ON ms.champion_id = cb.champion_id
-	JOIN
-    	totalMatches tm ON TRUE
-	` + positionFix + ` GROUP BY
-		ms.champion_id,
-		ms.team_position,
-		pc.positionCount,
-		cb.ban_count,
-		tm.total
-	HAVING
-		(COUNT(*) * 100.0) / pc.positionCount > 0.5
-	ORDER BY winRate desc
+		champion_bans cb ON cs.champion_id = cb.champion_id
+	CROSS JOIN total_matches tm
+	WHERE (cs.pick_count * 100) / cs.position_total > 0.5
+	ORDER BY win_rate DESC
     `
 	// Combine all parts of the query.
-	query := positionCountsCTE + championBansCTE + totalMatchesCTE + mainQuery
+	query := championStatsCTE + championBansCTE + totalMatchesCTE + mainQuery
 
 	// Execute the query with arguments.
 	err := ts.db.Raw(query, args...).Scan(&results).Error

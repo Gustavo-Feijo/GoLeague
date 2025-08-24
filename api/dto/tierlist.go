@@ -2,13 +2,13 @@ package dto
 
 // Result of a tierlist fetch.
 type TierlistResult struct {
-	Bancount     int
-	Banrate      float64
+	BanCount     int
+	BanRate      float64
 	ChampionId   int
-	Pickcount    int
-	Pickrate     float64
+	PickCount    int
+	PickRate     float64
 	TeamPosition string
-	Winrate      float64
+	WinRate      float64
 }
 
 // The fulltierlist we will return.

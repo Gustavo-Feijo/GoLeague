@@ -99,12 +99,12 @@ func (ts *TierlistService) GetTierlist(filters *filters.TierlistFilter) ([]*dto.
 	cacheFailed := false
 	for index, entry := range results {
 		fullResult[index] = &dto.FullTierlist{
-			BanCount:     entry.Bancount,
-			Banrate:      entry.Banrate,
-			PickCount:    entry.Pickcount,
-			PickRate:     entry.Pickrate,
+			BanCount:     entry.BanCount,
+			Banrate:      entry.BanRate,
+			PickCount:    entry.PickCount,
+			PickRate:     entry.PickRate,
 			TeamPosition: entry.TeamPosition,
-			WinRate:      entry.Winrate,
+			WinRate:      entry.WinRate,
 		}
 
 		// Get a copy of the champion on the cache.
