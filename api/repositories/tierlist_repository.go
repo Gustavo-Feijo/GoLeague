@@ -2,7 +2,9 @@ package repositories
 
 import (
 	"goleague/api/dto"
+	"goleague/api/filters"
 	queuevalues "goleague/pkg/riotvalues/queue"
+	tiervalues "goleague/pkg/riotvalues/tier"
 	"slices"
 	"strings"
 
@@ -11,7 +13,7 @@ import (
 
 // Public Interface.
 type TierlistRepository interface {
-	GetTierlist(filters map[string]any) ([]*dto.TierlistResult, error)
+	GetTierlist(filters *filters.TierlistFilter) ([]*dto.TierlistResult, error)
 }
 
 // Tierlist repository structure.
@@ -26,7 +28,7 @@ func NewTierlistRepository(db *gorm.DB) (TierlistRepository, error) {
 
 // GetTierlist is the only necessary function for the tierlist.
 // Handle the query building and fetching.
-func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*dto.TierlistResult, error) {
+func (ts *tierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*dto.TierlistResult, error) {
 	var results []*dto.TierlistResult
 
 	// Initialize query parts.
@@ -38,15 +40,21 @@ func (ts *tierlistRepository) GetTierlist(filters map[string]any) ([]*dto.Tierli
 
 	// If on the filters, get it, else, default to 420 (Ranked Solo Duo).
 	defaultQueue := 420
-	if queueID, ok := filters["queue"].(int); ok {
+	if queueID := filters.Queue; queueID != 0 {
 		defaultQueue = queueID
 	}
 	singleQueryArgs = append(singleQueryArgs, defaultQueue)
 
 	// Process tier/average_rating filter if provided.
-	if avgScore, ok := filters["tier"].(int); ok {
+	if avgScore := filters.NumericTier; avgScore != 0 && filters.GetTiersAbove {
 		whereConditions = append(whereConditions, "mi.average_rating >= ?")
 		singleQueryArgs = append(singleQueryArgs, avgScore)
+	}
+
+	if !filters.GetTiersAbove {
+		lower, higher := tiervalues.GetTierLimits(filters.Tier)
+		whereConditions = append(whereConditions, "mi.average_rating BETWEEN ? AND ?")
+		singleQueryArgs = append(singleQueryArgs, lower, higher)
 	}
 
 	// Format the WHERE clause.

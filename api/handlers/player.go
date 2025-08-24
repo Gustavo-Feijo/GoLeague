@@ -85,9 +85,9 @@ func (h *PlayerHandler) GetPlayerSearch(c *gin.Context) {
 		return
 	}
 
-	filtersMap := qp.AsMap()
+	filters := filters.NewPlayerSearchFilter(qp)
 
-	result, err := h.playerService.GetPlayerSearch(filtersMap)
+	result, err := h.playerService.GetPlayerSearch(filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -104,8 +104,6 @@ func (h *PlayerHandler) GetPlayerMatchHistory(c *gin.Context) {
 		return
 	}
 
-	filtersMap := qp.AsMap()
-
 	// Path params.
 	pp, err := h.bindURIParams(c)
 	if err != nil {
@@ -113,9 +111,9 @@ func (h *PlayerHandler) GetPlayerMatchHistory(c *gin.Context) {
 		return
 	}
 
-	h.addURIParamsToFilterMap(pp, filtersMap)
+	filters := filters.NewPlayerMatchHistoryFilter(qp, pp)
 
-	matchList, err := h.playerService.GetPlayerMatchHistory(filtersMap)
+	matchList, err := h.playerService.GetPlayerMatchHistory(filters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -133,8 +131,6 @@ func (h *PlayerHandler) GetPlayerStats(c *gin.Context) {
 		return
 	}
 
-	filtersMap := qp.AsMap()
-
 	// Path params.
 	pp, err := h.bindURIParams(c)
 	if err != nil {
@@ -142,9 +138,9 @@ func (h *PlayerHandler) GetPlayerStats(c *gin.Context) {
 		return
 	}
 
-	h.addURIParamsToFilterMap(pp, filtersMap)
+	filters := filters.NewPlayerStatsFilter(qp, pp)
 
-	playerStats, err := h.playerService.GetPlayerStats(filtersMap)
+	playerStats, err := h.playerService.GetPlayerStats(filters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

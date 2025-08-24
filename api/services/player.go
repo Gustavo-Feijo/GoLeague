@@ -109,7 +109,7 @@ func (ps *PlayerService) checkRateLimit(ctx context.Context, rateLimitKey string
 }
 
 // GetPlayerSearch returns the result of a given search.
-func (ps *PlayerService) GetPlayerSearch(filters map[string]any) ([]*dto.PlayerSearch, error) {
+func (ps *PlayerService) GetPlayerSearch(filters *filters.PlayerSearchFilter) ([]*dto.PlayerSearch, error) {
 	players, err := ps.PlayerRepository.SearchPlayer(filters)
 	if err != nil {
 		return nil, err
@@ -132,19 +132,19 @@ func (ps *PlayerService) GetPlayerSearch(filters map[string]any) ([]*dto.PlayerS
 }
 
 // GetPlayerMatchHistory returns a player match list based on filters.
-func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (dto.MatchPreviewList, error) {
+func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHistoryFilter) (dto.MatchPreviewList, error) {
 	// Convert to string.
 	// Received through path params.
-	name := filters["gameName"].(string)
-	tag := filters["gameTag"].(string)
-	region := filters["region"].(string)
+	name := filters.GameName
+	tag := filters.GameTag
+	region := filters.Region
 
 	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find the playerId: %w", err)
 	}
 
-	filters["playerId"] = playerId
+	filters.PlayerId = &playerId
 	matchesIds, err := ps.PlayerRepository.GetPlayerMatchHistoryIds(filters)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the match ids: %w", err)
@@ -193,19 +193,19 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters map[string]any) (dto.Matc
 }
 
 // GetPlayerStats returns the player stats for a given player.
-func (ps *PlayerService) GetPlayerStats(filters map[string]any) (dto.FullPlayerStats, error) {
+func (ps *PlayerService) GetPlayerStats(filters *filters.PlayerStatsFilter) (dto.FullPlayerStats, error) {
 	// Convert to string.
 	// Received through path params.
-	name := filters["gameName"].(string)
-	tag := filters["gameTag"].(string)
-	region := filters["region"].(string)
+	name := filters.GameName
+	tag := filters.GameTag
+	region := filters.Region
 
 	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find the playerId: %w", err)
 	}
 
-	filters["playerId"] = playerId
+	filters.PlayerId = &playerId
 	playerStats, err := ps.PlayerRepository.GetPlayerStats(filters)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the player stats: %w", err)

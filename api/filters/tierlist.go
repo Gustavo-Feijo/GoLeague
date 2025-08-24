@@ -1,40 +1,56 @@
 package filters
 
 import (
-	"strings"
+	tiervalues "goleague/pkg/riotvalues/tier"
 )
 
 // Query parameters for the tierlist filters.
 type TierlistQueryParams struct {
-	Tier  string `form:"tier"`
-	Rank  string `form:"rank"`
-	Queue int    `form:"queue"`
+	Tier      string `form:"tier"`
+	Rank      string `form:"rank"`
+	Queue     int    `form:"queue"`
+	AboveTier bool   `form:"above_tiers"`
 }
 
-// Get the query parameters as a map.
-func (q *TierlistQueryParams) AsMap() map[string]any {
-	filters := make(map[string]any)
+type TierlistFilter struct {
+	Tier          string
+	GetTiersAbove bool
+	NumericTier   int
+	Rank          *string
+	Queue         int
+}
+
+func NewTierlistFilter(params TierlistQueryParams) *TierlistFilter {
+	filters := &TierlistFilter{
+		GetTiersAbove: false,
+		NumericTier:   0,
+	}
 
 	// Only add non-empty filters.
-	if q.Tier != "" {
-		tierValue := q.Tier
+	if params.Tier != "" {
+		filters.Tier = params.Tier
+	}
 
-		// Verify if it's getting a specific tier or all tiers above it.
-		if strings.HasSuffix(tierValue, "+") {
-			tierValue = strings.TrimSuffix(tierValue, "+")
-			filters["tier_higher"] = true
+	if params.Rank != "" {
+		filters.Rank = &params.Rank
+	}
+
+	if params.Queue != 0 {
+		filters.Queue = params.Queue
+	}
+
+	if filters.Tier != "" {
+		var rank string
+		if filters.Rank == nil {
+			rank = "I"
+		} else {
+			rank = *filters.Rank
 		}
 
-		filters["tier"] = tierValue
+		filters.NumericTier = tiervalues.CalculateRank(filters.Tier, rank, 0)
 	}
 
-	if q.Rank != "" {
-		filters["rank"] = q.Rank
-	}
-
-	if q.Queue != 0 {
-		filters["queue"] = q.Queue
-	}
+	filters.GetTiersAbove = params.AboveTier
 
 	return filters
 }

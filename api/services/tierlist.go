@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"goleague/api/cache"
 	"goleague/api/dto"
+	"goleague/api/filters"
 	"goleague/api/repositories"
 	"goleague/pkg/redis"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -56,7 +55,7 @@ func NewTierlistService(deps *TierlistServiceDeps) (*TierlistService, error) {
 }
 
 // GetTierlist get the tierlist based on the filters.
-func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*dto.FullTierlist, error) {
+func (ts *TierlistService) GetTierlist(filters *filters.TierlistFilter) ([]*dto.FullTierlist, error) {
 	key := ts.getTierlistKey(filters)
 
 	// Get a instance of the memory cache and retrieve the key.
@@ -141,19 +140,21 @@ func (ts *TierlistService) GetTierlist(filters map[string]any) ([]*dto.FullTierl
 }
 
 // getTierList generates the cache key.
-func (ts *TierlistService) getTierlistKey(filters map[string]any) string {
+func (ts *TierlistService) getTierlistKey(filters *filters.TierlistFilter) string {
 	var builder strings.Builder
 	builder.WriteString("tierlist")
 
-	keys := make([]string, 0, len(filters))
-	for k := range filters {
-		keys = append(keys, k)
+	if filters.Queue != 0 {
+		builder.WriteString(":queue_" + strconv.Itoa(filters.Queue))
 	}
-	sort.Strings(keys)
 
-	for _, key := range keys {
-		filter := fmt.Sprintf(":%s_%v", key, filters[key])
-		builder.WriteString(filter)
+	if filters.NumericTier != 0 {
+		builder.WriteString(":tier_" + strconv.Itoa(filters.NumericTier))
 	}
+
+	if filters.GetTiersAbove {
+		builder.WriteString(":with_higher_tiers")
+	}
+
 	return builder.String()
 }

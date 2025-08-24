@@ -3,6 +3,7 @@ package repositories
 import (
 	"errors"
 	"fmt"
+	"goleague/api/filters"
 	"goleague/fetcher/regions"
 	"goleague/pkg/database/models"
 	"strings"
@@ -15,10 +16,10 @@ const searchLimit = 20
 
 // PlayerRepository is the public interface for accessing the player repository.
 type PlayerRepository interface {
-	SearchPlayer(filters map[string]any) ([]*models.PlayerInfo, error)
+	SearchPlayer(filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error)
 	GetPlayerIdByNameTagRegion(name string, tag string, region string) (uint, error)
-	GetPlayerMatchHistoryIds(filters map[string]any) ([]uint, error)
-	GetPlayerStats(filters map[string]any) ([]*RawPlayerStatsStruct, error)
+	GetPlayerMatchHistoryIds(filters *filters.PlayerMatchHistoryFilter) ([]uint, error)
+	GetPlayerStats(filters *filters.PlayerStatsFilter) ([]*RawPlayerStatsStruct, error)
 }
 
 // playerRepository repository structure.
@@ -47,13 +48,16 @@ type RawPlayerStatsStruct struct {
 }
 
 // SearchPlayer searchs a given player by it's name, tag and region.
-func (ps *playerRepository) SearchPlayer(filters map[string]any) ([]*models.PlayerInfo, error) {
+func (ps *playerRepository) SearchPlayer(filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error) {
+	if filters == nil {
+		return nil, fmt.Errorf("filters cannot be nil")
+	}
 	var players []*models.PlayerInfo
 	query := ps.db
 
-	name := strings.TrimSpace(filters["name"].(string))
-	tag := strings.TrimSpace(filters["tag"].(string))
-	region := strings.TrimSpace(filters["region"].(string))
+	name := strings.TrimSpace(filters.Name)
+	tag := strings.TrimSpace(filters.Tag)
+	region := strings.TrimSpace(filters.Region)
 
 	// Add the search parameters only if the respective value was passed.
 	if name != "" {
@@ -74,7 +78,7 @@ func (ps *playerRepository) SearchPlayer(filters map[string]any) ([]*models.Play
 	query = query.Order("riot_id_game_name asc")
 
 	query = query.Model(&models.PlayerInfo{}).
-		Select("id, riot_id_game_name as name, profile_icon, puuid, region, summoner_level, riot_id_tagline as tag")
+		Select("id, riot_id_game_name, profile_icon, puuid, region, summoner_level, riot_id_tagline")
 	if err := query.Find(&players).Error; err != nil {
 		return nil, err
 	}
@@ -83,29 +87,30 @@ func (ps *playerRepository) SearchPlayer(filters map[string]any) ([]*models.Play
 }
 
 // GetPlayerMatchHistoryIds returns the internal ids of the matches that a given player played.
-func (ps *playerRepository) GetPlayerMatchHistoryIds(filters map[string]any) ([]uint, error) {
+func (ps *playerRepository) GetPlayerMatchHistoryIds(filters *filters.PlayerMatchHistoryFilter) ([]uint, error) {
+	if filters == nil {
+		return nil, fmt.Errorf("filters cannot be nil")
+	}
 	var ids []uint
 
 	defaultLimit := 10
-	playerId := filters["playerId"]
-	queueId, queueSetted := filters["queue"]
+	playerId := filters.PlayerId
+	queueId := filters.Queue
 
 	query := ps.db.Model(&models.MatchInfo{}).
 		Select("match_infos.id").
 		Joins("JOIN match_stats ms on match_infos.id=ms.match_id").
 		Where("ms.player_id = ?", playerId)
 
-	if queueSetted && queueId != 0 {
+	if queueId != 0 {
 		query = query.Where("match_infos.queue_id = ?", queueId)
 	}
 
 	query = query.Limit(defaultLimit)
 
-	offset, hasOffset := filters["page"]
-	if hasOffset {
-		if page, ok := offset.(int); ok {
-			query = query.Offset(page * defaultLimit)
-		}
+	offset := filters.Page
+	if offset != 0 {
+		query = query.Offset(filters.Page * defaultLimit)
 	}
 
 	err := query.Pluck("id", &ids).Error
@@ -117,17 +122,20 @@ func (ps *playerRepository) GetPlayerMatchHistoryIds(filters map[string]any) ([]
 }
 
 // GetPlayerStats returns the raw player stats.
-func (ps *playerRepository) GetPlayerStats(filters map[string]any) ([]*RawPlayerStatsStruct, error) {
+func (ps *playerRepository) GetPlayerStats(filters *filters.PlayerStatsFilter) ([]*RawPlayerStatsStruct, error) {
+	if filters == nil {
+		return nil, fmt.Errorf("filters cannot be nil")
+	}
 	var playerStats []*RawPlayerStatsStruct
-	playerId := filters["playerId"]
-	interval := filters["interval"]
+	playerId := filters.PlayerId
+	interval := filters.Interval
 
 	// Set a default interval if not provided.
 	if interval == 0 {
 		interval = 30
 	}
 
-	timeThreshold := time.Now().AddDate(0, 0, -interval.(int))
+	timeThreshold := time.Now().AddDate(0, 0, -interval)
 
 	query := `
 		WITH top_champions AS (

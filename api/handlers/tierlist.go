@@ -5,7 +5,6 @@ import (
 	"goleague/api/filters"
 	"goleague/api/services"
 	"goleague/pkg/redis"
-	tiervalues "goleague/pkg/riotvalues/tier"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -41,18 +40,10 @@ func (h *TierlistHandler) GetTierlist(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	filtersMap := qp.AsMap()
 
-	if tier, exists := filtersMap["tier"]; exists {
-		rank, exists := filtersMap["rank"]
-		if !exists {
-			rank = "I"
-		}
-		delete(filtersMap, "rank")
-		filtersMap["tier"] = tiervalues.CalculateRank(tier.(string), rank.(string), 0)
-	}
+	filters := filters.NewTierlistFilter(qp)
 
-	result, err := h.tierlistService.GetTierlist(filtersMap)
+	result, err := h.tierlistService.GetTierlist(filters)
 	if err != nil {
 		if err.Error() == "cache failed" {
 			c.JSON(http.StatusOK, gin.H{"result": result})

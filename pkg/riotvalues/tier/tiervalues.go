@@ -95,3 +95,20 @@ func CalculateInverseRank(value int) string {
 
 	return fmt.Sprintf("%s %s", tier, rankNames[rankIndex])
 }
+
+// GetTierLimits returns the lower and upper limits of a given tier.
+func GetTierLimits(tier string) (int, int) {
+	// Normalize the tier entry.
+	tier = strings.ToUpper(tier)
+	tier = strings.TrimSpace(tier)
+
+	baseValue, exists := tierValues[tier]
+	if !exists {
+		return 0, 0 // Unknown tier
+	}
+
+	tierIndex := slices.Index(tierNames, tier)
+
+	nextTier := tierNames[tierIndex+1]
+	return baseValue, tierValues[nextTier] - 1
+}
