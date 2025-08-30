@@ -110,7 +110,7 @@ func (ts *TierlistService) GetTierlist(filters *filters.TierlistFilter) ([]*dto.
 		// Get a copy of the champion on the cache.
 		championData, err := ts.championCache.GetChampionCopy(championCtx, strconv.Itoa(entry.ChampionId), repo)
 		if err != nil {
-			fullResult[index].Champion = map[string]any{"ID": strconv.Itoa(entry.ChampionId)}
+			fullResult[index].Champion = map[string]any{"id": strconv.Itoa(entry.ChampionId)}
 			cacheFailed = true
 			continue
 		}

@@ -17,8 +17,10 @@ const searchLimit = 20
 // PlayerRepository is the public interface for accessing the player repository.
 type PlayerRepository interface {
 	SearchPlayer(filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error)
+	GetPlayerById(playerId uint) (*models.PlayerInfo, error)
 	GetPlayerIdByNameTagRegion(name string, tag string, region string) (uint, error)
 	GetPlayerMatchHistoryIds(filters *filters.PlayerMatchHistoryFilter) ([]uint, error)
+	GetPlayerRatingsById(playerId uint) ([]models.RatingEntry, error)
 	GetPlayerStats(filters *filters.PlayerStatsFilter) ([]*RawPlayerStatsStruct, error)
 }
 
@@ -61,15 +63,15 @@ func (ps *playerRepository) SearchPlayer(filters *filters.PlayerSearchFilter) ([
 
 	// Add the search parameters only if the respective value was passed.
 	if name != "" {
-		query = query.Where("LOWER(riot_id_game_name) LIKE LOWER(?)", name+"%")
+		query = query.Where("riot_id_game_name LIKE ?", name+"%")
 	}
 
 	if tag != "" {
-		query = query.Where("LOWER(riot_id_tagline) LIKE LOWER(?)", tag+"%")
+		query = query.Where("riot_id_tagline LIKE ?", tag+"%")
 	}
 
 	if region != "" {
-		query = query.Where("LOWER(region) = LOWER(?)", region)
+		query = query.Where("region = ?", region)
 	}
 
 	// Handle empty names and add limit.
@@ -223,12 +225,12 @@ func (ps *playerRepository) GetPlayerIdByNameTagRegion(name string, tag string, 
 	if err := ps.db.
 		Model(&models.PlayerInfo{}).
 		Select("id").
-		Where("LOWER(riot_id_game_name) = LOWER(?) AND LOWER(riot_id_tagline) = LOWER(?) AND region = ?", name, tag, formattedRegion).
+		Where("riot_id_game_name = ? AND riot_id_tagline = ? AND region = ?", name, tag, formattedRegion).
 		First(&id).Error; err != nil {
 
 		// If the record was not found, doesn't need to return an error.
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, nil
+			return 0, fmt.Errorf("player not found: %v", err)
 		}
 
 		// Other database error.
@@ -236,4 +238,31 @@ func (ps *playerRepository) GetPlayerIdByNameTagRegion(name string, tag string, 
 	}
 
 	return id, nil
+}
+
+// GetPlayerInfo returns all the player information.
+func (ps *playerRepository) GetPlayerById(playerId uint) (*models.PlayerInfo, error) {
+	var player models.PlayerInfo
+	if err := ps.db.Where(&models.PlayerInfo{ID: playerId}).First(&player).Error; err != nil {
+		return nil, fmt.Errorf("couldn't get the player by the ID: %v", err)
+	}
+
+	return &player, nil
+}
+
+// GetPlayerRatingById returns all the rating information regarding a player.
+func (ps *playerRepository) GetPlayerRatingsById(playerId uint) ([]models.RatingEntry, error) {
+	var ratings []models.RatingEntry
+	err := ps.db.Raw(`
+    SELECT DISTINCT ON (queue, region) *
+    	FROM rating_entries
+    	WHERE player_id = ?
+    	ORDER BY queue, region, id DESC
+	`, playerId).Scan(&ratings).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get latest ratings: %v", err)
+	}
+
+	return ratings, nil
 }

@@ -78,3 +78,34 @@ func NewPlayerStatsFilter(qp PlayerStatsParams, pp *PlayerURIParams) *PlayerStat
 		Region:   pp.Region,
 	}
 }
+
+// PlayerForceFetchMatchList is the struct for a force fetch match list call.
+type PlayerForceFetchMatchListFilter struct {
+	GameName string
+	GameTag  string
+	Region   string
+}
+
+func NewForceFetchMatchHistoryFilter(pp *PlayerURIParams) *PlayerForceFetchMatchListFilter {
+	return &PlayerForceFetchMatchListFilter{
+		GameName: pp.GameName,
+		GameTag:  pp.GameTag,
+		Region:   pp.Region,
+	}
+}
+
+// PlayerInfoFilter is the simple struct for holding player info filters.
+type PlayerInfoFilter struct {
+	GameName string
+	GameTag  string
+	Region   string
+	PlayerId *uint
+}
+
+func NewPlayerInfoFilter(pp *PlayerURIParams) *PlayerInfoFilter {
+	return &PlayerInfoFilter{
+		GameName: pp.GameName,
+		GameTag:  pp.GameTag,
+		Region:   pp.Region,
+	}
+}

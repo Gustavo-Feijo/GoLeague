@@ -10,12 +10,13 @@ import (
 	"goleague/api/dto"
 	"goleague/api/filters"
 	"goleague/api/repositories"
+	"goleague/pkg/redis"
 	"strconv"
 	"strings"
 	"time"
 
 	pb "goleague/pkg/grpc"
-	"goleague/pkg/redis"
+
 	tiervalues "goleague/pkg/riotvalues/tier"
 
 	"google.golang.org/grpc"
@@ -192,10 +193,59 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHisto
 	return formatedPreviews, nil
 }
 
+func (ps *PlayerService) GetPlayerInfo(filters *filters.PlayerInfoFilter) (*dto.FullPlayerInfo, error) {
+	name := filters.GameName
+	tag := filters.GameTag
+	region := filters.Region
+
+	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find the playerId: %w", err)
+	}
+
+	playerInfo, err := ps.PlayerRepository.GetPlayerById(playerId)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get the player info: %w", err)
+	}
+
+	playerRatings, err := ps.PlayerRepository.GetPlayerRatingsById(playerId)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get the player rating: %w", err)
+	}
+
+	fullPlayerInfo := dto.FullPlayerInfo{
+		Id:            playerInfo.ID,
+		Name:          playerInfo.RiotIdGameName,
+		ProfileIcon:   playerInfo.ProfileIcon,
+		Puuid:         playerInfo.Puuid,
+		Region:        string(playerInfo.Region),
+		SummonerLevel: playerInfo.SummonerLevel,
+		Tag:           playerInfo.RiotIdTagline,
+	}
+
+	if len(playerRatings) > 0 {
+		ratings := make([]dto.RatingInfo, len(playerRatings))
+
+		for key, rating := range playerRatings {
+			ratings[key] = dto.RatingInfo{
+				LeaguePoints: rating.LeaguePoints,
+				Losses:       rating.Losses,
+				Queue:        rating.Queue,
+				Rank:         rating.Rank,
+				Region:       string(rating.Region),
+				Tier:         rating.Tier,
+				Wins:         rating.Wins,
+			}
+		}
+
+		fullPlayerInfo.Rating = ratings
+	}
+
+	return &fullPlayerInfo, nil
+}
+
 // GetPlayerStats returns the player stats for a given player.
 func (ps *PlayerService) GetPlayerStats(filters *filters.PlayerStatsFilter) (dto.FullPlayerStats, error) {
-	// Convert to string.
-	// Received through path params.
 	name := filters.GameName
 	tag := filters.GameTag
 	region := filters.Region
@@ -312,7 +362,7 @@ func (ps *PlayerService) ForceFetchPlayer(filters *filters.PlayerURIParams) (*pb
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
-func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters *filters.PlayerURIParams) (*pb.MatchHistoryFetchNotification, error) {
+func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters *filters.PlayerForceFetchMatchListFilter) (*pb.MatchHistoryFetchNotification, error) {
 	rateLimitKey := ps.createPlayerRateLimitKey(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player_matches")
 	redisCtx, cancelRedis := context.WithTimeout(context.Background(), time.Second)
 	defer cancelRedis()

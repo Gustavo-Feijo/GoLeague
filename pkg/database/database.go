@@ -72,9 +72,9 @@ func CreateCustomIndexes(db *gorm.DB) error {
 	// Creates a index for improving player searching time.
 	searchIndex := `
 		CREATE INDEX IF NOT EXISTS idx_player_search_all ON player_infos (
-		  lower(region), 
+		  region, 
 		  riot_id_game_name text_pattern_ops, 
-		  lower(riot_id_tagline) text_pattern_ops
+		  riot_id_tagline text_pattern_ops
 		) WHERE riot_id_game_name != '';`
 	return db.Exec(searchIndex).Error
 }

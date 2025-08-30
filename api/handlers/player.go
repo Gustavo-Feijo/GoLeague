@@ -68,7 +68,9 @@ func (h *PlayerHandler) ForceFetchPlayerMatchHistory(c *gin.Context) {
 		return
 	}
 
-	confirm, err := h.playerService.ForceFetchPlayerMatchHistory(pp)
+	filters := filters.NewForceFetchMatchHistoryFilter(pp)
+
+	confirm, err := h.playerService.ForceFetchPlayerMatchHistory(filters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -151,4 +153,24 @@ func (h *PlayerHandler) GetPlayerStats(c *gin.Context) {
 
 // GetPlayerElo handles rating related data from a player.
 func (h *PlayerHandler) GetPlayerElo(c *gin.Context) {
+}
+
+// GetPlayerInfo handles getting all the player related data.
+func (h *PlayerHandler) GetPlayerInfo(c *gin.Context) {
+	// Path params.
+	pp, err := h.bindURIParams(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	filters := filters.NewPlayerInfoFilter(pp)
+
+	playerInfo, err := h.playerService.GetPlayerInfo(filters)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"result": playerInfo})
 }
