@@ -12,10 +12,3 @@ type LeagueEntry struct {
 	Tier         *string `json:"tier,omitempty"`
 	Wins         int     `json:"wins"`
 }
-
-// HighEloLeagueEntry come in a very similar way.
-// Only having some outer keys.
-type HighEloLeagueEntry struct {
-	Entries []LeagueEntry `json:"entries"`
-	Tier    string        `json:"tier"`
-}

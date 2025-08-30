@@ -37,20 +37,6 @@ func NewSubLeagueFetcher(limiter *gomultirate.RateLimiter, region string) *SubLe
 	}
 }
 
-// Get a given high elo league page.
-// Used only for  job  requests, since it would not be necessary to get a given page at demand.
-func (l *SubLeagueFetcher) GetHighEloLeagueEntries(tier string, queue string) (*HighEloLeagueEntry, error) {
-	// Wait for job.
-	ctx := context.Background()
-	l.limiter.WaitEvenly(ctx, "job")
-
-	// Format the URL and create the params.
-	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league/v4/%sleagues/by-queue/%s",
-		l.region, strings.ToLower(tier), queue)
-
-	return requests.HandleAuthRequest[*HighEloLeagueEntry](url, "GET", map[string]string{})
-}
-
 // Get a given league page.
 // Used only for  job  requests, since it would not be necessary to get a given page at demand.
 func (l *SubLeagueFetcher) GetLeagueEntries(tier string, rank string, queue string, page int) ([]LeagueEntry, error) {
@@ -60,7 +46,7 @@ func (l *SubLeagueFetcher) GetLeagueEntries(tier string, rank string, queue stri
 
 	// Format the URL and create the params.
 	// Riot only accept upper case on this entries.
-	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league/v4/entries/%s/%s/%s?page=%d",
+	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league-exp/v4/entries/%s/%s/%s?page=%d",
 		l.region, queue, strings.ToUpper(tier), strings.ToUpper(rank), page)
 
 	return requests.HandleAuthRequest[[]LeagueEntry](url, "GET", map[string]string{})

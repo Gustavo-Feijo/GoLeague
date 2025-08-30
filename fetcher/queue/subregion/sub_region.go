@@ -12,11 +12,11 @@ import (
 
 // SubRegionQueueConfig is the configuration for the queues that will be executed.
 type SubRegionQueueConfig struct {
-	Ranks         []string
-	HighElos      []string
 	Queues        []string
+	Ranks         []string
 	SleepDuration time.Duration
-	Tiers         []string
+	TierOrder     []string
+	Tiers         map[string][]string
 }
 
 // SubRegionQueue is the type for the sub region main process.
@@ -30,11 +30,12 @@ type SubRegionQueue struct {
 // NewDefaultQueueConfig returns a default configuration for the sub region.
 func NewDefaultQueueConfig() *SubRegionQueueConfig {
 	return &SubRegionQueueConfig{
-		Ranks:         []string{"I", "II", "III", "IV"},
-		HighElos:      []string{"challenger", "grandmaster", "master"},
 		Queues:        []string{"RANKED_SOLO_5x5", "RANKED_FLEX_SR"},
 		SleepDuration: 60 * time.Minute,
-		Tiers: []string{
+		TierOrder: []string{
+			"CHALLENGER",
+			"GRANDMASTER",
+			"MASTER",
 			"DIAMOND",
 			"EMERALD",
 			"PLATINUM",
@@ -42,6 +43,18 @@ func NewDefaultQueueConfig() *SubRegionQueueConfig {
 			"SILVER",
 			"BRONZE",
 			"IRON",
+		},
+		Tiers: map[string][]string{
+			"CHALLENGER":  {"I"},
+			"GRANDMASTER": {"I"},
+			"MASTER":      {"I"},
+			"DIAMOND":     {"I", "II", "III", "IV"},
+			"EMERALD":     {"I", "II", "III", "IV"},
+			"PLATINUM":    {"I", "II", "III", "IV"},
+			"GOLD":        {"I", "II", "III", "IV"},
+			"SILVER":      {"I", "II", "III", "IV"},
+			"BRONZE":      {"I", "II", "III", "IV"},
+			"IRON":        {"I", "II", "III", "IV"},
 		},
 	}
 }
@@ -93,33 +106,17 @@ func (q *SubRegionQueue) Run() {
 // processQueues process the leagues for the SoloDuo and Flex queue.
 func (q *SubRegionQueue) processQueues() {
 	for _, queue := range q.config.Queues {
-		q.processHighElo(queue)
 		q.processLeagues(queue)
-	}
-}
-
-// processHighElo process the high elo leagues.
-func (q *SubRegionQueue) processHighElo(queue string) {
-	// Go through each high elo entry.
-	for _, highElo := range q.config.HighElos {
-
-		// Add the start for the logger.
-		q.logger.EmptyLine()
-		q.logger.Infof("Starting fetching on %s: Queue(%s)", highElo, queue)
-		q.logger.EmptyLine()
-		if err := q.service.ProcessHighElo(highElo, queue); err != nil {
-			q.logger.Errorf("Couldn't process the high elo %s for the queue %s on region %s: %v", highElo, queue, q.subRegion, err)
-			continue
-		}
 	}
 }
 
 // processLeagues process each league and sub rank.
 func (q *SubRegionQueue) processLeagues(queue string) {
 	// Loop through each available tier.
-	for _, tier := range q.config.Tiers {
+	for _, tier := range q.config.TierOrder {
+		ranks := q.config.Tiers[tier]
 		// Loop through each available rank.
-		for _, rank := range q.config.Ranks {
+		for _, rank := range ranks {
 			q.logger.EmptyLine()
 			q.logger.Infof("Starting fetching on %s-%s: Queue(%s)", tier, rank, queue)
 			q.logger.EmptyLine()

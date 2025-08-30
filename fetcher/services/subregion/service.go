@@ -69,18 +69,6 @@ func (s *SubRegionService) GetLogger() *logger.NewLogger {
 	return s.logger
 }
 
-// ProcessHighElo processes high elo leagues.
-func (s *SubRegionService) ProcessHighElo(highElo string, queue string) error {
-	// Get the data from the Riot API.
-	entries, err := s.leagueService.GetHighEloLeagueEntries(highElo, queue)
-	if err != nil {
-		return err
-	}
-
-	// Process the batch.
-	return s.batchService.ProcessBatchEntry(entries, queue)
-}
-
 // ProcessLeagueRank processes a specific tier and rank.
 func (s *SubRegionService) ProcessLeagueRank(tier string, rank string, queue string) error {
 	// Starting page.
