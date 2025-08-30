@@ -15,29 +15,30 @@ import (
 
 // Get the champion from the datadragon based on it's key.
 // If a champion key is passed, also return the given champion.
-func RevalidateChampionCache(redis *redis.RedisClient, db *gorm.DB, language string, championId string) (*champion.Champion, error) {
+func RevalidateChampionCache(redis *redis.RedisClient, db *gorm.DB, language string) error {
 	repo, _ := repositories.NewCacheRepository(db)
 
 	// Get the latest version.
 	// Usually only GetLatestVersion should be used to get the current running latest.
 	// But we are using GetNewVersion to also revalidate the versions.
-	latestVersion := ""
+	var latestVersion *string
 	versions, err := GetNewVersion(redis)
 	if err != nil {
-		latestVersion, err = GetLatestVersion(redis)
-		if err != nil {
-			log.Fatalf("Can't get the latest version: %v", err)
-		}
+		latestVersion = GetLatestVersion(redis)
 	} else {
-		latestVersion = versions[0]
+		latestVersion = &versions[0]
+	}
+
+	if latestVersion == nil {
+		log.Fatalf("couldn't get the latest version")
 	}
 
 	// Format the champion api url.
-	url := fmt.Sprintf("%scdn/%s/data/%s/champion.json", ddragon, latestVersion, language)
+	url := fmt.Sprintf("%scdn/%s/data/%s/champion.json", ddragon, *latestVersion, language)
 	fmt.Println(url)
 	resp, err := requests.Request(url, "GET")
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get the current version: %v", err)
+		return fmt.Errorf("couldn't get the current version: %v", err)
 	}
 
 	defer resp.Body.Close()
@@ -45,7 +46,7 @@ func RevalidateChampionCache(redis *redis.RedisClient, db *gorm.DB, language str
 	// Read the champion json.
 	var championsData fullChampion
 	if err := json.NewDecoder(resp.Body).Decode(&championsData); err != nil {
-		return nil, fmt.Errorf("couldn't convert the body to json: %v", err)
+		return fmt.Errorf("couldn't convert the body to json: %v", err)
 	}
 
 	var wg sync.WaitGroup
@@ -73,35 +74,24 @@ func RevalidateChampionCache(redis *redis.RedisClient, db *gorm.DB, language str
 	close(championKeys)
 	wg.Wait()
 
-	// Handle the case where a champion is being explicitly fetched.
-	if championId != "" {
-
-		// Get the redis client to read the champion.
-		championReturn, err := redis.Get(ctx, championPrefix+championId)
-		if err != nil {
-			return nil, fmt.Errorf("can't get the new fetched champion from the redis client: %v", err)
-		}
-
-		// Get the champion from the json and return it.
-		champ := &champion.Champion{}
-		if err := json.Unmarshal([]byte(championReturn), &champ); err != nil {
-			return nil, fmt.Errorf("can't parse the stored champion json: %v", err)
-		}
-		return champ, nil
-	}
-
-	// No error occurred and return in not requested.
-	return nil, nil
+	return nil
 }
 
 func RevalidateSingleChampionByKey(redis *redis.RedisClient, language string, championKey string, repo repositories.CacheRepository) (*champion.Champion, error) {
-	latestVersion, err := GetLatestVersion(redis)
+	var latestVersion *string
+	versions, err := GetNewVersion(redis)
 	if err != nil {
-		log.Fatalf("Can't get the latest version: %v", err)
+		latestVersion = GetLatestVersion(redis)
+	} else {
+		latestVersion = &versions[0]
+	}
+
+	if latestVersion == nil {
+		log.Fatalf("couldn't get the latest version")
 	}
 
 	// Format the champion api url.
-	url := fmt.Sprintf("%scdn/%s/data/%s/champion/%s.json", ddragon, latestVersion, language, championKey)
+	url := fmt.Sprintf("%scdn/%s/data/%s/champion/%s.json", ddragon, *latestVersion, language, championKey)
 	resp, err := requests.Request(url, "GET")
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the champion: %v", err)
@@ -155,17 +145,13 @@ func RevalidateSingleChampionByKey(redis *redis.RedisClient, language string, ch
 	// The champion key on the redis cache.
 	keyWithId := fmt.Sprint(championPrefix, champ.ID)
 
-	// Get the client and set the champion.
-	if err := redis.Set(ctx, keyWithId, champJson, 0); err != nil {
-		if repo != nil {
-			repo.Setkey(keyWithId, string(champJson))
-		}
-		return nil, fmt.Errorf("can't set the champion json on redis: %v", err)
-	}
-
-	// Set the key on the database. Fallback.
 	if repo != nil {
 		repo.Setkey(keyWithId, string(champJson))
+	}
+
+	// Get the client and set the champion.
+	if err := redis.Set(ctx, keyWithId, champJson, 0); err != nil {
+		return nil, fmt.Errorf("can't set the champion json on redis: %v", err)
 	}
 
 	return champ, nil

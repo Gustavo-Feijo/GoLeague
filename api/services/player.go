@@ -10,6 +10,7 @@ import (
 	"goleague/api/dto"
 	"goleague/api/filters"
 	"goleague/api/repositories"
+	"goleague/pkg/messages"
 	"goleague/pkg/redis"
 	"strconv"
 	"strings"
@@ -89,7 +90,7 @@ func (ps *PlayerService) checkRateLimit(ctx context.Context, rateLimitKey string
 	if !lockAcquired {
 		ttl, err := ps.redis.TTL(ctx, rateLimitKey).Result()
 		if err != nil {
-			return fmt.Errorf("operation already in progress, please wait")
+			return fmt.Errorf(messages.OperationInProgress)
 		}
 
 		switch {
@@ -98,11 +99,11 @@ func (ps *PlayerService) checkRateLimit(ctx context.Context, rateLimitKey string
 			return fmt.Errorf("request conflict detected, please retry")
 		case ttl == -1:
 			// Key exists but no expiration
-			return fmt.Errorf("operation already in progress, please wait")
+			return fmt.Errorf(messages.OperationInProgress)
 		case ttl > 0:
 			return fmt.Errorf("operation already in progress, try again in %d seconds", int(ttl.Seconds()))
 		default:
-			return fmt.Errorf("operation already in progress, please wait")
+			return fmt.Errorf(messages.OperationInProgress)
 		}
 	}
 
@@ -142,7 +143,7 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHisto
 
 	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find the playerId: %w", err)
+		return nil, fmt.Errorf(messages.CouldNotFindId+": %w", "player", err)
 	}
 
 	filters.PlayerId = &playerId
@@ -200,7 +201,7 @@ func (ps *PlayerService) GetPlayerInfo(filters *filters.PlayerInfoFilter) (*dto.
 
 	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find the playerId: %w", err)
+		return nil, fmt.Errorf(messages.CouldNotFindId+": %w", "player", err)
 	}
 
 	playerInfo, err := ps.PlayerRepository.GetPlayerById(playerId)
@@ -252,7 +253,7 @@ func (ps *PlayerService) GetPlayerStats(filters *filters.PlayerStatsFilter) (dto
 
 	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find the playerId: %w", err)
+		return nil, fmt.Errorf(messages.CouldNotFindId+": %w", "player", err)
 	}
 
 	filters.PlayerId = &playerId
@@ -268,126 +269,74 @@ func (ps *PlayerService) GetPlayerStats(filters *filters.PlayerStatsFilter) (dto
 	playerStatsDto := make(dto.FullPlayerStats)
 
 	for _, stats := range playerStats {
-		var champion string
-		var lane string
-		var queue string
-
-		// Handle value conversion.
-		if stats.ChampionId == -1 {
-			champion = "ALL"
-		} else {
-			champion = strconv.Itoa(stats.ChampionId)
-		}
-
-		if stats.TeamPosition == "" || stats.TeamPosition == "ALL" {
-			lane = "ALL"
-		} else {
-			lane = stats.TeamPosition
-		}
-
-		if stats.QueueId == -1 {
-			queue = "ALL"
-		} else {
-			queue = strconv.Itoa(stats.QueueId)
-		}
-
-		// Initialize the queue entry if it doesn't exist
-		if playerStatsDto[queue] == nil {
-			playerStatsDto[queue] = &dto.PlayerStatsQueue{
-				Unfiltered:   nil,
-				ChampionData: make(map[string]*dto.StatsEntry),
-				LaneData:     make(map[string]*dto.StatsEntry),
-			}
-		}
-
-		entry := &dto.StatsEntry{
-			AverageAssists: stats.AverageAssists,
-			AverageDeaths:  stats.AverageDeaths,
-			AverageKills:   stats.AverageKills,
-			CsPerMin:       stats.CsPerMin,
-			KDA:            stats.KDA,
-			Matches:        stats.Matches,
-			WinRate:        stats.WinRate,
-		}
-
-		// Only add the entries with no champion or lane filter.
-		if stats.AggregationLevel == "by_queue" || stats.AggregationLevel == "overall" {
-			playerStatsDto[queue].Unfiltered = entry
-			continue
-		}
-
-		// Add the stats entries
-		if champion != "ALL" {
-			playerStatsDto[queue].ChampionData[champion] = entry
-		}
-
-		if lane != "ALL" {
-			playerStatsDto[queue].LaneData[lane] = entry
-		}
+		parsePlayerStats(playerStatsDto, stats)
 	}
 
 	return playerStatsDto, nil
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
-func (ps *PlayerService) ForceFetchPlayer(filters *filters.PlayerURIParams) (*pb.Summoner, error) {
-	rateLimitKey := ps.createPlayerRateLimitKey(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player")
-	redisCtx, cancelRedis := context.WithTimeout(context.Background(), time.Second)
-	defer cancelRedis()
-	if err := ps.checkRateLimit(redisCtx, rateLimitKey, time.Minute*5); err != nil {
+func (ps *PlayerService) ForceFetchPlayer(filters *filters.PlayerForceFetchFilter) (*pb.Summoner, error) {
+	client := pb.NewServiceClient(ps.grpcClient)
+
+	grpcCall := func(ctx context.Context, req *pb.SummonerRequest) (any, error) {
+		return client.FetchSummonerData(ctx, req)
+	}
+
+	resp, err := ps.executeSummonerGRPCCall(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player", grpcCall)
+	if err != nil {
 		return nil, err
 	}
 
-	client := pb.NewServiceClient(ps.grpcClient)
-
-	request := &pb.SummonerRequest{
-		GameName: filters.GameName,
-		TagLine:  filters.GameTag,
-		Region:   filters.Region,
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	// Make the request
-	resp, err := client.FetchSummonerData(ctx, request)
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			return nil, fmt.Errorf("couldn't force fetch the player: %w", errors.New(st.Message()))
-		}
-		return nil, fmt.Errorf("couldn't force fetch the player: %w", err)
-	}
-
-	return resp, nil
+	return resp.(*pb.Summoner), nil
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
 func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters *filters.PlayerForceFetchMatchListFilter) (*pb.MatchHistoryFetchNotification, error) {
-	rateLimitKey := ps.createPlayerRateLimitKey(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player_matches")
+	client := pb.NewServiceClient(ps.grpcClient)
+
+	grpcCall := func(ctx context.Context, req *pb.SummonerRequest) (any, error) {
+		return client.FetchMatchHistory(ctx, req)
+	}
+
+	resp, err := ps.executeSummonerGRPCCall(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player_matches", grpcCall)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.(*pb.MatchHistoryFetchNotification), nil
+}
+
+// executeSummonerGRPCCall is a helper to execute any gRPC call for summoner requests.
+func (ps *PlayerService) executeSummonerGRPCCall(
+	gameName string,
+	gameTag string,
+	region string,
+	operation string,
+	grpcCall func(context.Context, *pb.SummonerRequest) (any, error),
+) (any, error) {
+	rateLimitKey := ps.createPlayerRateLimitKey(gameName, gameTag, region, operation)
 	redisCtx, cancelRedis := context.WithTimeout(context.Background(), time.Second)
 	defer cancelRedis()
 	if err := ps.checkRateLimit(redisCtx, rateLimitKey, time.Minute*5); err != nil {
 		return nil, err
 	}
 
-	client := pb.NewServiceClient(ps.grpcClient)
-
 	request := &pb.SummonerRequest{
-		GameName: filters.GameName,
-		TagLine:  filters.GameTag,
-		Region:   filters.Region,
+		GameName: gameName,
+		TagLine:  gameTag,
+		Region:   region,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	// Make the request
-	resp, err := client.FetchMatchHistory(ctx, request)
+	resp, err := grpcCall(ctx, request)
 	if err != nil {
 		st, ok := status.FromError(err)
 		if ok {
-			return nil, fmt.Errorf("couldn't force fetch the player match history: %w", st.Err())
+			return nil, fmt.Errorf("couldn't execute %s: %w", operation, errors.New(st.Message()))
 		}
-		return nil, fmt.Errorf("couldn't force fetch the player match history: %w", err)
+		return nil, fmt.Errorf("couldn't execute %s: %w", operation, err)
 	}
 
 	return resp, nil
@@ -399,63 +348,113 @@ func formatMatchPreviews(rawPreviews []repositories.RawMatchPreview) dto.MatchPr
 
 	// Range through each raw preview and format it.
 	for _, r := range rawPreviews {
-
-		// Initialize the full preview.
-		if _, ok := fullPreview[r.MatchID]; !ok {
-			fullPreview[r.MatchID] = &dto.MatchPreview{
-				Metadata: &dto.MatchPreviewMetadata{
-					AverageElo: tiervalues.CalculateInverseRank(int(r.AverageRating)),
-					Date:       r.Date,
-					Duration:   r.Duration,
-					InternalId: r.InternalId,
-					MatchId:    r.MatchID,
-					QueueId:    r.QueueID,
-				},
-				Data: make([]*dto.MatchPreviewData, 0),
-			}
-		}
-
-		items := make([]int, 0, 6)
-
-		// Add non-null items to the array
-		if r.Item0 != nil && *r.Item0 != 0 {
-			items = append(items, *r.Item0)
-		}
-		if r.Item1 != nil && *r.Item1 != 0 {
-			items = append(items, *r.Item1)
-		}
-		if r.Item2 != nil && *r.Item2 != 0 {
-			items = append(items, *r.Item2)
-		}
-		if r.Item3 != nil && *r.Item3 != 0 {
-			items = append(items, *r.Item3)
-		}
-		if r.Item4 != nil && *r.Item4 != 0 {
-			items = append(items, *r.Item4)
-		}
-		if r.Item5 != nil && *r.Item5 != 0 {
-			items = append(items, *r.Item5)
-		}
-
-		preview := &dto.MatchPreviewData{
-			GameName:      r.RiotIDGameName,
-			Tag:           r.RiotIDTagline,
-			Region:        r.Region,
-			Assists:       r.Assists,
-			Kills:         r.Kills,
-			Deaths:        r.Deaths,
-			ChampionLevel: r.ChampionLevel,
-			ChampionID:    r.ChampionID,
-			TotalCs:       r.TotalMinionsKilled + r.NeutralMinionsKilled,
-			Items:         items,
-			Win:           r.Win,
-			QueueID:       r.QueueID,
-		}
-
-		fullPreview[r.MatchID].Data = append(fullPreview[r.MatchID].Data, preview)
+		parsePreviewData(fullPreview, r)
 	}
 
 	return fullPreview
+}
+
+// parsePlayerStats parse a raw player stats entry to insert into the DTO.
+func parsePlayerStats(playerStatsDto dto.FullPlayerStats, stats repositories.RawPlayerStatsStruct) {
+	var champion string
+	var lane string
+	var queue string
+
+	// Handle value conversion.
+	if stats.ChampionId == -1 {
+		champion = "ALL"
+	} else {
+		champion = strconv.Itoa(stats.ChampionId)
+	}
+
+	if stats.TeamPosition == "" || stats.TeamPosition == "ALL" {
+		lane = "ALL"
+	} else {
+		lane = stats.TeamPosition
+	}
+
+	if stats.QueueId == -1 {
+		queue = "ALL"
+	} else {
+		queue = strconv.Itoa(stats.QueueId)
+	}
+
+	// Initialize the queue entry if it doesn't exist
+	if playerStatsDto[queue] == nil {
+		playerStatsDto[queue] = &dto.PlayerStatsQueue{
+			Unfiltered:   nil,
+			ChampionData: make(map[string]*dto.StatsEntry),
+			LaneData:     make(map[string]*dto.StatsEntry),
+		}
+	}
+
+	entry := &dto.StatsEntry{
+		AverageAssists: stats.AverageAssists,
+		AverageDeaths:  stats.AverageDeaths,
+		AverageKills:   stats.AverageKills,
+		CsPerMin:       stats.CsPerMin,
+		KDA:            stats.KDA,
+		Matches:        stats.Matches,
+		WinRate:        stats.WinRate,
+	}
+
+	// Only add the entries with no champion or lane filter.
+	if stats.AggregationLevel == "by_queue" || stats.AggregationLevel == "overall" {
+		playerStatsDto[queue].Unfiltered = entry
+		return
+	}
+
+	// Add the stats entries
+	if champion != "ALL" {
+		playerStatsDto[queue].ChampionData[champion] = entry
+	}
+
+	if lane != "ALL" {
+		playerStatsDto[queue].LaneData[lane] = entry
+	}
+}
+
+// parsePreviewData simply parse one raw preview entry to a full preview.
+func parsePreviewData(fullPreview dto.MatchPreviewList, r repositories.RawMatchPreview) {
+	// Initialize the full preview.
+	if _, ok := fullPreview[r.MatchID]; !ok {
+		fullPreview[r.MatchID] = &dto.MatchPreview{
+			Metadata: &dto.MatchPreviewMetadata{
+				AverageElo: tiervalues.CalculateInverseRank(int(r.AverageRating)),
+				Date:       r.Date,
+				Duration:   r.Duration,
+				InternalId: r.InternalId,
+				MatchId:    r.MatchID,
+				QueueId:    r.QueueID,
+			},
+			Data: make([]*dto.MatchPreviewData, 0),
+		}
+	}
+
+	rawItems := []*int{r.Item0, r.Item1, r.Item2, r.Item3, r.Item4, r.Item5}
+	items := make([]int, 0, 6)
+	for _, it := range rawItems {
+		if it != nil && *it != 0 {
+			items = append(items, *it)
+		}
+	}
+
+	preview := &dto.MatchPreviewData{
+		GameName:      r.RiotIDGameName,
+		Tag:           r.RiotIDTagline,
+		Region:        r.Region,
+		Assists:       r.Assists,
+		Kills:         r.Kills,
+		Deaths:        r.Deaths,
+		ChampionLevel: r.ChampionLevel,
+		ChampionID:    r.ChampionID,
+		TotalCs:       r.TotalMinionsKilled + r.NeutralMinionsKilled,
+		Items:         items,
+		Win:           r.Win,
+		QueueID:       r.QueueID,
+	}
+
+	fullPreview[r.MatchID].Data = append(fullPreview[r.MatchID].Data, preview)
 }
 
 func handleCachedMatches(cachedMatches []dto.MatchPreview, matchesDto dto.MatchPreviewList) {

@@ -9,20 +9,20 @@ import (
 )
 
 // Get the latest version of the data from the ddragon.
-func GetLatestVersion(redis *redis.RedisClient) (string, error) {
+func GetLatestVersion(redis *redis.RedisClient) *string {
 	// Try to find the latest version in the redis cache.
 	result, err := redis.LIndex(ctx, versionKey, 0).Result()
 	if err == nil {
-		return result, nil
+		return &result
 	}
 
 	// The version was not found, fetch from ddragon.
 	newVersions, err := GetNewVersion(redis)
 	if err != nil {
-		// In that case, can't proceed with the fetching.
-		panic("Can't get the latest version.")
+		return nil
 	}
-	return newVersions[0], nil
+
+	return &newVersions[0]
 }
 
 // Get all the versions from the ddragon.

@@ -6,6 +6,7 @@ import (
 	"goleague/api/filters"
 	"goleague/fetcher/regions"
 	"goleague/pkg/database/models"
+	"goleague/pkg/messages"
 	"strings"
 	"time"
 
@@ -21,7 +22,7 @@ type PlayerRepository interface {
 	GetPlayerIdByNameTagRegion(name string, tag string, region string) (uint, error)
 	GetPlayerMatchHistoryIds(filters *filters.PlayerMatchHistoryFilter) ([]uint, error)
 	GetPlayerRatingsById(playerId uint) ([]models.RatingEntry, error)
-	GetPlayerStats(filters *filters.PlayerStatsFilter) ([]*RawPlayerStatsStruct, error)
+	GetPlayerStats(filters *filters.PlayerStatsFilter) ([]RawPlayerStatsStruct, error)
 }
 
 // playerRepository repository structure.
@@ -52,7 +53,7 @@ type RawPlayerStatsStruct struct {
 // SearchPlayer searchs a given player by it's name, tag and region.
 func (ps *playerRepository) SearchPlayer(filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error) {
 	if filters == nil {
-		return nil, fmt.Errorf("filters cannot be nil")
+		return nil, fmt.Errorf(messages.FiltersNotNil)
 	}
 	var players []*models.PlayerInfo
 	query := ps.db
@@ -91,7 +92,7 @@ func (ps *playerRepository) SearchPlayer(filters *filters.PlayerSearchFilter) ([
 // GetPlayerMatchHistoryIds returns the internal ids of the matches that a given player played.
 func (ps *playerRepository) GetPlayerMatchHistoryIds(filters *filters.PlayerMatchHistoryFilter) ([]uint, error) {
 	if filters == nil {
-		return nil, fmt.Errorf("filters cannot be nil")
+		return nil, fmt.Errorf(messages.FiltersNotNil)
 	}
 	var ids []uint
 
@@ -124,11 +125,11 @@ func (ps *playerRepository) GetPlayerMatchHistoryIds(filters *filters.PlayerMatc
 }
 
 // GetPlayerStats returns the raw player stats.
-func (ps *playerRepository) GetPlayerStats(filters *filters.PlayerStatsFilter) ([]*RawPlayerStatsStruct, error) {
+func (ps *playerRepository) GetPlayerStats(filters *filters.PlayerStatsFilter) ([]RawPlayerStatsStruct, error) {
 	if filters == nil {
-		return nil, fmt.Errorf("filters cannot be nil")
+		return nil, fmt.Errorf(messages.FiltersNotNil)
 	}
-	var playerStats []*RawPlayerStatsStruct
+	var playerStats []RawPlayerStatsStruct
 	playerId := filters.PlayerId
 	interval := filters.Interval
 

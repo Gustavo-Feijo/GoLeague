@@ -49,7 +49,9 @@ func (h *PlayerHandler) ForceFetchPlayer(c *gin.Context) {
 		return
 	}
 
-	summoner, err := h.playerService.ForceFetchPlayer(pp)
+	filters := filters.NewForceFetchPlayerFilter(pp)
+
+	summoner, err := h.playerService.ForceFetchPlayer(filters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -149,10 +151,6 @@ func (h *PlayerHandler) GetPlayerStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"result": playerStats})
-}
-
-// GetPlayerElo handles rating related data from a player.
-func (h *PlayerHandler) GetPlayerElo(c *gin.Context) {
 }
 
 // GetPlayerInfo handles getting all the player related data.

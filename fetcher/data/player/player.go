@@ -2,10 +2,8 @@ package playerfetcher
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"goleague/fetcher/requests"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -48,6 +46,7 @@ func (p *PlayerFetcher) GetMatchList(puuid string, lastFetch time.Time, offset i
 	} else {
 		p.limiter.WaitEvenly(ctx, "job")
 	}
+
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/match/v5/matches/by-puuid/%s/ids", p.region, puuid)
 	params := map[string]string{
@@ -56,26 +55,7 @@ func (p *PlayerFetcher) GetMatchList(puuid string, lastFetch time.Time, offset i
 		"count":     "100", // 100 is the maximum allowed count.
 	}
 
-	resp, err := requests.AuthRequest(url, "GET", params)
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
-	}
-
-	defer resp.Body.Close()
-
-	// Check the status code.
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
-	}
-
-	// Parse the matches list.
-	var matches []string
-	if err := json.NewDecoder(resp.Body).Decode(&matches); err != nil {
-		return nil, fmt.Errorf("failed to parse API response: %w", err)
-	}
-
-	// Return the matches.
-	return matches, nil
+	return requests.HandleAuthRequest[[]string](url, "GET", params)
 }
 
 // GetPlayerAccount returns a given player account info.
@@ -86,31 +66,14 @@ func (p *PlayerFetcher) GetPlayerAccount(gameName string, tagLine string, onDema
 	} else {
 		p.limiter.WaitEvenly(ctx, "job")
 	}
+
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/riot/account/v1/accounts/by-riot-id/%s/%s", p.region, gameName, tagLine)
 
 	params := map[string]string{}
 
-	resp, err := requests.AuthRequest(url, "GET", params)
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
-	}
-
-	defer resp.Body.Close()
-
-	// Check the status code.
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
-	}
-
-	// Parse the account data.
-	var account Account
-	if err := json.NewDecoder(resp.Body).Decode(&account); err != nil {
-		return nil, fmt.Errorf("failed to parse API response: %w", err)
-	}
-
-	// Return the account data.
-	return &account, nil
+	account, err := requests.HandleAuthRequest[Account](url, "GET", params)
+	return &account, err
 }
 
 // GetSummonerData returns a players summoner data.
@@ -121,28 +84,12 @@ func (p *SubPlayerFetcher) GetSummonerDataByPuuid(puuid string, onDemand bool) (
 	} else {
 		p.limiter.WaitEvenly(ctx, "job")
 	}
+
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/%s", p.region, puuid)
 
-	// Make the request with proper auth.
-	resp, err := requests.AuthRequest(url, "GET", map[string]string{})
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
-	}
+	params := map[string]string{}
 
-	defer resp.Body.Close()
-
-	// Check the status code.
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
-	}
-
-	// Parse the matches list.
-	var summonerData SummonerByPuuid
-	if err := json.NewDecoder(resp.Body).Decode(&summonerData); err != nil {
-		return nil, fmt.Errorf("failed to parse API response: %w", err)
-	}
-
-	// Return the matches.
-	return &summonerData, nil
+	summoner, err := requests.HandleAuthRequest[SummonerByPuuid](url, "GET", params)
+	return &summoner, err
 }

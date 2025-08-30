@@ -4,15 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"goleague/pkg/config"
+	"goleague/pkg/messages"
 	"log"
 	"net/http"
 	"net/url"
-)
-
-const (
-	BadStatusCodeMsg = "API returned status code %d on URL %s"
-	FailedToParseMsg = "failed to parse API response: %w"
-	RequestFailedMsg = "API request failed: %w"
 )
 
 // AuthRequest make a authenticated request to the Riot API.
@@ -63,20 +58,20 @@ func HandleAuthRequest[T any](url string, method string, params map[string]strin
 	var zero T
 	resp, err := AuthRequest(url, method, params)
 	if err != nil {
-		return zero, fmt.Errorf(RequestFailedMsg, err)
+		return zero, fmt.Errorf(messages.RequestFailedMsg+": %w", url, err)
 	}
 
 	defer resp.Body.Close()
 
 	// Check the status code.
 	if resp.StatusCode != http.StatusOK {
-		return zero, fmt.Errorf(BadStatusCodeMsg, resp.StatusCode, url)
+		return zero, fmt.Errorf(messages.BadStatusCodeMsg, resp.StatusCode, url)
 	}
 
 	// Parse the match timeline.
 	var respData T
 	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
-		return zero, fmt.Errorf(FailedToParseMsg, err)
+		return zero, fmt.Errorf(messages.FailedToParseMsg+": %w", err)
 	}
 
 	// Return the timeline.

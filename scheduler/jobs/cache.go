@@ -28,7 +28,7 @@ func RevalidateCache() error {
 		redis.Close()
 	}()
 
-	_, err = assets.RevalidateChampionCache(redis, db, "en_US", "")
+	err = assets.RevalidateChampionCache(redis, db, "en_US")
 	if err != nil {
 		log.Printf("Error revalidating champion cache: %v", err)
 	} else {
@@ -36,7 +36,7 @@ func RevalidateCache() error {
 	}
 
 	log.Println("Starting item cache revalidation")
-	_, err = assets.RevalidateItemCache(redis, db, "en_US", "")
+	err = assets.RevalidateItemCache(redis, db, "en_US")
 	if err != nil {
 		log.Printf("Error revalidating item cache: %v", err)
 	} else {
