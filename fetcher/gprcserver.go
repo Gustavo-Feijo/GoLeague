@@ -62,7 +62,7 @@ func (s *server) FetchMatchHistory(ctx context.Context, req *pb.SummonerRequest)
 
 // GetRiotAccount utilizes the regions services to communicate with the Riot api
 // Gets the data from the player account and summoner data to return it.
-func (s *server) GetSummonerData(ctx context.Context, req *pb.SummonerRequest) (*pb.Summoner, error) {
+func (s *server) FetchSummonerData(ctx context.Context, req *pb.SummonerRequest) (*pb.Summoner, error) {
 	subRegion := regions.SubRegion(strings.ToUpper(req.Region))
 	mainRegion, err := s.regionManager.GetMainRegion(subRegion)
 	if err != nil {
@@ -88,6 +88,8 @@ func (s *server) GetSummonerData(ctx context.Context, req *pb.SummonerRequest) (
 	if err != nil {
 		return nil, fmt.Errorf("couldn't process summoner: %w", err)
 	}
+
+	_ = subRegionService.ProcessPlayerLeagueEntries(summoner.Puuid, true)
 
 	// Convert fetcher response to gRPC response
 	response := &pb.Summoner{

@@ -5,7 +5,7 @@ option go_package = "goleague/pkg/grpc";
 
 // gRPC service used for getting data onDemand from the API on the fetcher gRPC server.
 service Service{
-    rpc GetSummonerData(SummonerRequest) returns (Summoner) {}; 
+    rpc FetchSummonerData(SummonerRequest) returns (Summoner) {}; 
     rpc FetchMatchHistory(SummonerRequest) returns (MatchHistoryFetchNotification){};
 }
 

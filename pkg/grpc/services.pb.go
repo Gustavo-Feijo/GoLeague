@@ -236,9 +236,9 @@ const file_pkg_grpc_services_proto_rawDesc = "" +
 	"\rprofileIconId\x18\x06 \x01(\x05R\rprofileIconId\"[\n" +
 	"\x1dMatchHistoryFetchNotification\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\x12 \n" +
-	"\vwillProcess\x18\x02 \x01(\bR\vwillProcess2\x98\x01\n" +
-	"\aService\x12:\n" +
-	"\x0fGetSummonerData\x12\x15.grpc.SummonerRequest\x1a\x0e.grpc.Summoner\"\x00\x12Q\n" +
+	"\vwillProcess\x18\x02 \x01(\bR\vwillProcess2\x9a\x01\n" +
+	"\aService\x12<\n" +
+	"\x11FetchSummonerData\x12\x15.grpc.SummonerRequest\x1a\x0e.grpc.Summoner\"\x00\x12Q\n" +
 	"\x11FetchMatchHistory\x12\x15.grpc.SummonerRequest\x1a#.grpc.MatchHistoryFetchNotification\"\x00B\x13Z\x11goleague/pkg/grpcb\x06proto3"
 
 var (
@@ -260,9 +260,9 @@ var file_pkg_grpc_services_proto_goTypes = []any{
 	(*MatchHistoryFetchNotification)(nil), // 2: grpc.MatchHistoryFetchNotification
 }
 var file_pkg_grpc_services_proto_depIdxs = []int32{
-	0, // 0: grpc.Service.GetSummonerData:input_type -> grpc.SummonerRequest
+	0, // 0: grpc.Service.FetchSummonerData:input_type -> grpc.SummonerRequest
 	0, // 1: grpc.Service.FetchMatchHistory:input_type -> grpc.SummonerRequest
-	1, // 2: grpc.Service.GetSummonerData:output_type -> grpc.Summoner
+	1, // 2: grpc.Service.FetchSummonerData:output_type -> grpc.Summoner
 	2, // 3: grpc.Service.FetchMatchHistory:output_type -> grpc.MatchHistoryFetchNotification
 	2, // [2:4] is the sub-list for method output_type
 	0, // [0:2] is the sub-list for method input_type

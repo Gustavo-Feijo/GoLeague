@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Service_GetSummonerData_FullMethodName   = "/grpc.Service/GetSummonerData"
+	Service_FetchSummonerData_FullMethodName = "/grpc.Service/FetchSummonerData"
 	Service_FetchMatchHistory_FullMethodName = "/grpc.Service/FetchMatchHistory"
 )
 
@@ -29,7 +29,7 @@ const (
 //
 // gRPC service used for getting data onDemand from the API on the fetcher gRPC server.
 type ServiceClient interface {
-	GetSummonerData(ctx context.Context, in *SummonerRequest, opts ...grpc.CallOption) (*Summoner, error)
+	FetchSummonerData(ctx context.Context, in *SummonerRequest, opts ...grpc.CallOption) (*Summoner, error)
 	FetchMatchHistory(ctx context.Context, in *SummonerRequest, opts ...grpc.CallOption) (*MatchHistoryFetchNotification, error)
 }
 
@@ -41,10 +41,10 @@ func NewServiceClient(cc grpc.ClientConnInterface) ServiceClient {
 	return &serviceClient{cc}
 }
 
-func (c *serviceClient) GetSummonerData(ctx context.Context, in *SummonerRequest, opts ...grpc.CallOption) (*Summoner, error) {
+func (c *serviceClient) FetchSummonerData(ctx context.Context, in *SummonerRequest, opts ...grpc.CallOption) (*Summoner, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Summoner)
-	err := c.cc.Invoke(ctx, Service_GetSummonerData_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Service_FetchSummonerData_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (c *serviceClient) FetchMatchHistory(ctx context.Context, in *SummonerReque
 //
 // gRPC service used for getting data onDemand from the API on the fetcher gRPC server.
 type ServiceServer interface {
-	GetSummonerData(context.Context, *SummonerRequest) (*Summoner, error)
+	FetchSummonerData(context.Context, *SummonerRequest) (*Summoner, error)
 	FetchMatchHistory(context.Context, *SummonerRequest) (*MatchHistoryFetchNotification, error)
 	mustEmbedUnimplementedServiceServer()
 }
@@ -79,8 +79,8 @@ type ServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedServiceServer struct{}
 
-func (UnimplementedServiceServer) GetSummonerData(context.Context, *SummonerRequest) (*Summoner, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSummonerData not implemented")
+func (UnimplementedServiceServer) FetchSummonerData(context.Context, *SummonerRequest) (*Summoner, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchSummonerData not implemented")
 }
 func (UnimplementedServiceServer) FetchMatchHistory(context.Context, *SummonerRequest) (*MatchHistoryFetchNotification, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchMatchHistory not implemented")
@@ -106,20 +106,20 @@ func RegisterServiceServer(s grpc.ServiceRegistrar, srv ServiceServer) {
 	s.RegisterService(&Service_ServiceDesc, srv)
 }
 
-func _Service_GetSummonerData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Service_FetchSummonerData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SummonerRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceServer).GetSummonerData(ctx, in)
+		return srv.(ServiceServer).FetchSummonerData(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Service_GetSummonerData_FullMethodName,
+		FullMethod: Service_FetchSummonerData_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).GetSummonerData(ctx, req.(*SummonerRequest))
+		return srv.(ServiceServer).FetchSummonerData(ctx, req.(*SummonerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -150,8 +150,8 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*ServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetSummonerData",
-			Handler:    _Service_GetSummonerData_Handler,
+			MethodName: "FetchSummonerData",
+			Handler:    _Service_FetchSummonerData_Handler,
 		},
 		{
 			MethodName: "FetchMatchHistory",

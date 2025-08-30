@@ -349,7 +349,7 @@ func (ps *PlayerService) ForceFetchPlayer(filters *filters.PlayerURIParams) (*pb
 	defer cancel()
 
 	// Make the request
-	resp, err := client.GetSummonerData(ctx, request)
+	resp, err := client.FetchSummonerData(ctx, request)
 	if err != nil {
 		st, ok := status.FromError(err)
 		if ok {

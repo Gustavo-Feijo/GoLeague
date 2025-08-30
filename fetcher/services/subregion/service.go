@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"goleague/fetcher/data"
+	leaguefetcher "goleague/fetcher/data/league"
 	playerfetcher "goleague/fetcher/data/player"
 	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
@@ -94,6 +95,27 @@ func (s *SubRegionService) ProcessLeagueRank(tier string, rank string, queue str
 
 		// Increment page for next iteration.
 		page++
+	}
+
+	return nil
+}
+
+// ProcessPlayerLeagueEntries get all league entries for a given player and process them.
+func (s *SubRegionService) ProcessPlayerLeagueEntries(puuid string, onDemand bool) error {
+	entries, err := s.leagueService.GetPlayerEntries(puuid, onDemand)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		entryArr := []leaguefetcher.LeagueEntry{entry}
+		if entry.QueueType == nil {
+			continue
+		}
+
+		if err := s.batchService.ProcessBatchEntry(entryArr, *entry.QueueType); err != nil {
+			return fmt.Errorf("error at processing player league entry: %v", err)
+		}
 	}
 
 	return nil

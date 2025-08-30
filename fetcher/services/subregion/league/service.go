@@ -70,3 +70,24 @@ func (s *LeagueService) GetLeagueEntries(tier string, rank string, queue string,
 
 	return entries, nil
 }
+
+// GetPlayerEntries fetches all league entries for a given player based on the PUUID.
+func (s *LeagueService) GetPlayerEntries(puuid string, onDemand bool) ([]leaguefetcher.LeagueEntry, error) {
+	var entries []leaguefetcher.LeagueEntry
+	var err error
+
+	// Try to get the entries with retry.
+	for attempt := 1; attempt <= s.maxRetries; attempt++ {
+		entries, err = s.fetcher.League.GetLeagueEntriesByPuuid(puuid, onDemand)
+		if err == nil {
+			break
+		}
+	}
+
+	// If all retries failed.
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch player league entries after %d attempts: %v", s.maxRetries, err)
+	}
+
+	return entries, nil
+}
