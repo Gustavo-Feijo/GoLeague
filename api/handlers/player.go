@@ -33,13 +33,6 @@ func (h *PlayerHandler) bindURIParams(c *gin.Context) (*filters.PlayerURIParams,
 	return &pp, nil
 }
 
-// Helper method to add URI params to filters map.
-func (h *PlayerHandler) addURIParamsToFilterMap(pp *filters.PlayerURIParams, filtersMap map[string]interface{}) {
-	filtersMap["gameName"] = pp.GameName
-	filtersMap["gameTag"] = pp.GameTag
-	filtersMap["region"] = pp.Region
-}
-
 // ForceFetchPlayer calls the Fetcher service via gRPC to save a given player in the database.
 func (h *PlayerHandler) ForceFetchPlayer(c *gin.Context) {
 	// Path params.

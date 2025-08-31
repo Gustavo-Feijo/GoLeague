@@ -12,14 +12,20 @@ import (
 // Default key for the match previews.
 const matchPreviewKey = "match:previews:%d"
 
+// MatchCache is the public interface for accessing the player repository.
+type MatchCache interface {
+	GetMatchesPreviewByMatchIds(ctx context.Context, matchIds []uint) ([]dto.MatchPreview, []uint, error)
+	SetMatchPreview(ctx context.Context, preview dto.MatchPreview) error
+}
+
 // Create a redis cache client.
-type MatchCache struct {
+type matchCache struct {
 	redis *redis.RedisClient
 }
 
 // NewMatchCache creates a new  instance of the match redis client.
-func NewMatchCache(redis *redis.RedisClient) *MatchCache {
-	mc := &MatchCache{
+func NewMatchCache(redis *redis.RedisClient) MatchCache {
+	mc := &matchCache{
 		redis: redis,
 	}
 
@@ -27,7 +33,7 @@ func NewMatchCache(redis *redis.RedisClient) *MatchCache {
 }
 
 // GetMatchesPreviewByMatchIds retrieves the match preview from a list of match ids.
-func (mc *MatchCache) GetMatchesPreviewByMatchIds(ctx context.Context, matchIds []uint) ([]dto.MatchPreview, []uint, error) {
+func (mc *matchCache) GetMatchesPreviewByMatchIds(ctx context.Context, matchIds []uint) ([]dto.MatchPreview, []uint, error) {
 	keys := make([]string, len(matchIds))
 	for i, matchID := range matchIds {
 		keys[i] = fmt.Sprintf(matchPreviewKey, matchID)
@@ -62,7 +68,7 @@ func (mc *MatchCache) GetMatchesPreviewByMatchIds(ctx context.Context, matchIds 
 }
 
 // SetMatchPreview saves a given match preview in cache.
-func (mc *MatchCache) SetMatchPreview(ctx context.Context, preview dto.MatchPreview) error {
+func (mc *matchCache) SetMatchPreview(ctx context.Context, preview dto.MatchPreview) error {
 	j, err := json.Marshal(preview)
 	if err == nil {
 		key := fmt.Sprintf(matchPreviewKey, preview.Metadata.InternalId)

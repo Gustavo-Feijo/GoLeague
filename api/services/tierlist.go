@@ -58,45 +58,51 @@ func NewTierlistService(deps *TierlistServiceDeps) (*TierlistService, error) {
 func (ts *TierlistService) GetTierlist(filters *filters.TierlistFilter) ([]*dto.FullTierlist, error) {
 	key := ts.getTierlistKey(filters)
 
-	// Get a instance of the memory cache and retrieve the key.
-	memCachedData := ts.memCache.Get(key)
-	if memCachedData != nil {
-		memCachedTierlist := memCachedData.([]*dto.FullTierlist)
-		return memCachedTierlist, nil
+	if mem := ts.getFromMemCache(key); mem != nil {
+		return mem, nil
 	}
 
-	// Create context for fast  redis lookup.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*200)
-	defer cancel()
-
-	// Try to get it on redis.
-	redisCached, err := ts.redis.Get(ctx, key)
-	if err == nil {
-		// Unmarshal the value to save it as binary on the cache.
-		var fulltierlist []*dto.FullTierlist
-		json.Unmarshal([]byte(redisCached), &fulltierlist)
-		ts.memCache.Set(key, fulltierlist, 15*time.Minute)
-		return fulltierlist, nil
+	if redisData := ts.getFromRedis(key); redisData != nil {
+		ts.memCache.Set(key, redisData, 15*time.Minute)
+		return redisData, nil
 	}
+
 	// Get the data from the repository.
 	results, err := ts.TierlistRepository.GetTierlist(filters)
 	if err != nil {
 		return nil, err
 	}
 
+	if len(results) == 0 {
+		return []*dto.FullTierlist{}, nil
+	}
+
+	fullResult, cacheFailed := ts.buildFullTierlist(results)
+
+	if !cacheFailed {
+		ts.populateCaches(key, fullResult)
+	}
+
+	// Couldn't get all entries from the redis cache.
+	// Return the error so it can revalidate the tierlist cache.
+	if cacheFailed {
+		return fullResult, errors.New("cache failed")
+	}
+
+	return fullResult, nil
+}
+
+// buildFullTierlist clean unecessary data from the champion data and build the full tierlist result.
+func (ts *TierlistService) buildFullTierlist(results []*dto.TierlistResult) ([]*dto.FullTierlist, bool) {
 	// Create the array of  results.
 	fullResult := make([]*dto.FullTierlist, len(results))
-	if len(results) == 0 {
-		return fullResult, nil
-	}
+	cacheFailed := false
 
 	// Get the champion cache instance.
 	repo, _ := repositories.NewCacheRepository(ts.db)
 	championCtx, championCancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer championCancel()
 
-	// We return a error if the cache failed, while still returning the data.
-	cacheFailed := false
 	for index, entry := range results {
 		fullResult[index] = &dto.FullTierlist{
 			BanCount:     entry.BanCount,
@@ -121,25 +127,37 @@ func (ts *TierlistService) GetTierlist(filters *filters.TierlistFilter) ([]*dto.
 		fullResult[index].Champion = championData
 	}
 
-	// Couldn't get all entries from the redis cache.
-	// Return the error so it can revalidate the tierlist cache.
-	if cacheFailed {
-		return fullResult, errors.New("cache failed")
-	}
-
-	// Set the value in memory and redis.
-	ts.memCache.Set(key, fullResult, 15*time.Minute)
-
-	// Marshal it to set on Redis.
-	j, err := json.Marshal(fullResult)
-	if err == nil {
-		ts.redis.Set(context.Background(), key, string(j), time.Hour)
-	}
-
-	return fullResult, nil
+	return fullResult, cacheFailed
 }
 
-// getTierList generates the cache key.
+// getFromMemCache retrieves the data from the memory and returns it.
+func (ts *TierlistService) getFromMemCache(key string) []*dto.FullTierlist {
+	if memCachedData := ts.memCache.Get(key); memCachedData != nil {
+		return memCachedData.([]*dto.FullTierlist)
+	}
+	return nil
+}
+
+// getFromRedis retrieves the data from the redis.
+func (ts *TierlistService) getFromRedis(key string) []*dto.FullTierlist {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*200)
+	defer cancel()
+
+	// Try to get it on redis.
+	redisCached, err := ts.redis.Get(ctx, key)
+	if err != nil || redisCached == "" {
+		return nil
+	}
+	// Unmarshal the value to save it as binary on the cache.
+	var fulltierlist []*dto.FullTierlist
+	if err := json.Unmarshal([]byte(redisCached), &fulltierlist); err != nil {
+		return nil
+	}
+
+	return fulltierlist
+}
+
+// getTierListKey generates the cache key.
 func (ts *TierlistService) getTierlistKey(filters *filters.TierlistFilter) string {
 	var builder strings.Builder
 	builder.WriteString("tierlist")
@@ -157,4 +175,13 @@ func (ts *TierlistService) getTierlistKey(filters *filters.TierlistFilter) strin
 	}
 
 	return builder.String()
+}
+
+// populateCaches will set the mem cache and redis cache.
+func (ts *TierlistService) populateCaches(key string, data []*dto.FullTierlist) {
+	ts.memCache.Set(key, data, 15*time.Minute)
+
+	if j, err := json.Marshal(data); err == nil {
+		ts.redis.Set(context.Background(), key, string(j), time.Hour)
+	}
 }

@@ -29,7 +29,7 @@ import (
 type PlayerService struct {
 	db         *gorm.DB
 	grpcClient *grpc.ClientConn
-	matchCache *cache.MatchCache
+	matchCache cache.MatchCache
 	redis      *redis.RedisClient
 
 	MatchRepository  repositories.MatchRepository
@@ -39,7 +39,7 @@ type PlayerService struct {
 type PlayerServiceDeps struct {
 	DB         *gorm.DB
 	GrpcClient *grpc.ClientConn
-	MatchCache *cache.MatchCache
+	MatchCache cache.MatchCache
 	Redis      *redis.RedisClient
 }
 
@@ -156,22 +156,16 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHisto
 		return nil, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
+	cachedMatches, missingMatches := ps.getCachedMatchPreviews(matchesIds)
 
-	// Get all the cached matches previews.
-	// Match previews shouldn't change, using cache to reduce load into the database.
-	cachedMatches, missingMatches, err := ps.matchCache.GetMatchesPreviewByMatchIds(ctx, matchesIds)
-	if err == nil {
-		// All matches in cache.
-		if len(missingMatches) == 0 {
-			matchPreviews := make(dto.MatchPreviewList)
-			handleCachedMatches(cachedMatches, matchPreviews)
-			return matchPreviews, nil
-		}
-
-		matchesIds = missingMatches
+	// All previews cached.
+	if len(missingMatches) == 0 {
+		matchPreviews := make(dto.MatchPreviewList)
+		handleCachedMatches(cachedMatches, matchPreviews)
+		return matchPreviews, nil
 	}
+
+	matchesIds = missingMatches
 
 	// Get the non cached matches from the database.
 	matchPreviews, err := ps.MatchRepository.GetMatchPreviews(matchesIds)
@@ -181,19 +175,37 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHisto
 
 	formatedPreviews := formatMatchPreviews(matchPreviews)
 
-	// Some matches came from cache, others from db.
-	if len(missingMatches) > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-		for _, match := range formatedPreviews {
-			ps.matchCache.SetMatchPreview(ctx, *match)
-		}
+	// Add the missing previews to the cache.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	for _, match := range formatedPreviews {
+		ps.matchCache.SetMatchPreview(ctx, *match)
+	}
+
+	// Add the cached matches to the final return.
+	if len(cachedMatches) > 0 {
 		handleCachedMatches(cachedMatches, formatedPreviews)
 	}
 
 	return formatedPreviews, nil
 }
 
+// getCachedMatchPreviews return the cached raw match previews for the provided match ids.
+func (ps *PlayerService) getCachedMatchPreviews(matchesIds []uint) ([]dto.MatchPreview, []uint) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	// Get all the cached matches previews.
+	// Match previews shouldn't change, using cache to reduce load into the database.
+	cachedMatches, missingMatches, err := ps.matchCache.GetMatchesPreviewByMatchIds(ctx, matchesIds)
+	if err != nil {
+		return []dto.MatchPreview{}, matchesIds
+	}
+
+	return cachedMatches, missingMatches
+}
+
+// GetPlayerInfo returns the player information of a given player with it's ratings.
 func (ps *PlayerService) GetPlayerInfo(filters *filters.PlayerInfoFilter) (*dto.FullPlayerInfo, error) {
 	name := filters.GameName
 	tag := filters.GameTag
@@ -224,23 +236,21 @@ func (ps *PlayerService) GetPlayerInfo(filters *filters.PlayerInfoFilter) (*dto.
 		Tag:           playerInfo.RiotIdTagline,
 	}
 
-	if len(playerRatings) > 0 {
-		ratings := make([]dto.RatingInfo, len(playerRatings))
-
-		for key, rating := range playerRatings {
-			ratings[key] = dto.RatingInfo{
-				LeaguePoints: rating.LeaguePoints,
-				Losses:       rating.Losses,
-				Queue:        rating.Queue,
-				Rank:         rating.Rank,
-				Region:       string(rating.Region),
-				Tier:         rating.Tier,
-				Wins:         rating.Wins,
-			}
+	// Add the rating entries for the player (If any)
+	ratings := make([]dto.RatingInfo, len(playerRatings))
+	for key, rating := range playerRatings {
+		ratings[key] = dto.RatingInfo{
+			LeaguePoints: rating.LeaguePoints,
+			Losses:       rating.Losses,
+			Queue:        rating.Queue,
+			Rank:         rating.Rank,
+			Region:       string(rating.Region),
+			Tier:         rating.Tier,
+			Wins:         rating.Wins,
 		}
-
-		fullPlayerInfo.Rating = ratings
 	}
+
+	fullPlayerInfo.Rating = ratings
 
 	return &fullPlayerInfo, nil
 }
