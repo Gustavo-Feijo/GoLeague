@@ -2,7 +2,6 @@ package modules
 
 import (
 	"context"
-	"fmt"
 	"goleague/api/cache"
 	"goleague/api/handlers"
 	"goleague/api/services"
@@ -47,10 +46,7 @@ func NewModule(deps *ModuleDependencies) (*Module, error) {
 		Redis:         deps.Redis,
 	}
 
-	tierlistService, err := services.NewTierlistService(tierlistDeps)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't start the tierlist service: %v", err)
-	}
+	tierlistService := services.NewTierlistService(tierlistDeps)
 
 	tierlistHandlerDeps := &handlers.TierlistHandlerDependencies{
 		MemCache:        deps.MemCache,
@@ -67,10 +63,7 @@ func NewModule(deps *ModuleDependencies) (*Module, error) {
 		Redis:      deps.Redis,
 	}
 
-	playerService, err := services.NewPlayerService(playerDeps)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't start the player service: %v", err)
-	}
+	playerService := services.NewPlayerService(playerDeps)
 
 	playerHandlerDeps := &handlers.PlayerHandlerDependencies{
 		PlayerService: playerService,

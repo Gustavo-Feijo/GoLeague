@@ -31,8 +31,8 @@ type playerRepository struct {
 }
 
 // NewPlayerRepository creates a player repository.
-func NewPlayerRepository(db *gorm.DB) (PlayerRepository, error) {
-	return &playerRepository{db: db}, nil
+func NewPlayerRepository(db *gorm.DB) PlayerRepository {
+	return &playerRepository{db: db}
 }
 
 // RawPlayerStatsStruct is the raw data from the player stats analysis.

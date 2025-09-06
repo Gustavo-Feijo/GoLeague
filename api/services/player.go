@@ -44,26 +44,15 @@ type PlayerServiceDeps struct {
 }
 
 // NewPlayerService creates a service for handling player services.
-func NewPlayerService(deps *PlayerServiceDeps) (*PlayerService, error) {
-	// Create the repository.
-	repo, err := repositories.NewPlayerRepository(deps.DB)
-	if err != nil {
-		return nil, errors.New("failed to start the player repository")
-	}
-
-	matchRepo, err := repositories.NewMatchRepository(deps.DB)
-	if err != nil {
-		return nil, errors.New("failed to start the match repository")
-	}
-
+func NewPlayerService(deps *PlayerServiceDeps) *PlayerService {
 	return &PlayerService{
 		db:               deps.DB,
 		grpcClient:       deps.GrpcClient,
 		matchCache:       deps.MatchCache,
-		MatchRepository:  matchRepo,
-		PlayerRepository: repo,
+		MatchRepository:  repositories.NewMatchRepository(deps.DB),
+		PlayerRepository: repositories.NewPlayerRepository(deps.DB),
 		redis:            deps.Redis,
-	}, nil
+	}
 }
 
 // createPlayerRateLimitKey generates a consistent hash-based key for rate limiting

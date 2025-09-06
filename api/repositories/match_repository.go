@@ -17,8 +17,8 @@ type matchRepository struct {
 }
 
 // NewMatchRepository creates a matchrepository.
-func NewMatchRepository(db *gorm.DB) (MatchRepository, error) {
-	return &matchRepository{db: db}, nil
+func NewMatchRepository(db *gorm.DB) MatchRepository {
+	return &matchRepository{db: db}
 }
 
 // RawMatchPreview is the raw data when getting a match data preview.

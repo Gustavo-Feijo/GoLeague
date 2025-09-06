@@ -18,8 +18,8 @@ type cacheRepository struct {
 }
 
 // Create a match repository.
-func NewCacheRepository(db *gorm.DB) (CacheRepository, error) {
-	return &cacheRepository{db: db}, nil
+func NewCacheRepository(db *gorm.DB) CacheRepository {
+	return &cacheRepository{db: db}
 }
 
 // GetKey gets the given key value.

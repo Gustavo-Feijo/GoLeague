@@ -14,17 +14,18 @@ import (
 // ChampionCache  uses the in-memory cache with small TTL to minimize Redis calls.
 // Uses db as a fallback as last resource if Redis isn't available.
 type ChampionCache struct {
-	db       *gorm.DB
-	memCache *MemCache
-	redis    *redis.RedisClient
+	db              *gorm.DB
+	memCache        *MemCache
+	redis           *redis.RedisClient
+	cacheRepository repositories.CacheRepository
 }
 
 // NewChampionCache creates the instance of the champion cache.
 func NewChampionCache(db *gorm.DB, redis *redis.RedisClient, memCache *MemCache) *ChampionCache {
 	cc := &ChampionCache{
-		memCache: memCache,
-		db:       db,
-		redis:    redis,
+		memCache:        memCache,
+		redis:           redis,
+		cacheRepository: repositories.NewCacheRepository(db),
 	}
 
 	return cc
@@ -80,13 +81,8 @@ func (c *ChampionCache) Initialize(ctx context.Context) error {
 	// Get all the keys by prefix.
 	keys, err := c.redis.GetKeysByPrefix(ctx, cachePrefix)
 	if err != nil {
-		repo, err := repositories.NewCacheRepository(c.db)
-		if err != nil {
-			return err
-		}
-
 		// Get all champions by the prefix and save in memory.
-		champions, _ := repo.GetByPrefix(cachePrefix)
+		champions, _ := c.cacheRepository.GetByPrefix(cachePrefix)
 		for _, champion := range champions {
 			var champJson map[string]any
 			err := json.Unmarshal([]byte(champion.CacheValue), &champJson)

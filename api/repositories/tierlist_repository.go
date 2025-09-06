@@ -22,8 +22,8 @@ type tierlistRepository struct {
 }
 
 // Create a tierlist repository.
-func NewTierlistRepository(db *gorm.DB) (TierlistRepository, error) {
-	return &tierlistRepository{db: db}, nil
+func NewTierlistRepository(db *gorm.DB) TierlistRepository {
+	return &tierlistRepository{db: db}
 }
 
 // GetTierlist is the only necessary function for the tierlist.

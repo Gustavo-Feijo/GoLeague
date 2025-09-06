@@ -24,6 +24,7 @@ type TierlistService struct {
 	grpcClient         *grpc.ClientConn
 	memCache           *cache.MemCache
 	redis              *redis.RedisClient
+	CacheRepository    repositories.CacheRepository
 	TierlistRepository repositories.TierlistRepository
 }
 
@@ -37,21 +38,16 @@ type TierlistServiceDeps struct {
 }
 
 // NewTierlistService creates a tierlist service.
-func NewTierlistService(deps *TierlistServiceDeps) (*TierlistService, error) {
-	// Create the repository.
-	repo, err := repositories.NewTierlistRepository(deps.DB)
-	if err != nil {
-		return nil, errors.New("failed to start the tierlist repository")
-	}
-
+func NewTierlistService(deps *TierlistServiceDeps) *TierlistService {
 	return &TierlistService{
 		championCache:      deps.ChampionCache,
 		db:                 deps.DB,
 		grpcClient:         deps.GrpcClient,
 		memCache:           deps.MemCache,
 		redis:              deps.Redis,
-		TierlistRepository: repo,
-	}, nil
+		CacheRepository:    repositories.NewCacheRepository(deps.DB),
+		TierlistRepository: repositories.NewTierlistRepository(deps.DB),
+	}
 }
 
 // GetTierlist get the tierlist based on the filters.
@@ -99,7 +95,6 @@ func (ts *TierlistService) buildFullTierlist(results []*dto.TierlistResult) ([]*
 	cacheFailed := false
 
 	// Get the champion cache instance.
-	repo, _ := repositories.NewCacheRepository(ts.db)
 	championCtx, championCancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer championCancel()
 
@@ -114,7 +109,7 @@ func (ts *TierlistService) buildFullTierlist(results []*dto.TierlistResult) ([]*
 		}
 
 		// Get a copy of the champion on the cache.
-		championData, err := ts.championCache.GetChampionCopy(championCtx, strconv.Itoa(entry.ChampionId), repo)
+		championData, err := ts.championCache.GetChampionCopy(championCtx, strconv.Itoa(entry.ChampionId), ts.CacheRepository)
 		if err != nil {
 			fullResult[index].Champion = map[string]any{"id": strconv.Itoa(entry.ChampionId)}
 			cacheFailed = true
