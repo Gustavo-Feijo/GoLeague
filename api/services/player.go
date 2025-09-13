@@ -4,14 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"goleague/api/cache"
 	"goleague/api/dto"
 	"goleague/api/filters"
+	grpcclient "goleague/api/grpc"
 	"goleague/api/repositories"
 	"goleague/pkg/messages"
-	"goleague/pkg/redis"
 	"strconv"
 	"strings"
 	"time"
@@ -20,17 +19,26 @@ import (
 
 	tiervalues "goleague/pkg/riotvalues/tier"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/status"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
+
+const (
+	FORCE_FETCH_OPERATION         = "force_fetch_player"
+	FORCE_FETCH_MATCHES_OPERATION = "force_fetch_player_matches"
+)
+
+type PlayerRedisClient interface {
+	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
+	TTL(ctx context.Context, key string) *redis.DurationCmd
+}
 
 // PlayerService service with the  repositories and the gRPC client in case we need to force fetch something (Unlikely).
 type PlayerService struct {
 	db         *gorm.DB
-	grpcClient *grpc.ClientConn
+	grpcClient grpcclient.PlayerGRPCClient
 	matchCache cache.MatchCache
-	redis      *redis.RedisClient
+	redis      PlayerRedisClient
 
 	MatchRepository  repositories.MatchRepository
 	PlayerRepository repositories.PlayerRepository
@@ -38,9 +46,9 @@ type PlayerService struct {
 
 type PlayerServiceDeps struct {
 	DB         *gorm.DB
-	GrpcClient *grpc.ClientConn
+	GrpcClient grpcclient.PlayerGRPCClient
 	MatchCache cache.MatchCache
-	Redis      *redis.RedisClient
+	Redis      PlayerRedisClient
 }
 
 // NewPlayerService creates a service for handling player services.
@@ -274,71 +282,29 @@ func (ps *PlayerService) GetPlayerStats(filters *filters.PlayerStatsFilter) (dto
 	return playerStatsDto, nil
 }
 
+// checkGRPCRateLimit verifies the gRPC calls rate limit.
+func (ps *PlayerService) checkGRPCRateLimit(gameName string, gameTag string, region string, operation string) error {
+	rateLimitKey := ps.createPlayerRateLimitKey(gameName, gameTag, region, operation)
+	redisCtx, cancelRedis := context.WithTimeout(context.Background(), time.Second)
+	defer cancelRedis()
+
+	return ps.checkRateLimit(redisCtx, rateLimitKey, time.Minute*5)
+}
+
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
 func (ps *PlayerService) ForceFetchPlayer(filters *filters.PlayerForceFetchFilter) (*pb.Summoner, error) {
-	client := pb.NewServiceClient(ps.grpcClient)
-
-	grpcCall := func(ctx context.Context, req *pb.SummonerRequest) (any, error) {
-		return client.FetchSummonerData(ctx, req)
-	}
-
-	resp, err := ps.executeSummonerGRPCCall(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player", grpcCall)
-	if err != nil {
+	if err := ps.checkGRPCRateLimit(filters.GameName, filters.GameTag, filters.Region, FORCE_FETCH_OPERATION); err != nil {
 		return nil, err
 	}
-
-	return resp.(*pb.Summoner), nil
+	return ps.grpcClient.ForceFetchPlayer(filters, FORCE_FETCH_OPERATION)
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
 func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters *filters.PlayerForceFetchMatchListFilter) (*pb.MatchHistoryFetchNotification, error) {
-	client := pb.NewServiceClient(ps.grpcClient)
-
-	grpcCall := func(ctx context.Context, req *pb.SummonerRequest) (any, error) {
-		return client.FetchMatchHistory(ctx, req)
-	}
-
-	resp, err := ps.executeSummonerGRPCCall(filters.GameName, filters.GameTag, filters.Region, "force_fetch_player_matches", grpcCall)
-	if err != nil {
+	if err := ps.checkGRPCRateLimit(filters.GameName, filters.GameTag, filters.Region, FORCE_FETCH_MATCHES_OPERATION); err != nil {
 		return nil, err
 	}
-
-	return resp.(*pb.MatchHistoryFetchNotification), nil
-}
-
-// executeSummonerGRPCCall is a helper to execute any gRPC call for summoner requests.
-func (ps *PlayerService) executeSummonerGRPCCall(
-	gameName string,
-	gameTag string,
-	region string,
-	operation string,
-	grpcCall func(context.Context, *pb.SummonerRequest) (any, error),
-) (any, error) {
-	rateLimitKey := ps.createPlayerRateLimitKey(gameName, gameTag, region, operation)
-	redisCtx, cancelRedis := context.WithTimeout(context.Background(), time.Second)
-	defer cancelRedis()
-	if err := ps.checkRateLimit(redisCtx, rateLimitKey, time.Minute*5); err != nil {
-		return nil, err
-	}
-
-	request := &pb.SummonerRequest{
-		GameName: gameName,
-		TagLine:  gameTag,
-		Region:   region,
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	resp, err := grpcCall(ctx, request)
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			return nil, fmt.Errorf("couldn't execute %s: %w", operation, errors.New(st.Message()))
-		}
-		return nil, fmt.Errorf("couldn't execute %s: %w", operation, err)
-	}
-
-	return resp, nil
+	return ps.grpcClient.ForceFetchPlayerMatchHistory(filters, FORCE_FETCH_MATCHES_OPERATION)
 }
 
 // formatMatchPreviews return the formatted dto for the matches.

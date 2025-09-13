@@ -3,6 +3,7 @@ package modules
 import (
 	"context"
 	"goleague/api/cache"
+	grpcclient "goleague/api/grpc"
 	"goleague/api/handlers"
 	"goleague/api/services"
 	"goleague/pkg/redis"
@@ -40,7 +41,6 @@ func NewModule(deps *ModuleDependencies) (*Module, error) {
 	// Initialize the tierlist service and handler.
 	tierlistDeps := &services.TierlistServiceDeps{
 		DB:            deps.DB,
-		GrpcClient:    deps.GrpcClient,
 		ChampionCache: championCache,
 		MemCache:      deps.MemCache,
 		Redis:         deps.Redis,
@@ -55,10 +55,12 @@ func NewModule(deps *ModuleDependencies) (*Module, error) {
 	}
 	tierlistHandler := handlers.NewTierlistHandler(tierlistHandlerDeps)
 
+	grpcClient := grpcclient.NewPlayerGRPCClient(deps.GrpcClient)
+
 	// Initialize the player service and handler.
 	playerDeps := &services.PlayerServiceDeps{
 		DB:         deps.DB,
-		GrpcClient: deps.GrpcClient,
+		GrpcClient: grpcClient,
 		MatchCache: matchCache,
 		Redis:      deps.Redis,
 	}

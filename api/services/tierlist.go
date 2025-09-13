@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
 	"gorm.io/gorm"
 )
 
@@ -21,7 +20,6 @@ import (
 type TierlistService struct {
 	championCache      *cache.ChampionCache
 	db                 *gorm.DB
-	grpcClient         *grpc.ClientConn
 	memCache           *cache.MemCache
 	redis              *redis.RedisClient
 	CacheRepository    repositories.CacheRepository
@@ -30,7 +28,6 @@ type TierlistService struct {
 
 // TierlistServiceDeps is the dependency list for the tierlist service.
 type TierlistServiceDeps struct {
-	GrpcClient    *grpc.ClientConn
 	DB            *gorm.DB
 	ChampionCache *cache.ChampionCache
 	MemCache      *cache.MemCache
@@ -42,7 +39,6 @@ func NewTierlistService(deps *TierlistServiceDeps) *TierlistService {
 	return &TierlistService{
 		championCache:      deps.ChampionCache,
 		db:                 deps.DB,
-		grpcClient:         deps.GrpcClient,
 		memCache:           deps.MemCache,
 		redis:              deps.Redis,
 		CacheRepository:    repositories.NewCacheRepository(deps.DB),
