@@ -60,12 +60,13 @@ const (
 )
 
 var (
-	ApiKey   string
-	Bucket   BucketConfig
-	Database DatabaseConfiguration
-	Grpc     GrpcConfiguration
-	Limits   RiotLimiterConfiguration
-	Redis    RedisConfiguration
+	ApiKey    string
+	Bucket    BucketConfig
+	Database  DatabaseConfiguration
+	Grpc      GrpcConfiguration
+	Limits    RiotLimiterConfiguration
+	PrintLogs bool
+	Redis     RedisConfiguration
 )
 
 // Load the variables.
@@ -100,6 +101,8 @@ func LoadEnv() {
 	// Load lower limit settings.
 	lowerCount := getEnvInt("LIMIT_LOWER_COUNT", defaultLowerCount)
 	lowerReset := getEnvInt("LIMIT_LOWER_RESET", defaultLowerReset)
+
+	PrintLogs, _ = strconv.ParseBool(os.Getenv("ENABLE_CONSOLE_LOG"))
 
 	// Load the Redis configuration.
 	Redis.Host = os.Getenv("REDIS_HOST")

@@ -50,6 +50,9 @@ func (l *NewLogger) Errorf(format string, args ...any) {
 // EmptyLine writes a empty line to the file.
 func (l *NewLogger) EmptyLine() {
 	l.logFile.WriteString("\n")
+	if appConfig.PrintLogs {
+		fmt.Print("\n")
+	}
 }
 
 // write is the base method for writing data to the file.
@@ -61,6 +64,10 @@ func (l *NewLogger) write(infoType string, format string, args ...any) {
 	l.writesNumber++
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	line := fmt.Sprintf("%-8s %s %s\n", infoType, timestamp, fmt.Sprintf(format, args...))
+
+	if appConfig.PrintLogs {
+		fmt.Print(line)
+	}
 
 	l.logFile.WriteString(line)
 }

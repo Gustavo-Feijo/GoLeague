@@ -51,7 +51,7 @@ func (ts *tierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*d
 		singleQueryArgs = append(singleQueryArgs, avgScore)
 	}
 
-	if !filters.GetTiersAbove {
+	if !filters.GetTiersAbove && filters.Tier != "" {
 		lower, higher := tiervalues.GetTierLimits(filters.Tier)
 		whereConditions = append(whereConditions, "mi.average_rating BETWEEN ? AND ?")
 		singleQueryArgs = append(singleQueryArgs, lower, higher)
