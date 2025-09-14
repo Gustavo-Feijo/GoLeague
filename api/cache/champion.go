@@ -11,18 +11,27 @@ import (
 	"gorm.io/gorm"
 )
 
-// ChampionCache  uses the in-memory cache with small TTL to minimize Redis calls.
+type ChampionCache interface {
+	GetChampionCopy(ctx context.Context, championId string) (map[string]any, error)
+	Initialize(ctx context.Context) error
+}
+
+type ChampionCacheRedisClient interface {
+	Get(ctx context.Context, key string) (string, error)
+	GetKeysByPrefix(ctx context.Context, prefix string) ([]string, error)
+}
+
+// championCache  uses the in-memory cache with small TTL to minimize Redis calls.
 // Uses db as a fallback as last resource if Redis isn't available.
-type ChampionCache struct {
-	db              *gorm.DB
-	memCache        *MemCache
-	redis           *redis.RedisClient
+type championCache struct {
+	memCache        MemCache
+	redis           ChampionCacheRedisClient
 	cacheRepository repositories.CacheRepository
 }
 
-// NewChampionCache creates the instance of the champion cache.
-func NewChampionCache(db *gorm.DB, redis *redis.RedisClient, memCache *MemCache) *ChampionCache {
-	cc := &ChampionCache{
+// NewchampionCache creates the instance of the champion cache.
+func NewChampionCache(db *gorm.DB, redis *redis.RedisClient, memCache MemCache) ChampionCache {
+	cc := &championCache{
 		memCache:        memCache,
 		redis:           redis,
 		cacheRepository: repositories.NewCacheRepository(db),
@@ -33,7 +42,7 @@ func NewChampionCache(db *gorm.DB, redis *redis.RedisClient, memCache *MemCache)
 
 // GetChampionCopy returns a champion from the in memory cache, if not already in there, get from the redis.
 // Returns a deep copy, so it's safe to change the returned value directly.
-func (c *ChampionCache) GetChampionCopy(ctx context.Context, championId string, repo repositories.CacheRepository) (map[string]any, error) {
+func (c *championCache) GetChampionCopy(ctx context.Context, championId string) (map[string]any, error) {
 	// Cache key for memCache and Redis.
 	cacheKey := fmt.Sprintf("ddragon:champion:%s", championId)
 
@@ -47,14 +56,9 @@ func (c *ChampionCache) GetChampionCopy(ctx context.Context, championId string, 
 	// Get from the redis if doesn't found.
 	champRedis, err := c.redis.Get(ctx, cacheKey)
 	if err != nil {
-		if repo == nil {
-			// It should exist on redis, unless it's out.
-			return nil, fmt.Errorf("error getting from redis: %w", err)
-		}
-
 		// Get from the database fallback in that case.
 		// It will be way slower, but will save in memory for the next requests.
-		champRedis, err = repo.GetKey(cacheKey)
+		champRedis, err = c.cacheRepository.GetKey(cacheKey)
 		if err != nil {
 			// Everything went wrong.
 			return nil, fmt.Errorf("error getting from the database fallback: %w", err)
@@ -75,7 +79,7 @@ func (c *ChampionCache) GetChampionCopy(ctx context.Context, championId string, 
 }
 
 // Initialize pre-loads the cache into memory for faster access without cold start.
-func (c *ChampionCache) Initialize(ctx context.Context) error {
+func (c *championCache) Initialize(ctx context.Context) error {
 	cachePrefix := "ddragon:champion:"
 
 	// Get all the keys by prefix.

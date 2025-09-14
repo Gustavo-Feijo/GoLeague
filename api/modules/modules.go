@@ -24,7 +24,7 @@ type Module struct {
 type ModuleDependencies struct {
 	DB         *gorm.DB
 	GrpcClient *grpc.ClientConn
-	MemCache   *cache.MemCache
+	MemCache   cache.MemCache
 	Redis      *redis.RedisClient
 }
 

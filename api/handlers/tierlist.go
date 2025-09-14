@@ -12,13 +12,13 @@ import (
 
 // Tier list handler.
 type TierlistHandler struct {
-	memCache        *cache.MemCache
+	memCache        cache.MemCache
 	redis           *redis.RedisClient
 	tierlistService *services.TierlistService
 }
 
 type TierlistHandlerDependencies struct {
-	MemCache        *cache.MemCache
+	MemCache        cache.MemCache
 	Redis           *redis.RedisClient
 	TierlistService *services.TierlistService
 }

@@ -6,8 +6,16 @@ import (
 	"time"
 )
 
+type MemCache interface {
+	StartCleanupWorker()
+	Cleanup()
+	Close()
+	Get(key string) any
+	Set(key string, value any, ttl time.Duration)
+}
+
 // Create a in-memory cache with small TTL to minimize Redis calls.
-type MemCache struct {
+type memCache struct {
 	memoryCache   sync.Map
 	cleanupTicker *time.Ticker
 	ctx           context.Context
@@ -22,27 +30,27 @@ type MemCacheItem struct {
 }
 
 // NewMemCache creates a new memory cache.
-func NewMemCache() *MemCache {
+func NewMemCache() *memCache {
 	ctx, cancel := context.WithCancel(context.Background())
-	mc := &MemCache{
+	mc := &memCache{
 		cancel:        cancel,
 		cleanupTicker: time.NewTicker(5 * time.Minute),
 		ctx:           ctx,
 	}
-	mc.startCleanupWorker()
+	mc.StartCleanupWorker()
 
 	return mc
 }
 
 // startCleanupWorker starts the background worker for memory cleaning.
-func (mc *MemCache) startCleanupWorker() {
+func (mc *memCache) StartCleanupWorker() {
 	mc.wg.Add(1)
 	go func() {
 		defer mc.wg.Done()
 		for {
 			select {
 			case <-mc.cleanupTicker.C:
-				mc.cleanup()
+				mc.Cleanup()
 			case <-mc.ctx.Done():
 				return
 			}
@@ -51,7 +59,7 @@ func (mc *MemCache) startCleanupWorker() {
 }
 
 // cleanup go through each key and clean any expired key.
-func (mc *MemCache) cleanup() {
+func (mc *memCache) Cleanup() {
 	now := time.Now()
 	mc.memoryCache.Range(func(key, value any) bool {
 		item := value.(*MemCacheItem)
@@ -63,14 +71,14 @@ func (mc *MemCache) cleanup() {
 }
 
 // Close shutdown the memory cache worker.
-func (mc *MemCache) Close() {
+func (mc *memCache) Close() {
 	mc.cancel()
 	mc.cleanupTicker.Stop()
 	mc.wg.Wait()
 }
 
 // Get returns a key value of the single cache.
-func (mc *MemCache) Get(key string) any {
+func (mc *memCache) Get(key string) any {
 	value, exists := mc.memoryCache.Load(key)
 	if !exists {
 		return nil
@@ -88,7 +96,7 @@ func (mc *MemCache) Get(key string) any {
 }
 
 // Set a given key on the cache.
-func (mc *MemCache) Set(key string, value any, ttl time.Duration) {
+func (mc *memCache) Set(key string, value any, ttl time.Duration) {
 	mc.memoryCache.Store(key, &MemCacheItem{
 		value: value,
 		ttl:   time.Now().Add(ttl),

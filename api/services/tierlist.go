@@ -8,7 +8,6 @@ import (
 	"goleague/api/dto"
 	"goleague/api/filters"
 	"goleague/api/repositories"
-	"goleague/pkg/redis"
 	"strconv"
 	"strings"
 	"time"
@@ -16,22 +15,26 @@ import (
 	"gorm.io/gorm"
 )
 
+type TierlistRedisClient interface {
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key string, value any, ttl time.Duration) error
+}
+
 // Tierlist service with the  repositories and the gRPC client in case we need to force fetch something (Unlikely).
 type TierlistService struct {
-	championCache      *cache.ChampionCache
+	championCache      cache.ChampionCache
 	db                 *gorm.DB
-	memCache           *cache.MemCache
-	redis              *redis.RedisClient
-	CacheRepository    repositories.CacheRepository
+	memCache           cache.MemCache
+	redis              TierlistRedisClient
 	TierlistRepository repositories.TierlistRepository
 }
 
 // TierlistServiceDeps is the dependency list for the tierlist service.
 type TierlistServiceDeps struct {
 	DB            *gorm.DB
-	ChampionCache *cache.ChampionCache
-	MemCache      *cache.MemCache
-	Redis         *redis.RedisClient
+	ChampionCache cache.ChampionCache
+	MemCache      cache.MemCache
+	Redis         TierlistRedisClient
 }
 
 // NewTierlistService creates a tierlist service.
@@ -41,7 +44,6 @@ func NewTierlistService(deps *TierlistServiceDeps) *TierlistService {
 		db:                 deps.DB,
 		memCache:           deps.MemCache,
 		redis:              deps.Redis,
-		CacheRepository:    repositories.NewCacheRepository(deps.DB),
 		TierlistRepository: repositories.NewTierlistRepository(deps.DB),
 	}
 }
@@ -105,7 +107,7 @@ func (ts *TierlistService) buildFullTierlist(results []*dto.TierlistResult) ([]*
 		}
 
 		// Get a copy of the champion on the cache.
-		championData, err := ts.championCache.GetChampionCopy(championCtx, strconv.Itoa(entry.ChampionId), ts.CacheRepository)
+		championData, err := ts.championCache.GetChampionCopy(championCtx, strconv.Itoa(entry.ChampionId))
 		if err != nil {
 			fullResult[index].Champion = map[string]any{"id": strconv.Itoa(entry.ChampionId)}
 			cacheFailed = true
