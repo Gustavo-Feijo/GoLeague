@@ -65,6 +65,11 @@ func (m *MockMatchRepository) GetMatchPreviews(matchIds []uint) ([]repositories.
 	return args.Get(0).([]repositories.RawMatchPreview), args.Error(1)
 }
 
+func (m *MockMatchRepository) GetMatchByMatchId(matchId string) (*models.MatchInfo, error) {
+	args := m.Called(matchId)
+	return args.Get(0).(*models.MatchInfo), args.Error(1)
+}
+
 // Cache mock implementations.
 type MockMatchCache struct {
 	mock.Mock

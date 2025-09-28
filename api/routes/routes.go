@@ -28,16 +28,15 @@ func (r *Router) SetupRoutes(handlerList ...any) {
 			r.registerTierlistHandler(handler)
 		case *handlers.PlayerHandler:
 			r.registerPlayerHandler(handler)
+		case *handlers.MatchHandler:
+			r.registerMatchHandler(handler)
 		}
 	}
 }
 
-// registerTierlistHandler implements the tierlist routes.
-func (r *Router) registerTierlistHandler(handler *handlers.TierlistHandler) {
-	tierlist := r.api.Group("/tierlist")
-	{
-		tierlist.GET("", handler.GetTierlist)
-	}
+// registerMatchHandler implements the match routes.
+func (r *Router) registerMatchHandler(handler *handlers.MatchHandler) {
+	// TODO
 }
 
 // registerPlayerHandler implements the player routes.
@@ -50,6 +49,14 @@ func (r *Router) registerPlayerHandler(handler *handlers.PlayerHandler) {
 		player.GET(":region/:gameName/:gameTag/stats", handler.GetPlayerStats)
 		player.POST(":region/:gameName/:gameTag", handler.ForceFetchPlayer)
 		player.POST(":region/:gameName/:gameTag/matches", handler.ForceFetchPlayerMatchHistory)
+	}
+}
+
+// registerTierlistHandler implements the tierlist routes.
+func (r *Router) registerTierlistHandler(handler *handlers.TierlistHandler) {
+	tierlist := r.api.Group("/tierlist")
+	{
+		tierlist.GET("", handler.GetTierlist)
 	}
 }
 

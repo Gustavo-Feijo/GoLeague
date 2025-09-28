@@ -3,9 +3,7 @@ package modules
 import (
 	"context"
 	"goleague/api/cache"
-	grpcclient "goleague/api/grpc"
 	"goleague/api/handlers"
-	"goleague/api/services"
 	"goleague/pkg/redis"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +14,7 @@ import (
 // Module containing the necessary handlers.
 type Module struct {
 	Router          *gin.Engine
+	MatchHandler    *handlers.MatchHandler
 	PlayerHandler   *handlers.PlayerHandler
 	TierlistHandler *handlers.TierlistHandler
 }
@@ -32,51 +31,15 @@ type ModuleDependencies struct {
 func NewModule(deps *ModuleDependencies) (*Module, error) {
 	router := gin.Default()
 
-	// Preload the cache.
+	// Create a instance  just for initializing.
 	championCache := cache.NewChampionCache(deps.DB, deps.Redis, deps.MemCache)
 	championCache.Initialize(context.Background())
-
-	matchCache := cache.NewMatchCache(deps.Redis)
-
-	// Initialize the tierlist service and handler.
-	tierlistDeps := &services.TierlistServiceDeps{
-		DB:            deps.DB,
-		ChampionCache: championCache,
-		MemCache:      deps.MemCache,
-		Redis:         deps.Redis,
-	}
-
-	tierlistService := services.NewTierlistService(tierlistDeps)
-
-	tierlistHandlerDeps := &handlers.TierlistHandlerDependencies{
-		MemCache:        deps.MemCache,
-		Redis:           deps.Redis,
-		TierlistService: tierlistService,
-	}
-	tierlistHandler := handlers.NewTierlistHandler(tierlistHandlerDeps)
-
-	grpcClient := grpcclient.NewPlayerGRPCClient(deps.GrpcClient)
-
-	// Initialize the player service and handler.
-	playerDeps := &services.PlayerServiceDeps{
-		DB:         deps.DB,
-		GrpcClient: grpcClient,
-		MatchCache: matchCache,
-		Redis:      deps.Redis,
-	}
-
-	playerService := services.NewPlayerService(playerDeps)
-
-	playerHandlerDeps := &handlers.PlayerHandlerDependencies{
-		PlayerService: playerService,
-	}
-
-	playerHandler := handlers.NewPlayerHandler(playerHandlerDeps)
 
 	// Return the module with all handlers.
 	return &Module{
 		Router:          router,
-		PlayerHandler:   playerHandler,
-		TierlistHandler: tierlistHandler,
+		MatchHandler:    initializeMatchHandler(deps),
+		PlayerHandler:   initializePlayerHandler(deps),
+		TierlistHandler: initializeTierlistHandler(deps),
 	}, nil
 }

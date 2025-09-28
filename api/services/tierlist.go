@@ -71,7 +71,10 @@ func (ts *TierlistService) GetTierlist(filters *filters.TierlistFilter) ([]*dto.
 		return []*dto.FullTierlist{}, nil
 	}
 
-	fullResult, cacheFailed := ts.buildFullTierlist(results)
+	var dtoHelper dto.TierlistResult
+	tierlistResultDTO := dtoHelper.FromRepositorySlice(results)
+
+	fullResult, cacheFailed := ts.buildFullTierlist(tierlistResultDTO)
 
 	if !cacheFailed {
 		ts.populateCaches(key, fullResult)

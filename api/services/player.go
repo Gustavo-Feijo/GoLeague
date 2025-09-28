@@ -347,9 +347,9 @@ func parsePlayerStats(playerStatsDto dto.FullPlayerStats, stats repositories.Raw
 	// Initialize the queue entry if it doesn't exist
 	if playerStatsDto[queue] == nil {
 		playerStatsDto[queue] = &dto.PlayerStatsQueue{
-			Unfiltered:   nil,
 			ChampionData: make(map[string]*dto.StatsEntry),
 			LaneData:     make(map[string]*dto.StatsEntry),
+			Unfiltered:   nil,
 		}
 	}
 
@@ -385,12 +385,13 @@ func parsePreviewData(fullPreview dto.MatchPreviewList, r repositories.RawMatchP
 	if _, ok := fullPreview[r.MatchID]; !ok {
 		fullPreview[r.MatchID] = &dto.MatchPreview{
 			Metadata: &dto.MatchPreviewMetadata{
-				AverageElo: tiervalues.CalculateInverseRank(int(r.AverageRating)),
-				Date:       r.Date,
-				Duration:   r.Duration,
-				InternalId: r.InternalId,
-				MatchId:    r.MatchID,
-				QueueId:    r.QueueID,
+				AverageElo:   tiervalues.CalculateInverseRank(int(r.AverageRating)),
+				Date:         r.Date,
+				Duration:     r.Duration,
+				InternalId:   r.InternalId,
+				MatchId:      r.MatchID,
+				QueueId:      r.QueueID,
+				WinnerTeamId: r.WinnerTeamId,
 			},
 			Data: make([]*dto.MatchPreviewData, 0),
 		}
@@ -405,18 +406,19 @@ func parsePreviewData(fullPreview dto.MatchPreviewList, r repositories.RawMatchP
 	}
 
 	preview := &dto.MatchPreviewData{
-		GameName:      r.RiotIDGameName,
-		Tag:           r.RiotIDTagline,
-		Region:        r.Region,
 		Assists:       r.Assists,
-		Kills:         r.Kills,
-		Deaths:        r.Deaths,
-		ChampionLevel: r.ChampionLevel,
 		ChampionID:    r.ChampionID,
-		TotalCs:       r.TotalMinionsKilled + r.NeutralMinionsKilled,
+		ChampionLevel: r.ChampionLevel,
+		Deaths:        r.Deaths,
+		GameName:      r.RiotIDGameName,
 		Items:         items,
-		Win:           r.Win,
+		Kills:         r.Kills,
 		QueueID:       r.QueueID,
+		Region:        r.Region,
+		Tag:           r.RiotIDTagline,
+		TeamId:        r.Team,
+		TotalCs:       r.TotalMinionsKilled + r.NeutralMinionsKilled,
+		Win:           r.Win,
 	}
 
 	fullPreview[r.MatchID].Data = append(fullPreview[r.MatchID].Data, preview)

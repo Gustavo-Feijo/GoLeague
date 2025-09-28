@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"goleague/api/dto"
 	"goleague/api/filters"
 	queuevalues "goleague/pkg/riotvalues/queue"
 	tiervalues "goleague/pkg/riotvalues/tier"
@@ -13,7 +12,7 @@ import (
 
 // Public Interface.
 type TierlistRepository interface {
-	GetTierlist(filters *filters.TierlistFilter) ([]*dto.TierlistResult, error)
+	GetTierlist(filters *filters.TierlistFilter) ([]*TierlistResult, error)
 }
 
 // Tierlist repository structure.
@@ -26,10 +25,20 @@ func NewTierlistRepository(db *gorm.DB) TierlistRepository {
 	return &tierlistRepository{db: db}
 }
 
+type TierlistResult struct {
+	BanCount     int
+	BanRate      float64
+	ChampionId   int
+	PickCount    int
+	PickRate     float64
+	TeamPosition string
+	WinRate      float64
+}
+
 // GetTierlist is the only necessary function for the tierlist.
 // Handle the query building and fetching.
-func (ts *tierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*dto.TierlistResult, error) {
-	var results []*dto.TierlistResult
+func (ts *tierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*TierlistResult, error) {
+	var results []*TierlistResult
 
 	// Initialize query parts.
 	whereConditions := []string{}

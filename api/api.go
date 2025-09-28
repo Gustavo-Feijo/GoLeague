@@ -44,6 +44,7 @@ func main() {
 	// Create a new router with the routes setup.
 	router := routes.NewRouter(module.Router)
 	router.SetupRoutes(
+		module.MatchHandler,
 		module.TierlistHandler,
 		module.PlayerHandler,
 	)

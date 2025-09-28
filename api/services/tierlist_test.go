@@ -5,6 +5,7 @@ import (
 	"errors"
 	"goleague/api/dto"
 	"goleague/api/filters"
+	"goleague/api/repositories"
 	"testing"
 	"time"
 
@@ -17,9 +18,9 @@ type MockTierlistRepository struct {
 	mock.Mock
 }
 
-func (m *MockTierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*dto.TierlistResult, error) {
+func (m *MockTierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*repositories.TierlistResult, error) {
 	args := m.Called(filters)
-	return args.Get(0).([]*dto.TierlistResult), args.Get(1).(error)
+	return args.Get(0).([]*repositories.TierlistResult), args.Get(1).(error)
 }
 
 type MockChampionCache struct {
@@ -149,7 +150,7 @@ func TestGetTierlistRepositoryErrorReturnsError(t *testing.T) {
 	mockRedis.On("Get", mock.AnythingOfType("*context.timerCtx"), key).Return("", errors.New("not found"))
 
 	// Mock repository error
-	mockRepo.On("GetTierlist", filters).Return(([]*dto.TierlistResult)(nil), errors.New("database error"))
+	mockRepo.On("GetTierlist", filters).Return(([]*repositories.TierlistResult)(nil), errors.New("database error"))
 
 	result, err := service.GetTierlist(filters)
 

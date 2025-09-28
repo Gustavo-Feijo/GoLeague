@@ -1,6 +1,8 @@
 package dto
 
-import "time"
+import (
+	"time"
+)
 
 // MatchPreview is a entry for a given match, with it's metadata and previews for each player.
 type MatchPreview struct {
@@ -18,6 +20,7 @@ type MatchPreviewData struct {
 	Deaths        int    `json:"deaths"`
 	ChampionLevel int    `json:"championLevel"`
 	ChampionID    int    `json:"championId"`
+	TeamId        int    `json:"teamId"`
 	Items         []int  `json:"items"`
 	TotalCs       int    `json:"totalCs"`
 	Win           bool   `json:"win"`
@@ -29,10 +32,11 @@ type MatchPreviewList map[string]*MatchPreview
 
 // MatchPreviewMetadata holds a given match metadata.
 type MatchPreviewMetadata struct {
-	AverageElo string    `json:"averageElo"`
-	Duration   int       `json:"duration"`
-	Date       time.Time `json:"date"`
-	MatchId    string    `json:"matchId"`
-	InternalId uint      `json:"internalId"`
-	QueueId    int       `json:"queueId"`
+	AverageElo   string    `json:"averageElo"`
+	Duration     int       `json:"duration"`
+	Date         time.Time `json:"date"`
+	MatchId      string    `json:"matchId"`
+	InternalId   uint      `json:"internalId"`
+	QueueId      int       `json:"queueId"`
+	WinnerTeamId int       `json:"winnerTeamId"`
 }
