@@ -40,3 +40,11 @@ type MatchPreviewMetadata struct {
 	QueueId      int       `json:"queueId"`
 	WinnerTeamId int       `json:"winnerTeamId"`
 }
+
+func NewMatchPreviewList() MatchPreviewList {
+	return make(MatchPreviewList)
+}
+
+func (mpl MatchPreviewList) AddMatch(matchId string, preview *MatchPreview) {
+	mpl[matchId] = preview
+}

@@ -60,8 +60,13 @@ type MockMatchRepository struct {
 	mock.Mock
 }
 
-func (m *MockMatchRepository) GetMatchPreviews(matchIds []uint) ([]repositories.RawMatchPreview, error) {
-	args := m.Called(matchIds)
+func (m *MockMatchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]repositories.RawMatchPreview, error) {
+	args := m.Called(matchID)
+	return args.Get(0).([]repositories.RawMatchPreview), args.Error(1)
+}
+
+func (m *MockMatchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]repositories.RawMatchPreview, error) {
+	args := m.Called(matchIDs)
 	return args.Get(0).([]repositories.RawMatchPreview), args.Error(1)
 }
 
@@ -485,7 +490,7 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 					}
 
 					if len(tt.missingMatches) > 0 {
-						mockMatchRepo.On("GetMatchPreviews", tt.missingMatches).
+						mockMatchRepo.On("GetMatchPreviewsByInternalIds", tt.missingMatches).
 							Return(tt.rawPreviews, tt.rawPreviewsError).Once()
 					}
 				}
@@ -805,56 +810,4 @@ func TestGetPlayerStats(t *testing.T) {
 			mockPlayerRepo.AssertExpectations(t)
 		})
 	}
-}
-
-func TestFormatMatchPreviews(t *testing.T) {
-	item0 := 1001
-	item1 := 1002
-
-	rawPreviews := []repositories.RawMatchPreview{
-		{
-			MatchID:              "MATCH1",
-			AverageRating:        1200,
-			Date:                 time.Now(),
-			Duration:             1800,
-			InternalId:           1,
-			QueueID:              420,
-			RiotIDGameName:       "TestPlayer",
-			RiotIDTagline:        "TAG1",
-			Region:               "NA1",
-			Assists:              5,
-			Kills:                10,
-			Deaths:               2,
-			ChampionLevel:        18,
-			ChampionID:           1,
-			TotalMinionsKilled:   150,
-			NeutralMinionsKilled: 30,
-			Item0:                &item0,
-			Item1:                &item1,
-			Item2:                nil,
-			Item3:                nil,
-			Item4:                nil,
-			Item5:                nil,
-			Win:                  true,
-		},
-	}
-
-	result := formatMatchPreviews(rawPreviews)
-
-	assert.NotNil(t, result)
-	assert.Len(t, result, 1)
-	assert.Contains(t, result, "MATCH1")
-
-	match := result["MATCH1"]
-	assert.NotNil(t, match.Metadata)
-	assert.Equal(t, "MATCH1", match.Metadata.MatchId)
-	assert.Equal(t, 420, match.Metadata.QueueId)
-	assert.Len(t, match.Data, 1)
-
-	playerData := match.Data[0]
-	assert.Equal(t, "TestPlayer", playerData.GameName)
-	assert.Equal(t, "TAG1", playerData.Tag)
-	assert.Equal(t, 180, playerData.TotalCs) // 150 + 30
-	assert.True(t, playerData.Win)
-	assert.Len(t, playerData.Items, 2) // Only non-zero items
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"goleague/api/cache"
+	"goleague/api/converters"
 	"goleague/api/dto"
 	"goleague/api/filters"
 	grpcclient "goleague/api/grpc"
@@ -16,8 +17,6 @@ import (
 	"time"
 
 	pb "goleague/pkg/grpc"
-
-	tiervalues "goleague/pkg/riotvalues/tier"
 
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -35,11 +34,11 @@ type PlayerRedisClient interface {
 
 // PlayerService service with the  repositories and the gRPC client in case we need to force fetch something (Unlikely).
 type PlayerService struct {
-	db         *gorm.DB
-	grpcClient grpcclient.PlayerGRPCClient
-	matchCache cache.MatchCache
-	redis      PlayerRedisClient
-
+	db               *gorm.DB
+	grpcClient       grpcclient.PlayerGRPCClient
+	matchCache       cache.MatchCache
+	redis            PlayerRedisClient
+	matchConverter   converters.MatchConverter
 	MatchRepository  repositories.MatchRepository
 	PlayerRepository repositories.PlayerRepository
 }
@@ -165,12 +164,15 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHisto
 	matchesIds = missingMatches
 
 	// Get the non cached matches from the database.
-	matchPreviews, err := ps.MatchRepository.GetMatchPreviews(matchesIds)
+	matchPreviews, err := ps.MatchRepository.GetMatchPreviewsByInternalIds(matchesIds)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the match history for the player: %w", err)
 	}
 
-	formatedPreviews := formatMatchPreviews(matchPreviews)
+	formatedPreviews, err := ps.matchConverter.ConvertMultipleMatches(matchPreviews)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't parse the matches data: %w", err)
+	}
 
 	// Add the missing previews to the cache.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -307,18 +309,6 @@ func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters *filters.PlayerFor
 	return ps.grpcClient.ForceFetchPlayerMatchHistory(filters, FORCE_FETCH_MATCHES_OPERATION)
 }
 
-// formatMatchPreviews return the formatted dto for the matches.
-func formatMatchPreviews(rawPreviews []repositories.RawMatchPreview) dto.MatchPreviewList {
-	fullPreview := make(dto.MatchPreviewList)
-
-	// Range through each raw preview and format it.
-	for _, r := range rawPreviews {
-		parsePreviewData(fullPreview, r)
-	}
-
-	return fullPreview
-}
-
 // parsePlayerStats parse a raw player stats entry to insert into the DTO.
 func parsePlayerStats(playerStatsDto dto.FullPlayerStats, stats repositories.RawPlayerStatsStruct) {
 	var champion string
@@ -377,51 +367,6 @@ func parsePlayerStats(playerStatsDto dto.FullPlayerStats, stats repositories.Raw
 	if lane != "ALL" {
 		playerStatsDto[queue].LaneData[lane] = entry
 	}
-}
-
-// parsePreviewData simply parse one raw preview entry to a full preview.
-func parsePreviewData(fullPreview dto.MatchPreviewList, r repositories.RawMatchPreview) {
-	// Initialize the full preview.
-	if _, ok := fullPreview[r.MatchID]; !ok {
-		fullPreview[r.MatchID] = &dto.MatchPreview{
-			Metadata: &dto.MatchPreviewMetadata{
-				AverageElo:   tiervalues.CalculateInverseRank(int(r.AverageRating)),
-				Date:         r.Date,
-				Duration:     r.Duration,
-				InternalId:   r.InternalId,
-				MatchId:      r.MatchID,
-				QueueId:      r.QueueID,
-				WinnerTeamId: r.WinnerTeamId,
-			},
-			Data: make([]*dto.MatchPreviewData, 0),
-		}
-	}
-
-	rawItems := []*int{r.Item0, r.Item1, r.Item2, r.Item3, r.Item4, r.Item5}
-	items := make([]int, 0, 6)
-	for _, it := range rawItems {
-		if it != nil && *it != 0 {
-			items = append(items, *it)
-		}
-	}
-
-	preview := &dto.MatchPreviewData{
-		Assists:       r.Assists,
-		ChampionID:    r.ChampionID,
-		ChampionLevel: r.ChampionLevel,
-		Deaths:        r.Deaths,
-		GameName:      r.RiotIDGameName,
-		Items:         items,
-		Kills:         r.Kills,
-		QueueID:       r.QueueID,
-		Region:        r.Region,
-		Tag:           r.RiotIDTagline,
-		TeamId:        r.Team,
-		TotalCs:       r.TotalMinionsKilled + r.NeutralMinionsKilled,
-		Win:           r.Win,
-	}
-
-	fullPreview[r.MatchID].Data = append(fullPreview[r.MatchID].Data, preview)
 }
 
 func handleCachedMatches(cachedMatches []dto.MatchPreview, matchesDto dto.MatchPreviewList) {

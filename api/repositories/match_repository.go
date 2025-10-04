@@ -11,7 +11,8 @@ import (
 // MatchRepository is the public interface for accessing the player repository.
 type MatchRepository interface {
 	GetMatchByMatchId(matchId string) (*models.MatchInfo, error)
-	GetMatchPreviews(matchIDs []uint) ([]RawMatchPreview, error)
+	GetMatchPreviewsByInternalId(matchID uint) ([]RawMatchPreview, error)
+	GetMatchPreviewsByInternalIds(matchIDs []uint) ([]RawMatchPreview, error)
 }
 
 // matchRepository repository structure.
@@ -54,36 +55,36 @@ type RawMatchPreview struct {
 }
 
 // GetMatchPreviews gets the formatted preview for a list of matches.
-func (ms *matchRepository) GetMatchPreviews(matchIDs []uint) ([]RawMatchPreview, error) {
+func (ms *matchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]RawMatchPreview, error) {
 	var rawResults []RawMatchPreview
 
 	query := `
 		SELECT 
-			pi.riot_id_game_name,
-			pi.riot_id_tagline,
-			pi.region,
+			mi.average_rating,
+			mi.id,
+			mi.match_duration,
 			mi.match_id,
+			mi.match_start,
 			mi.match_winner as winner_team_id,
+			mi.queue_id,
 			ms.assists,
-			ms.kills,
-			ms.deaths,
-			ms.champion_level,
 			ms.champion_id,
+			ms.champion_level,
+			ms.deaths,
 			ms.item0,
 			ms.item1,
 			ms.item2,
 			ms.item3,
 			ms.item4,
 			ms.item5,
+			ms.kills,
 			ms.neutral_minions_killed,
-			ms.total_minions_killed,
 			ms.team_id,
+			ms.total_minions_killed,
 			ms.win,
-			mi.id,
-			mi.match_duration,
-			mi.match_start,
-			mi.average_rating,
-			mi.queue_id
+			pi.region,
+			pi.riot_id_game_name,
+			pi.riot_id_tagline
 		FROM match_stats ms
 		JOIN match_infos mi ON ms.match_id = mi.id
 		JOIN player_infos pi ON ms.player_id = pi.id
@@ -91,6 +92,50 @@ func (ms *matchRepository) GetMatchPreviews(matchIDs []uint) ([]RawMatchPreview,
 	`
 
 	if err := ms.db.Raw(query, matchIDs).Scan(&rawResults).Error; err != nil {
+		return nil, err
+	}
+
+	return rawResults, nil
+}
+
+// GetMatchPreviews gets the formatted preview for a given match.
+func (ms *matchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]RawMatchPreview, error) {
+	var rawResults []RawMatchPreview
+
+	query := `
+		SELECT 
+			mi.average_rating,
+			mi.id,
+			mi.match_duration,
+			mi.match_id,
+			mi.match_start,
+			mi.match_winner as winner_team_id,
+			mi.queue_id,
+			ms.assists,
+			ms.champion_id,
+			ms.champion_level,
+			ms.deaths,
+			ms.item0,
+			ms.item1,
+			ms.item2,
+			ms.item3,
+			ms.item4,
+			ms.item5,
+			ms.kills,
+			ms.neutral_minions_killed,
+			ms.team_id,
+			ms.total_minions_killed,
+			ms.win,
+			pi.region,
+			pi.riot_id_game_name,
+			pi.riot_id_tagline
+		FROM match_stats ms
+		JOIN match_infos mi ON ms.match_id = mi.id
+		JOIN player_infos pi ON ms.player_id = pi.id
+		WHERE ms.match_id = ?
+	`
+
+	if err := ms.db.Raw(query, matchID).Scan(&rawResults).Error; err != nil {
 		return nil, err
 	}
 
