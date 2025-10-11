@@ -3,6 +3,7 @@ package handlers
 import (
 	"goleague/api/filters"
 	"goleague/api/services"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,4 +31,17 @@ func (h *MatchHandler) bindURIParams(c *gin.Context) (*filters.MatchURIParams, e
 		return nil, err
 	}
 	return &mp, nil
+}
+
+func (h *MatchHandler) GetFullMatchData(c *gin.Context) {
+
+	pp, err := h.bindURIParams(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	filters := filters.NewGetFullMatchDataFilter(pp)
+
+	h.MatchService.GetFullMatchData(filters)
 }

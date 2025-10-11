@@ -36,7 +36,10 @@ func (r *Router) SetupRoutes(handlerList ...any) {
 
 // registerMatchHandler implements the match routes.
 func (r *Router) registerMatchHandler(handler *handlers.MatchHandler) {
-	// TODO
+	match := r.api.Group("/match")
+	{
+		match.GET(":matchId", handler.GetFullMatchData)
+	}
 }
 
 // registerPlayerHandler implements the player routes.
