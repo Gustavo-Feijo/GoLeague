@@ -46,6 +46,7 @@ type MatchPlayer struct {
 	NeedVisionPings                int        `json:"needVisionPings"`
 	NeutralMinionsKilled           int        `json:"neutralMinionsKilled"`
 	OnMyWayPings                   int        `json:"onMyWayPings"`
+	ParticipantId                  int        `json:"participantId"`
 	PhysicalDamageDealtToChampions int        `json:"physicalDamageDealtToChampions"`
 	PhysicalDamageTaken            int        `json:"physicalDamageTaken"`
 	ProfileIcon                    int        `json:"profileIcon" gorm:"-"`

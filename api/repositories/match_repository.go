@@ -10,9 +10,10 @@ import (
 
 // MatchRepository is the public interface for accessing the player repository.
 type MatchRepository interface {
-	GetMatchByMatchId(matchId string) (*models.MatchInfo, error)
+	GetMatchByMatchId(matchID string) (*models.MatchInfo, error)
 	GetMatchPreviewsByInternalId(matchID uint) ([]RawMatchPreview, error)
 	GetMatchPreviewsByInternalIds(matchIDs []uint) ([]RawMatchPreview, error)
+	GetParticipantFramesByInternalId(matchID uint) ([]RawMatchParticipantFrame, error)
 }
 
 // matchRepository repository structure.
@@ -44,6 +45,8 @@ type RawMatchPreview struct {
 	Kills                int       `gorm:"column:kills"`
 	MatchID              string    `gorm:"column:match_id"`
 	NeutralMinionsKilled int       `gorm:"column:neutral_minions_killed"`
+	ParticipantId        int       `gorm:"column:participant_id"`
+	PlayerId             uint      `gorm:"column:player_id"`
 	QueueID              int       `gorm:"column:queue_id"`
 	Region               string    `gorm:"column:region"`
 	RiotIDGameName       string    `gorm:"column:riot_id_game_name"`
@@ -52,6 +55,30 @@ type RawMatchPreview struct {
 	TotalMinionsKilled   int       `gorm:"column:total_minions_killed"`
 	Win                  bool      `gorm:"column:win"`
 	WinnerTeamId         int       `gorm:"column:winner_team_id"`
+}
+
+type RawMatchParticipantFrame struct {
+	CurrentGold                   int `gorm:"column:current_gold"`
+	FrameIndex                    int `gorm:"column:frame_index"`
+	JungleMinionsKilled           int `gorm:"column:jungle_minions_killed"`
+	Level                         int `gorm:"column:level"`
+	MagicDamageDone               int `gorm:"column:magic_damage_done"`
+	MagicDamageDoneToChampions    int `gorm:"column:magic_damage_done_to_champions"`
+	MagicDamageTaken              int `gorm:"column:magic_damage_taken"`
+	MatchStatID                   int `gorm:"column:match_stat_id"`
+	MinionsKilled                 int `gorm:"column:minions_killed"`
+	ParticipantID                 int `gorm:"column:participant_id"`
+	PhysicalDamageDone            int `gorm:"column:physical_damage_done"`
+	PhysicalDamageDoneToChampions int `gorm:"column:physical_damage_done_to_champions"`
+	PhysicalDamageTaken           int `gorm:"column:physical_damage_taken"`
+	TotalDamageDone               int `gorm:"column:total_damage_done"`
+	TotalDamageDoneToChampions    int `gorm:"column:total_damage_done_to_champions"`
+	TotalDamageTaken              int `gorm:"column:total_damage_taken"`
+	TotalGold                     int `gorm:"column:total_gold"`
+	TrueDamageDone                int `gorm:"column:true_damage_done"`
+	TrueDamageDoneToChampions     int `gorm:"column:true_damage_done_to_champions"`
+	TrueDamageTaken               int `gorm:"column:true_damage_taken"`
+	XP                            int `gorm:"column:xp"`
 }
 
 // GetMatchPreviews gets the formatted preview for a list of matches.
@@ -79,9 +106,11 @@ func (ms *matchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]Raw
 			ms.item5,
 			ms.kills,
 			ms.neutral_minions_killed,
+			ms.participant_id,
 			ms.team_id,
 			ms.total_minions_killed,
 			ms.win,
+			pi.id as player_id,
 			pi.region,
 			pi.riot_id_game_name,
 			pi.riot_id_tagline
@@ -123,9 +152,11 @@ func (ms *matchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]RawMatc
 			ms.item5,
 			ms.kills,
 			ms.neutral_minions_killed,
+			ms.participant_id,
 			ms.team_id,
 			ms.total_minions_killed,
 			ms.win,
+			pi.id as player_id,
 			pi.region,
 			pi.riot_id_game_name,
 			pi.riot_id_tagline
@@ -143,11 +174,28 @@ func (ms *matchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]RawMatc
 }
 
 // GetMatchInfo returns all the matches information.
-func (ms *matchRepository) GetMatchByMatchId(matchId string) (*models.MatchInfo, error) {
+func (ms *matchRepository) GetMatchByMatchId(matchID string) (*models.MatchInfo, error) {
 	var match models.MatchInfo
-	if err := ms.db.Where(&models.MatchInfo{MatchId: matchId}).First(&match).Error; err != nil {
+	if err := ms.db.Where(&models.MatchInfo{MatchId: matchID}).First(&match).Error; err != nil {
 		return nil, fmt.Errorf("couldn't get the match by the match ID: %v", err)
 	}
 
 	return &match, nil
+}
+
+// GetParticipantFramesByInternalId retrieves all participant frames by the auto increment internal ID.
+func (ms *matchRepository) GetParticipantFramesByInternalId(matchID uint) ([]RawMatchParticipantFrame, error) {
+	var results []RawMatchParticipantFrame
+
+	err := ms.db.
+		Table("participant_frames").
+		Select("participant_frames.*").
+		Joins("JOIN match_stats ON participant_frames.match_stat_id = match_stats.id").
+		Where("match_stats.match_id = ?", matchID).
+		Find(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
 }

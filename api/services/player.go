@@ -169,7 +169,7 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHisto
 		return nil, fmt.Errorf("couldn't get the match history for the player: %w", err)
 	}
 
-	formatedPreviews, err := ps.matchConverter.ConvertMultipleMatches(matchPreviews)
+	formattedPreviews, err := ps.matchConverter.ConvertMultipleMatches(matchPreviews)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't parse the matches data: %w", err)
 	}
@@ -177,16 +177,16 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHisto
 	// Add the missing previews to the cache.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	for _, match := range formatedPreviews {
+	for _, match := range formattedPreviews {
 		ps.matchCache.SetMatchPreview(ctx, *match)
 	}
 
 	// Add the cached matches to the final return.
 	if len(cachedMatches) > 0 {
-		handleCachedMatches(cachedMatches, formatedPreviews)
+		handleCachedMatches(cachedMatches, formattedPreviews)
 	}
 
-	return formatedPreviews, nil
+	return formattedPreviews, nil
 }
 
 // getCachedMatchPreviews return the cached raw match previews for the provided match ids.

@@ -8,18 +8,8 @@ import (
 	tiervalues "goleague/pkg/riotvalues/tier"
 )
 
+// MatchConverter is used to parse data to more usable/formatted structures.
 type MatchConverter struct{}
-
-// GroupRawMatchPreviewsByMatchId creates a map with the match id as key and the match previews array as value.
-func (c MatchConverter) GroupRawMatchPreviewsByMatchId(rawPreviews []repositories.RawMatchPreview) map[string][]repositories.RawMatchPreview {
-	grouped := make(map[string][]repositories.RawMatchPreview)
-
-	for _, preview := range rawPreviews {
-		grouped[preview.MatchID] = append(grouped[preview.MatchID], preview)
-	}
-
-	return grouped
-}
 
 // ConvertSingleMatch parses all previews for a given match and return it as the DTO.
 func (c *MatchConverter) ConvertSingleMatch(matchPreviews []repositories.RawMatchPreview) (*dto.MatchPreview, error) {
@@ -75,6 +65,18 @@ func (c *MatchConverter) ConvertMultipleMatches(rawPreviews []repositories.RawMa
 	return result, nil
 }
 
+// GroupRawMatchPreviewsByMatchId creates a map with the match id as key and the match previews array as value.
+func (c MatchConverter) GroupRawMatchPreviewsByMatchId(rawPreviews []repositories.RawMatchPreview) map[string][]repositories.RawMatchPreview {
+	grouped := make(map[string][]repositories.RawMatchPreview)
+
+	for _, preview := range rawPreviews {
+		grouped[preview.MatchID] = append(grouped[preview.MatchID], preview)
+	}
+
+	return grouped
+}
+
+// NewMatchPreviewData create a formatted match preview DTO.
 func (c MatchConverter) NewMatchPreviewData(matchPreview repositories.RawMatchPreview) *dto.MatchPreviewData {
 	rawItems := []*int{matchPreview.Item0, matchPreview.Item1, matchPreview.Item2, matchPreview.Item3, matchPreview.Item4, matchPreview.Item5}
 	items := make([]int, 0, 6)
@@ -92,6 +94,8 @@ func (c MatchConverter) NewMatchPreviewData(matchPreview repositories.RawMatchPr
 		GameName:      matchPreview.RiotIDGameName,
 		Items:         items,
 		Kills:         matchPreview.Kills,
+		ParticipantId: matchPreview.ParticipantId,
+		PlayerId:      matchPreview.PlayerId,
 		QueueID:       matchPreview.QueueID,
 		Region:        matchPreview.Region,
 		Tag:           matchPreview.RiotIDTagline,
@@ -101,6 +105,7 @@ func (c MatchConverter) NewMatchPreviewData(matchPreview repositories.RawMatchPr
 	}
 }
 
+// NewMatchPreviewMetadata generates the match metadata.
 func (c MatchConverter) NewMatchPreviewMetadata(matchPreview repositories.RawMatchPreview) *dto.MatchPreviewMetadata {
 	return &dto.MatchPreviewMetadata{
 		AverageElo:   tiervalues.CalculateInverseRank(int(matchPreview.AverageRating)),
@@ -111,4 +116,43 @@ func (c MatchConverter) NewMatchPreviewMetadata(matchPreview repositories.RawMat
 		QueueId:      matchPreview.QueueID,
 		WinnerTeamId: matchPreview.WinnerTeamId,
 	}
+}
+
+// GroupParticipantFramesByParticipantId creates a formatted dto of the participant frames.
+func (c MatchConverter) GroupParticipantFramesByParticipantId(participantFrames []repositories.RawMatchParticipantFrame) dto.ParticipantFrameList {
+	if len(participantFrames) == 0 {
+		return dto.NewParticipantFrameList()
+	}
+
+	participantList := dto.NewParticipantFrameList()
+
+	for _, frame := range participantFrames {
+		formattedFrame := dto.ParticipantFrame{
+			CurrentGold:                   frame.CurrentGold,
+			FrameIndex:                    frame.FrameIndex,
+			JungleMinionsKilled:           frame.JungleMinionsKilled,
+			Level:                         frame.Level,
+			MagicDamageDone:               frame.MagicDamageDone,
+			MagicDamageDoneToChampions:    frame.MagicDamageDoneToChampions,
+			MagicDamageTaken:              frame.MagicDamageTaken,
+			MatchStatID:                   frame.MatchStatID,
+			MinionsKilled:                 frame.MinionsKilled,
+			ParticipantID:                 frame.ParticipantID,
+			PhysicalDamageDone:            frame.PhysicalDamageDone,
+			PhysicalDamageDoneToChampions: frame.PhysicalDamageDoneToChampions,
+			PhysicalDamageTaken:           frame.PhysicalDamageTaken,
+			TotalDamageDone:               frame.TotalDamageDone,
+			TotalDamageDoneToChampions:    frame.TotalDamageDoneToChampions,
+			TotalDamageTaken:              frame.TotalDamageTaken,
+			TotalGold:                     frame.TotalGold,
+			TrueDamageDone:                frame.TrueDamageDone,
+			TrueDamageDoneToChampions:     frame.TrueDamageDoneToChampions,
+			TrueDamageTaken:               frame.TrueDamageTaken,
+			XP:                            frame.XP,
+		}
+
+		participantList.AddFrame(formattedFrame)
+	}
+
+	return participantList
 }

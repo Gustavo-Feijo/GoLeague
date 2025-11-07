@@ -70,9 +70,14 @@ func (m *MockMatchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]
 	return args.Get(0).([]repositories.RawMatchPreview), args.Error(1)
 }
 
-func (m *MockMatchRepository) GetMatchByMatchId(matchId string) (*models.MatchInfo, error) {
-	args := m.Called(matchId)
+func (m *MockMatchRepository) GetMatchByMatchId(matchID string) (*models.MatchInfo, error) {
+	args := m.Called(matchID)
 	return args.Get(0).(*models.MatchInfo), args.Error(1)
+}
+
+func (m *MockMatchRepository) GetParticipantFramesByInternalId(matchID uint) ([]repositories.RawMatchParticipantFrame, error) {
+	args := m.Called(matchID)
+	return args.Get(0).([]repositories.RawMatchParticipantFrame), args.Error(1)
 }
 
 // Cache mock implementations.
