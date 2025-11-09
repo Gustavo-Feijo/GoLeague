@@ -5,13 +5,20 @@ import (
 )
 
 // The timeline entries are almost always attached to a given player stat entry.
-// Since events can only be attached to players that played the match.
-// By making it like that, we can avoid creation of composite keys like the ones in the stats structure.
-// The few exceptions are events that can be made by minions.
 
-// EventFeatUpdate contains data regarding feats of strenght.
+// EventBase is the base structure for all events.
+type EventBase struct {
+	MatchID   uint      `gorm:"index:idx_match_participant;not null"`
+	MatchInfo MatchInfo `gorm:"foreignKey:MatchID"`
+
+	ParticipantID *int  `gorm:"index:idx_match_participant"` // Nullable, some events can be made by non-participants (like minions).
+	Timestamp     int64 `gorm:"index;not null"`
+}
+
+// EventFeatUpdate contains data regarding feats of strength.
 type EventFeatUpdate struct {
-	MatchId uint `gorm:"index"`
+	MatchID   uint      `gorm:"index"`
+	MatchInfo MatchInfo `gorm:"foreignKey:MatchID"`
 
 	Timestamp int64
 
@@ -22,11 +29,7 @@ type EventFeatUpdate struct {
 
 // EventItem contains data regarding players and items.
 type EventItem struct {
-	MatchStatId *uint64 `gorm:"index"`
-	Timestamp   int64
-
-	// Foreign Key.
-	MatchStat MatchStats `gorm:"MatchStatId"`
+	EventBase `gorm:"embedded"`
 
 	ItemId int
 
@@ -37,14 +40,10 @@ type EventItem struct {
 
 // EventKillStruct contains data regarding killings structs (Towers, Plates, etc).
 type EventKillStruct struct {
-	// Struct kills not necessary are attached to a player.
-	// A minion can kill a struct, so we need to handle differently.
-	MatchId   uint `gorm:"index"`
-	Timestamp int64
+	EventBase `gorm:"embedded"`
 	TeamId    int
 
-	EventType   string
-	MatchStatId *uint64
+	EventType string
 
 	BuildingType *string
 	LaneType     *string
@@ -56,22 +55,14 @@ type EventKillStruct struct {
 // EventLevelUp contains data regarding a givne player level up.
 type EventLevelUp struct {
 	// Composite primary key, a given player can have multiple level ups.
-	MatchStatId uint64 `gorm:"index"`
-	Timestamp   int64
-
-	// Foreign Key.
-	MatchStat MatchStats `gorm:"MatchStatId"`
+	EventBase `gorm:"embedded"`
 
 	Level int
 }
 
 // EventMonsterKill contains data regarding the death of a monster.
 type EventMonsterKill struct {
-	MatchStatId uint64 `gorm:"index"`
-	Timestamp   int64
-
-	// Foreign Key.
-	MatchStat MatchStats `gorm:"MatchStatId"`
+	EventBase `gorm:"embedded"`
 
 	KillerTeam  int
 	MonsterType string
@@ -82,25 +73,16 @@ type EventMonsterKill struct {
 // EventPlayerKill contains data regarding a champion being killed.
 // Can come from another players or minions and towers.
 type EventPlayerKill struct {
-	// Champions kills not necessary are attached to a player.
-	// A minion can kill a player, so we need to handle differently.
-	MatchId   uint `gorm:"index"`
-	Timestamp int64
+	EventBase `gorm:"embedded"`
 
-	MatchStatId *uint64
-
-	VictimMatchStatId *uint64
-	X                 int
-	Y                 int
+	VictimParticipantId *int
+	X                   int
+	Y                   int
 }
 
 // EventSkillLevelUp contains data regarding a skill level up.
 type EventSkillLevelUp struct {
-	MatchStatId uint64 `gorm:"index"`
-	Timestamp   int64
-
-	// Foreign Key.
-	MatchStat MatchStats `gorm:"MatchStatId"`
+	EventBase `gorm:"embedded"`
 
 	LevelUpType string `gorm:"type:varchar(30)"`
 	SkillSlot   int
@@ -108,10 +90,7 @@ type EventSkillLevelUp struct {
 
 // EventWard contains data regarding a ward/vision event.
 type EventWard struct {
-	// Sometimes the participant ID will be setted as 0 for some reason.
-	// So we cannot find who created/killed the ward.
-	MatchStatId *uint64 `gorm:"index"`
-	Timestamp   int64
+	EventBase `gorm:"embedded"`
 
 	EventType string `gorm:"not null"`
 	WardType  *string
@@ -125,6 +104,7 @@ type ParticipantFrame struct {
 	FrameIndex  int    `gorm:"primaryKey"`
 
 	// Foreign Key.
-	MatchStat                     MatchStats `gorm:"MatchStatId"`
+	MatchStat MatchStats `gorm:"MatchStatId"`
+
 	matchfetcher.ParticipantFrame `gorm:"embedded"`
 }

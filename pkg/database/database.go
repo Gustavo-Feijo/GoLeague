@@ -79,7 +79,7 @@ func CreateCustomIndexes(db *gorm.DB) error {
 	return db.Exec(searchIndex).Error
 }
 
-// GetConnections is a singleton implementation of the database.
+// GetConnections is a singleton implementaudo ssion of the database.
 // Return the connection pool.
 func NewConnection() (*gorm.DB, error) {
 
