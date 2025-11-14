@@ -6,7 +6,6 @@ import (
 	regionmanager "goleague/fetcher/regionmanager"
 	"goleague/pkg/config"
 	"goleague/pkg/database"
-	"goleague/pkg/database/models"
 	pb "goleague/pkg/grpc"
 	"goleague/pkg/logger"
 	"log"
@@ -44,41 +43,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Create the nenums and triggers.
-	err = database.CreateEnums(db)
+	// Runs the migrations.
+	rawDb, err := db.DB()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Couldn't get raw db connection: %v", err)
 	}
 
-	// Automigrate the models.
-	err = db.AutoMigrate(
-		&models.PlayerInfo{},
-		&models.MatchInfo{},
-		&models.MatchBans{},
-		&models.RatingEntry{},
-		&models.MatchStats{},
-		&models.EventFeatUpdate{},
-		&models.EventItem{},
-		&models.EventKillStruct{},
-		&models.EventLevelUp{},
-		&models.EventMonsterKill{},
-		&models.EventPlayerKill{},
-		&models.EventSkillLevelUp{},
-		&models.EventWard{},
-		&models.ParticipantFrame{},
-		&models.CacheBackup{},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = database.CreateTriggers(db)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = database.CreateCustomIndexes(db)
-	if err != nil {
+	if err := database.RunMigrations(rawDb); err != nil {
 		log.Fatal(err)
 	}
 

@@ -35,6 +35,16 @@ func main() {
 	}
 	defer cleanup()
 
+	// Runs the migrations.
+	rawDb, err := moduleDeps.DB.DB()
+	if err != nil {
+		log.Fatalf("Couldn't get raw db connection: %v", err)
+	}
+
+	if err = database.RunMigrations(rawDb); err != nil {
+		log.Fatalf("Couldn't run migrations: %v", err)
+	}
+
 	// Create a module with all necessary handlers.
 	module, err := modules.NewModule(moduleDeps)
 	if err != nil {

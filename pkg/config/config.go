@@ -19,12 +19,13 @@ type BucketConfig struct {
 
 // Database configuration struct.
 type DatabaseConfiguration struct {
-	Database string
-	Host     string
-	Password string
-	Port     string
-	User     string
-	URL      string
+	Database       string
+	Host           string
+	MigrationsPath string
+	Password       string
+	Port           string
+	User           string
+	URL            string
 }
 
 // gRPC configuration struct.
@@ -88,6 +89,7 @@ func LoadEnv() {
 	Database.Port = os.Getenv("POSTGRES_PORT")
 	Database.User = os.Getenv("POSTGRES_USER")
 	Database.URL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC", Database.Host, Database.User, Database.Password, Database.Database, Database.Port)
+	Database.MigrationsPath = os.Getenv("MIGRATIONS_PATH")
 
 	// Load the gRPC settings.
 	Grpc.Host = os.Getenv("GRPC_HOST")
