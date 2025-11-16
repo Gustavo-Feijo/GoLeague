@@ -65,10 +65,18 @@ func (ms *MatchService) GetFullMatchData(filter *filters.GetFullMatchDataFilter)
 
 	formattedParticipantFrames := ms.matchConverter.GroupParticipantFramesByParticipantId(participantFrames)
 
+	rawEvents, err := ms.MatchRepository.GetAllEvents(match.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	events := ms.matchConverter.ConvertEvents(rawEvents)
+
 	fullMatch := &dto.FullMatchData{
 		Metadata:             formattedPreview.Metadata,
 		ParticipantsPreviews: formattedPreview.Data,
 		ParticipantFrames:    formattedParticipantFrames,
+		Events:               events,
 	}
 
 	return fullMatch, nil

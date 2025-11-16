@@ -2,6 +2,8 @@ package dto
 
 import (
 	"time"
+
+	"gorm.io/datatypes"
 )
 
 // MatchPreview is a entry for a given match, with it's metadata and previews for each player.
@@ -56,6 +58,7 @@ type FullMatchData struct {
 	Metadata             *MatchPreviewMetadata `json:"metadata"`
 	ParticipantsPreviews []*MatchPreviewData   `json:"participants"`
 	ParticipantFrames    ParticipantFrameList  `json:"participant_frames"`
+	Events               []MatchEvents         `json:"events"`
 }
 
 // ParticipantFrameList is the map of frames for each participant in a given match.
@@ -92,4 +95,12 @@ type ParticipantFrame struct {
 	TrueDamageDoneToChampions     int `json:"trueDamageDoneToChampions"`
 	TrueDamageTaken               int `json:"trueDamageTaken"`
 	XP                            int `json:"xp"`
+}
+
+// MatchEvents holds data regarding a given event in a match.
+type MatchEvents struct {
+	Timestamp     int64          `json:"timestamp"`
+	EventType     string         `json:"eventType"`
+	ParticipantId *int           `json:"participantId"`
+	Data          datatypes.JSON `json:"data"`
 }

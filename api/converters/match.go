@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"goleague/api/dto"
 	"goleague/api/repositories"
+	"goleague/pkg/database/models"
 	tiervalues "goleague/pkg/riotvalues/tier"
 )
 
@@ -155,4 +156,20 @@ func (c MatchConverter) GroupParticipantFramesByParticipantId(participantFrames 
 	}
 
 	return participantList
+}
+
+// ConvertEvents converts raw events to formatted dto events.
+func (c MatchConverter) ConvertEvents(rawEvents []models.AllEvents) []dto.MatchEvents {
+	converted := make([]dto.MatchEvents, len(rawEvents))
+
+	for i, event := range rawEvents {
+		converted[i] = dto.MatchEvents{
+			Timestamp:     event.Timestamp,
+			EventType:     event.EventType,
+			ParticipantId: event.ParticipantId,
+			Data:          event.Data,
+		}
+	}
+
+	return converted
 }

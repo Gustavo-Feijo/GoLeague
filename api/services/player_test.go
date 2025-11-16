@@ -60,6 +60,11 @@ type MockMatchRepository struct {
 	mock.Mock
 }
 
+func (m *MockMatchRepository) GetAllEvents(matchID uint) ([]models.AllEvents, error) {
+	args := m.Called(matchID)
+	return args.Get(0).([]models.AllEvents), args.Error(1)
+}
+
 func (m *MockMatchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]repositories.RawMatchPreview, error) {
 	args := m.Called(matchID)
 	return args.Get(0).([]repositories.RawMatchPreview), args.Error(1)

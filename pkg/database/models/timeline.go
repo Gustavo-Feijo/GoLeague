@@ -2,6 +2,8 @@ package models
 
 import (
 	matchfetcher "goleague/fetcher/data/match"
+
+	"gorm.io/datatypes"
 )
 
 // The timeline entries are almost always attached to a given player stat entry.
@@ -107,4 +109,17 @@ type ParticipantFrame struct {
 	MatchStat MatchStats `gorm:"MatchStatId"`
 
 	matchfetcher.ParticipantFrame `gorm:"embedded"`
+}
+
+// View created to getting all events data together.
+type AllEvents struct {
+	MatchId       uint
+	Timestamp     int64
+	EventType     string
+	ParticipantId *int
+	Data          datatypes.JSON `gorm:"type:jsonb"`
+}
+
+func (AllEvents) TableName() string {
+	return "all_events"
 }

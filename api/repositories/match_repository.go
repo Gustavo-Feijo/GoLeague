@@ -10,6 +10,7 @@ import (
 
 // MatchRepository is the public interface for accessing the player repository.
 type MatchRepository interface {
+	GetAllEvents(matchID uint) ([]models.AllEvents, error)
 	GetMatchByMatchId(matchID string) (*models.MatchInfo, error)
 	GetMatchPreviewsByInternalId(matchID uint) ([]RawMatchPreview, error)
 	GetMatchPreviewsByInternalIds(matchIDs []uint) ([]RawMatchPreview, error)
@@ -79,6 +80,16 @@ type RawMatchParticipantFrame struct {
 	TrueDamageDoneToChampions     int `gorm:"column:true_damage_done_to_champions"`
 	TrueDamageTaken               int `gorm:"column:true_damage_taken"`
 	XP                            int `gorm:"column:xp"`
+}
+
+// GetAllEvents retrieves all events for a given match internal ID.
+func (ms *matchRepository) GetAllEvents(matchID uint) ([]models.AllEvents, error) {
+	var results []models.AllEvents
+	if err := ms.db.Where("match_id = ?", matchID).Order("timestamp asc").Find(&results).Error; err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 // GetMatchPreviews gets the formatted preview for a list of matches.
