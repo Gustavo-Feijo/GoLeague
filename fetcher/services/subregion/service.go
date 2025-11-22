@@ -6,7 +6,6 @@ import (
 	"goleague/fetcher/data"
 	leaguefetcher "goleague/fetcher/data/league"
 	playerfetcher "goleague/fetcher/data/player"
-	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
 	batchservice "goleague/fetcher/services/subregion/batch"
 	leagueservice "goleague/fetcher/services/subregion/league"
@@ -14,6 +13,7 @@ import (
 	ratingservice "goleague/fetcher/services/subregion/rating"
 	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
+	"goleague/pkg/regions"
 
 	"gorm.io/gorm"
 )

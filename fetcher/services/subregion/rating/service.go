@@ -3,9 +3,9 @@ package ratingservice
 import (
 	"fmt"
 	leaguefetcher "goleague/fetcher/data/league"
-	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
 	"goleague/pkg/database/models"
+	"goleague/pkg/regions"
 	tiervalues "goleague/pkg/riotvalues/tier"
 )
 

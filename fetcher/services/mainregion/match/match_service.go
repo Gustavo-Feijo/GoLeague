@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"goleague/fetcher/data"
 	matchfetcher "goleague/fetcher/data/match"
-	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
 	playerservice "goleague/fetcher/services/mainregion/player"
 	"goleague/pkg/database/models"
+	"goleague/pkg/regions"
 
 	"time"
 )
@@ -169,9 +169,65 @@ func (m *MatchService) ProcessMatchStats(
 
 		// Create the match stats.
 		newStat := &models.MatchStats{
-			MatchId:    matchInfo.ID,
-			PlayerId:   player.ID,
-			PlayerData: participant,
+			MatchId:  matchInfo.ID,
+			PlayerId: player.ID,
+			PlayerData: models.MatchPlayer{
+				AllInPings:                     participant.AllInPings,
+				AssistMePing:                   participant.AssistMePing,
+				Assists:                        participant.Assists,
+				BaronKills:                     participant.BaronKills,
+				BasicPings:                     participant.BasicPings,
+				Challenges:                     toModelChallenges(participant.Challenges),
+				ChampionId:                     participant.ChampionId,
+				ChampionLevel:                  participant.ChampionLevel,
+				CommandPings:                   participant.CommandPings,
+				DangerPings:                    participant.DangerPings,
+				Deaths:                         participant.Deaths,
+				EnemyMissingPings:              participant.EnemyMissingPings,
+				EnemyVisionPings:               participant.EnemyVisionPings,
+				GameEndedInEarlySurrender:      participant.GameEndedInEarlySurrender,
+				GameEndedInSurrender:           participant.GameEndedInSurrender,
+				GetBackPings:                   participant.GetBackPings,
+				GoldEarned:                     participant.GoldEarned,
+				GoldSpent:                      participant.GoldSpent,
+				HoldPings:                      participant.HoldPings,
+				Item0:                          participant.Item0,
+				Item1:                          participant.Item1,
+				Item2:                          participant.Item2,
+				Item3:                          participant.Item3,
+				Item4:                          participant.Item4,
+				Item5:                          participant.Item5,
+				Kills:                          participant.Kills,
+				LongestTimeSpentLiving:         participant.LongestTimeSpentLiving,
+				MagicDamageDealt:               participant.MagicDamageDealt,
+				MagicDamageDealtToChampions:    participant.MagicDamageDealtToChampions,
+				MagicDamageTaken:               participant.MagicDamageTaken,
+				NeedVisionPings:                participant.NeedVisionPings,
+				NeutralMinionsKilled:           participant.NeutralMinionsKilled,
+				OnMyWayPings:                   participant.OnMyWayPings,
+				ParticipantId:                  participant.ParticipantId,
+				PhysicalDamageDealtToChampions: participant.PhysicalDamageDealtToChampions,
+				PhysicalDamageTaken:            participant.PhysicalDamageTaken,
+				ProfileIcon:                    participant.ProfileIcon,
+				PushPings:                      participant.PushPings,
+				Puuid:                          participant.Puuid,
+				RetreatPings:                   participant.RetreatPings,
+				RiotIdGameName:                 participant.RiotIdGameName,
+				RiotIdTagline:                  participant.RiotIdTagline,
+				SummonerLevel:                  participant.SummonerLevel,
+				TeamId:                         participant.TeamId,
+				TeamPosition:                   participant.TeamPosition,
+				TimeCCingOthers:                participant.TimeCCingOthers,
+				TotalDamageDealtToChampions:    participant.TotalDamageDealtToChampions,
+				TotalMinionsKilled:             participant.TotalMinionsKilled,
+				TotalTimeSpentDead:             participant.TotalTimeSpentDead,
+				TrueDamageDealtToChampions:     participant.TrueDamageDealtToChampions,
+				VisionClearedPings:             participant.VisionClearedPings,
+				VisionScore:                    participant.VisionScore,
+				WardsKilled:                    participant.WardsKilled,
+				WardsPlaced:                    participant.WardsPlaced,
+				Win:                            participant.Win,
+			},
 		}
 
 		statsToUpsert = append(statsToUpsert, newStat)
@@ -183,4 +239,14 @@ func (m *MatchService) ProcessMatchStats(
 	}
 
 	return statsToUpsert, nil
+}
+
+// toModelChallenges converts a challenge to a simple model challeng.
+func toModelChallenges(c matchfetcher.Challenges) models.Challenges {
+	return models.Challenges{
+		AbilityUses:        c.AbilityUses,
+		ControlWardsPlaced: c.ControlWardsPlaced,
+		SkillshotsDodged:   c.SkillshotsDodged,
+		SkillshotsHit:      c.SkillshotsHit,
+	}
 }

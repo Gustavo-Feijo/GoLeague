@@ -131,9 +131,28 @@ func (t *TimelineService) prepareParticipantsFrames(
 ) *models.ParticipantFrame {
 	// Create the participant to be inserted in the database.
 	participant := &models.ParticipantFrame{
-		MatchStatId:      matchStatId,
-		FrameIndex:       frameId,
-		ParticipantFrame: frame,
+		MatchStatId: matchStatId,
+		FrameIndex:  frameId,
+
+		CurrentGold:                   frame.CurrentGold,
+		MagicDamageDone:               frame.DamageStats.MagicDamageDone,
+		MagicDamageDoneToChampions:    frame.DamageStats.MagicDamageDoneToChampions,
+		MagicDamageTaken:              frame.DamageStats.MagicDamageTaken,
+		PhysicalDamageDone:            frame.DamageStats.PhysicalDamageDone,
+		PhysicalDamageDoneToChampions: frame.DamageStats.PhysicalDamageDoneToChampions,
+		PhysicalDamageTaken:           frame.DamageStats.PhysicalDamageTaken,
+		TotalDamageDone:               frame.DamageStats.TotalDamageDone,
+		TotalDamageDoneToChampions:    frame.DamageStats.TotalDamageDoneToChampions,
+		TotalDamageTaken:              frame.DamageStats.TotalDamageTaken,
+		TrueDamageDone:                frame.DamageStats.TrueDamageDone,
+		TrueDamageDoneToChampions:     frame.DamageStats.TrueDamageDoneToChampions,
+		TrueDamageTaken:               frame.DamageStats.TrueDamageTaken,
+		JungleMinionsKilled:           frame.JungleMinionsKilled,
+		Level:                         frame.Level,
+		MinionsKilled:                 frame.MinionsKilled,
+		ParticipantId:                 frame.ParticipantId,
+		TotalGold:                     frame.TotalGold,
+		XP:                            frame.XP,
 	}
 
 	return participant

@@ -3,9 +3,9 @@ package regionmanager
 import (
 	"fmt"
 	"goleague/fetcher/data"
-	"goleague/fetcher/regions"
 	mainregionservice "goleague/fetcher/services/mainregion"
 	subregionservice "goleague/fetcher/services/subregion"
+	"goleague/pkg/regions"
 	"sync"
 
 	"gorm.io/gorm"

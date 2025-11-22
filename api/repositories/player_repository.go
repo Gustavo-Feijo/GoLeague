@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"goleague/api/filters"
-	"goleague/fetcher/regions"
 	"goleague/pkg/database/models"
 	"goleague/pkg/messages"
+	"goleague/pkg/regions"
 	"strings"
 	"time"
 

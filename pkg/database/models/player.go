@@ -1,7 +1,7 @@
 package models
 
 import (
-	"goleague/fetcher/regions"
+	"goleague/pkg/regions"
 	"time"
 
 	"gorm.io/gorm"

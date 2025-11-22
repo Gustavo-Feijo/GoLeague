@@ -3,8 +3,8 @@ package repositories
 import (
 	"errors"
 	"fmt"
-	"goleague/fetcher/regions"
 	"goleague/pkg/database/models"
+	"goleague/pkg/regions"
 	"sort"
 	"strings"
 	"time"

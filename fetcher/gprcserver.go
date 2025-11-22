@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	regionmanager "goleague/fetcher/regionmanager"
-	"goleague/fetcher/regions"
 	pb "goleague/pkg/grpc"
 	"goleague/pkg/logger"
+	"goleague/pkg/regions"
 	"strings"
 	"time"
 )

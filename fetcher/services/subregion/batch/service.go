@@ -3,11 +3,11 @@ package batchservice
 import (
 	"fmt"
 	leaguefetcher "goleague/fetcher/data/league"
-	"goleague/fetcher/regions"
 	leagueservice "goleague/fetcher/services/subregion/league"
 	playerservice "goleague/fetcher/services/subregion/player"
 	ratingservice "goleague/fetcher/services/subregion/rating"
 	"goleague/pkg/logger"
+	"goleague/pkg/regions"
 )
 
 // BatchService handles batch processing of league entries.

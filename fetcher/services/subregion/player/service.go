@@ -6,9 +6,9 @@ import (
 	leaguefetcher "goleague/fetcher/data/league"
 	playerfetcher "goleague/fetcher/data/player"
 
-	"goleague/fetcher/regions"
 	"goleague/fetcher/repositories"
 	"goleague/pkg/database/models"
+	"goleague/pkg/regions"
 )
 
 // PlayerService handles all player-related operations.

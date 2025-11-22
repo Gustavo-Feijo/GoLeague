@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	regionmanager "goleague/fetcher/regionmanager"
-	"goleague/fetcher/regions"
 	mainregionservice "goleague/fetcher/services/mainregion"
 	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
+	"goleague/pkg/regions"
 	"log"
 	"time"
 )

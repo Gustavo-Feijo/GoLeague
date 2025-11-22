@@ -1,7 +1,6 @@
 package models
 
 import (
-	matchfetcher "goleague/fetcher/data/match"
 	"time"
 )
 
@@ -34,7 +33,7 @@ type MatchStats struct {
 	Player PlayerInfo `gorm:"PlayerId"`
 
 	// Embedded match stats.
-	PlayerData matchfetcher.MatchPlayer `gorm:"embedded"`
+	PlayerData MatchPlayer `gorm:"embedded"`
 }
 
 // MatchBans contains the bans made in a given match.
@@ -42,4 +41,71 @@ type MatchBans struct {
 	MatchId    uint `gorm:"primaryKey;autoIncrement:false"`
 	PickTurn   int  `gorm:"primaryKey;autoIncrement:false"`
 	ChampionId int
+}
+
+// MatchPlayer contains the stats and information about a given player in a Match.
+// Same as fetchers API return, intermediate struct so it can be used by API without importing the fetcher package.
+type MatchPlayer struct {
+	Assists                        int
+	AllInPings                     int
+	AssistMePing                   int
+	BaronKills                     int
+	BasicPings                     int
+	ChampionLevel                  int
+	ChampionId                     int        `gorm:"index_champion_position"`
+	Challenges                     Challenges `gorm:"embedded"`
+	CommandPings                   int
+	DangerPings                    int
+	Deaths                         int
+	EnemyMissingPings              int
+	EnemyVisionPings               int
+	GameEndedInEarlySurrender      bool `gorm:"-"`
+	GameEndedInSurrender           bool `gorm:"-"`
+	GetBackPings                   int
+	GoldEarned                     int
+	GoldSpent                      int
+	HoldPings                      int
+	Item0                          int
+	Item1                          int
+	Item2                          int
+	Item3                          int
+	Item4                          int
+	Item5                          int
+	Kills                          int
+	MagicDamageDealtToChampions    int
+	MagicDamageTaken               int
+	NeedVisionPings                int
+	NeutralMinionsKilled           int
+	OnMyWayPings                   int
+	ParticipantId                  int
+	PhysicalDamageDealtToChampions int
+	PhysicalDamageTaken            int
+	ProfileIcon                    int `gorm:"-"`
+	PushPings                      int
+	Puuid                          string `gorm:"-"`
+	RetreatPings                   int
+	RiotIdGameName                 string `gorm:"-"`
+	RiotIdTagline                  string `gorm:"-"`
+	SummonerLevel                  int    `gorm:"-"`
+	LongestTimeSpentLiving         int
+	MagicDamageDealt               int
+	TeamId                         int
+	TeamPosition                   string `gorm:"index_champion_position"`
+	TimeCCingOthers                int
+	TotalDamageDealtToChampions    int
+	TotalMinionsKilled             int
+	TotalTimeSpentDead             int
+	TrueDamageDealtToChampions     int
+	VisionClearedPings             int
+	VisionScore                    int
+	WardsKilled                    int
+	WardsPlaced                    int
+	Win                            bool
+}
+
+type Challenges struct {
+	AbilityUses        int
+	ControlWardsPlaced int
+	SkillshotsDodged   int
+	SkillshotsHit      int
 }

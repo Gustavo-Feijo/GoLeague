@@ -1,8 +1,6 @@
 package models
 
 import (
-	matchfetcher "goleague/fetcher/data/match"
-
 	"gorm.io/datatypes"
 )
 
@@ -108,7 +106,25 @@ type ParticipantFrame struct {
 	// Foreign Key.
 	MatchStat MatchStats `gorm:"MatchStatId"`
 
-	matchfetcher.ParticipantFrame `gorm:"embedded"`
+	CurrentGold                   int
+	MagicDamageDone               int
+	MagicDamageDoneToChampions    int
+	MagicDamageTaken              int
+	PhysicalDamageDone            int
+	PhysicalDamageDoneToChampions int
+	PhysicalDamageTaken           int
+	TotalDamageDone               int
+	TotalDamageDoneToChampions    int
+	TotalDamageTaken              int
+	TrueDamageDone                int
+	TrueDamageDoneToChampions     int
+	TrueDamageTaken               int
+	JungleMinionsKilled           int
+	Level                         int
+	MinionsKilled                 int
+	ParticipantId                 int
+	TotalGold                     int
+	XP                            int
 }
 
 // View created to getting all events data together.

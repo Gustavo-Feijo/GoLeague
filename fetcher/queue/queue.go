@@ -4,7 +4,7 @@ import (
 	mainregionqueue "goleague/fetcher/queue/mainregion"
 	subregionqueue "goleague/fetcher/queue/subregion"
 	regionmanager "goleague/fetcher/regionmanager"
-	"goleague/fetcher/regions"
+	"goleague/pkg/regions"
 	"log"
 	"sync"
 )

@@ -3,9 +3,9 @@ package subregionqueue
 import (
 	"fmt"
 	regionmanager "goleague/fetcher/regionmanager"
-	"goleague/fetcher/regions"
 	subregionservice "goleague/fetcher/services/subregion"
 	"goleague/pkg/logger"
+	"goleague/pkg/regions"
 	"log"
 	"time"
 )
