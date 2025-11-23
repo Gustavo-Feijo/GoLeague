@@ -4,7 +4,7 @@ import (
 	"goleague/api/cache"
 	grpcclient "goleague/api/grpc"
 	"goleague/api/handlers"
-	"goleague/api/services"
+	playerservice "goleague/api/services/player"
 )
 
 func initializePlayerHandler(deps *ModuleDependencies) *handlers.PlayerHandler {
@@ -12,14 +12,14 @@ func initializePlayerHandler(deps *ModuleDependencies) *handlers.PlayerHandler {
 	matchCache := cache.NewMatchCache(deps.Redis)
 
 	// Initialize the player service and handler.
-	playerDeps := &services.PlayerServiceDeps{
+	playerDeps := &playerservice.PlayerServiceDeps{
 		DB:         deps.DB,
 		GrpcClient: grpcClient,
 		MatchCache: matchCache,
 		Redis:      deps.Redis,
 	}
 
-	playerService := services.NewPlayerService(playerDeps)
+	playerService := playerservice.NewPlayerService(playerDeps)
 
 	playerHandlerDeps := &handlers.PlayerHandlerDependencies{
 		PlayerService: playerService,

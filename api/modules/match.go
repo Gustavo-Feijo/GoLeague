@@ -1,24 +1,17 @@
 package modules
 
 import (
-	"goleague/api/cache"
 	"goleague/api/handlers"
-	"goleague/api/services"
+	matchservice "goleague/api/services/match"
 )
 
 func initializeMatchHandler(deps *ModuleDependencies) *handlers.MatchHandler {
-
-	// Preload the cache.
-	championCache := cache.NewChampionCache(deps.DB, deps.Redis, deps.MemCache)
-
-	matchDeps := &services.MatchServiceDeps{
-		DB:            deps.DB,
-		ChampionCache: championCache,
-		MemCache:      deps.MemCache,
-		Redis:         deps.Redis,
+	matchDeps := &matchservice.MatchServiceDeps{
+		DB:       deps.DB,
+		MemCache: deps.MemCache,
 	}
 
-	matchService := services.NewMatchService(matchDeps)
+	matchService := matchservice.NewMatchService(matchDeps)
 
 	matchHandlerDeps := &handlers.MatchHandlerDependencies{
 		MatchService: matchService,

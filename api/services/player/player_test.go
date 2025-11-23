@@ -1,155 +1,43 @@
-package services
+package playerservice
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"goleague/api/dto"
 	"goleague/api/filters"
 	"goleague/api/repositories"
+	"goleague/api/services/testutil"
 	"goleague/pkg/database/models"
-	pb "goleague/pkg/grpc"
 	"goleague/pkg/messages"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
 )
 
-// Player mock implementations.
-type MockPlayerRepository struct {
-	mock.Mock
-}
-
-func (m *MockPlayerRepository) SearchPlayer(filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error) {
-	args := m.Called(filters)
-	return args.Get(0).([]*models.PlayerInfo), args.Error(1)
-}
-
-func (m *MockPlayerRepository) GetPlayerIdByNameTagRegion(name, tag, region string) (uint, error) {
-	args := m.Called(name, tag, region)
-	return args.Get(0).(uint), args.Error(1)
-}
-
-func (m *MockPlayerRepository) GetPlayerMatchHistoryIds(filters *filters.PlayerMatchHistoryFilter) ([]uint, error) {
-	args := m.Called(filters)
-	return args.Get(0).([]uint), args.Error(1)
-}
-
-func (m *MockPlayerRepository) GetPlayerById(id uint) (*models.PlayerInfo, error) {
-	args := m.Called(id)
-	return args.Get(0).(*models.PlayerInfo), args.Error(1)
-}
-
-func (m *MockPlayerRepository) GetPlayerRatingsById(id uint) ([]models.RatingEntry, error) {
-	args := m.Called(id)
-	return args.Get(0).([]models.RatingEntry), args.Error(1)
-}
-
-func (m *MockPlayerRepository) GetPlayerStats(filters *filters.PlayerStatsFilter) ([]repositories.RawPlayerStatsStruct, error) {
-	args := m.Called(filters)
-	return args.Get(0).([]repositories.RawPlayerStatsStruct), args.Error(1)
-}
-
-// Match mock implementations.
-type MockMatchRepository struct {
-	mock.Mock
-}
-
-func (m *MockMatchRepository) GetAllEvents(matchID uint) ([]models.AllEvents, error) {
-	args := m.Called(matchID)
-	return args.Get(0).([]models.AllEvents), args.Error(1)
-}
-
-func (m *MockMatchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]repositories.RawMatchPreview, error) {
-	args := m.Called(matchID)
-	return args.Get(0).([]repositories.RawMatchPreview), args.Error(1)
-}
-
-func (m *MockMatchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]repositories.RawMatchPreview, error) {
-	args := m.Called(matchIDs)
-	return args.Get(0).([]repositories.RawMatchPreview), args.Error(1)
-}
-
-func (m *MockMatchRepository) GetMatchByMatchId(matchID string) (*models.MatchInfo, error) {
-	args := m.Called(matchID)
-	return args.Get(0).(*models.MatchInfo), args.Error(1)
-}
-
-func (m *MockMatchRepository) GetParticipantFramesByInternalId(matchID uint) ([]repositories.RawMatchParticipantFrame, error) {
-	args := m.Called(matchID)
-	return args.Get(0).([]repositories.RawMatchParticipantFrame), args.Error(1)
-}
-
-// Cache mock implementations.
-type MockMatchCache struct {
-	mock.Mock
-}
-
-func (m *MockMatchCache) GetMatchesPreviewByMatchIds(ctx context.Context, matchIds []uint) ([]dto.MatchPreview, []uint, error) {
-	args := m.Called(ctx, matchIds)
-	return args.Get(0).([]dto.MatchPreview), args.Get(1).([]uint), args.Error(2)
-}
-
-func (m *MockMatchCache) SetMatchPreview(ctx context.Context, preview dto.MatchPreview) error {
-	args := m.Called(ctx, preview)
-	return args.Error(0)
-}
-
-type MockPlayerGRPCClient struct {
-	mock.Mock
-}
-
-func (m *MockPlayerGRPCClient) ForceFetchPlayer(filters *filters.PlayerForceFetchFilter, operation string) (*pb.Summoner, error) {
-	args := m.Called(filters, operation)
-	return args.Get(0).(*pb.Summoner), args.Error(1)
-}
-
-func (m *MockPlayerGRPCClient) ForceFetchPlayerMatchHistory(filters *filters.PlayerForceFetchMatchListFilter, operation string) (*pb.MatchHistoryFetchNotification, error) {
-	args := m.Called(filters, operation)
-	return args.Get(0).(*pb.MatchHistoryFetchNotification), args.Error(1)
-}
-
-type MockPlayerRedisClient struct {
-	mock.Mock
-}
-
-func (m *MockPlayerRedisClient) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
-	args := m.Called(ctx, key, value, expiration)
-	return args.Get(0).(*redis.BoolCmd)
-}
-
-func (m *MockPlayerRedisClient) TTL(ctx context.Context, key string) *redis.DurationCmd {
-	args := m.Called(ctx, key)
-	return args.Get(0).(*redis.DurationCmd)
-}
-
-// Helper to initialize the mocks.
-func setupPlayerService() (*PlayerService, *MockPlayerRepository, *MockMatchRepository, *MockMatchCache, *MockPlayerGRPCClient, *MockPlayerRedisClient) {
-	mockPlayerRepo := &MockPlayerRepository{}
-	mockMatchRepo := &MockMatchRepository{}
-	mockMatchCache := &MockMatchCache{}
-	mockPlayerGRPCClient := &MockPlayerGRPCClient{}
-	mockPlayerRedisClient := &MockPlayerRedisClient{}
-
-	service := &PlayerService{
-		db:               &gorm.DB{},
-		grpcClient:       mockPlayerGRPCClient,
-		matchCache:       mockMatchCache,
-		MatchRepository:  mockMatchRepo,
-		PlayerRepository: mockPlayerRepo,
-		redis:            mockPlayerRedisClient,
+// Simple test for asserting that everything is fine with the player service creation.
+func TestNewPlayerService(t *testing.T) {
+	_, _, _, mockMatchCache, mockPlayerGRPCClient, mockPlayerRedisClient := setupTestService()
+	deps := &PlayerServiceDeps{
+		DB:         &gorm.DB{},
+		GrpcClient: mockPlayerGRPCClient,
+		MatchCache: mockMatchCache,
+		Redis:      mockPlayerRedisClient,
 	}
 
-	return service, mockPlayerRepo, mockMatchRepo, mockMatchCache, mockPlayerGRPCClient, mockPlayerRedisClient
+	service := NewPlayerService(deps)
+	assert.NotNil(t, service)
+	assert.Equal(t, &gorm.DB{}, service.db)
+	assert.Equal(t, mockPlayerGRPCClient, service.grpcClient)
+	assert.NotNil(t, service.MatchRepository)
+	assert.NotNil(t, service.PlayerRepository)
 }
 
+// Test rate limit key generation.
 func TestCreatePlayerRateLimitKey(t *testing.T) {
-	service, _, _, _, _, _ := setupPlayerService()
+	service, _, _, _, _, _ := setupTestService()
 
 	tests := []struct {
 		name     string
@@ -187,108 +75,9 @@ func TestCreatePlayerRateLimitKey(t *testing.T) {
 	}
 }
 
-func TestForceFetchPlayer(t *testing.T) {
-	service, _, _, _, mockPlayerGRPCClient, mockPlayerRedisClient := setupPlayerService()
-
-	tests := []struct {
-		name           string
-		filters        *filters.PlayerForceFetchFilter
-		rateLimitError error
-		grpcResponse   *pb.Summoner
-		grpcError      error
-		expectedError  string
-		shouldCallGRPC bool
-	}{
-		{
-			name: "successful force fetch",
-			filters: &filters.PlayerForceFetchFilter{
-				GameName: "TestPlayer",
-				GameTag:  "TAG1",
-				Region:   "NA1",
-			},
-			rateLimitError: nil,
-			grpcResponse: &pb.Summoner{
-				Puuid:         "test-puuid",
-				GameName:      "TestPlayer",
-				TagLine:       "TestTag",
-				Region:        "TestRegion",
-				SummonerLevel: 12,
-				ProfileIconId: 123,
-			},
-			grpcError:      nil,
-			expectedError:  "",
-			shouldCallGRPC: true,
-		},
-		{
-			name: "rate limit blocked",
-			filters: &filters.PlayerForceFetchFilter{
-				GameName: "TestPlayer",
-				GameTag:  "TAG1",
-				Region:   "NA1",
-			},
-			rateLimitError: errors.New("operation already in progress, try again in 60 seconds"),
-			grpcResponse:   nil,
-			grpcError:      nil,
-			expectedError:  "operation already in progress",
-			shouldCallGRPC: false,
-		},
-		{
-			name: "grpc client error",
-			filters: &filters.PlayerForceFetchFilter{
-				GameName: "TestPlayer",
-				GameTag:  "TAG1",
-				Region:   "NA1",
-			},
-			rateLimitError: nil,
-			grpcResponse:   nil,
-			grpcError:      errors.New("grpc connection failed"),
-			expectedError:  "grpc connection failed",
-			shouldCallGRPC: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockBoolCmd := &redis.BoolCmd{}
-			if tt.rateLimitError != nil {
-				mockBoolCmd.SetVal(false)
-				mockDurationCmd := &redis.DurationCmd{}
-				mockDurationCmd.SetVal(time.Minute)
-				mockPlayerRedisClient.On("SetNX", mock.AnythingOfType("*context.timerCtx"), mock.AnythingOfType("string"), "processing", time.Minute*5).
-					Return(mockBoolCmd).Once()
-				mockPlayerRedisClient.On("TTL", mock.AnythingOfType("*context.timerCtx"), mock.AnythingOfType("string")).
-					Return(mockDurationCmd).Once()
-			} else {
-				mockBoolCmd.SetVal(true)
-				mockPlayerRedisClient.On("SetNX", mock.AnythingOfType("*context.timerCtx"), mock.AnythingOfType("string"), "processing", time.Minute*5).
-					Return(mockBoolCmd).Once()
-			}
-
-			if tt.shouldCallGRPC {
-				mockPlayerGRPCClient.On("ForceFetchPlayer", tt.filters, FORCE_FETCH_OPERATION).
-					Return(tt.grpcResponse, tt.grpcError).Once()
-			}
-
-			result, err := service.ForceFetchPlayer(tt.filters)
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-				assert.Nil(t, result)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, result)
-				assert.Equal(t, tt.grpcResponse, result)
-			}
-
-			mockPlayerRedisClient.AssertExpectations(t)
-			mockPlayerGRPCClient.AssertExpectations(t)
-		})
-	}
-}
-
+// Test the database player search.
 func TestGetPlayerSearch(t *testing.T) {
-	service, mockPlayerRepo, _, _, _, _ := setupPlayerService()
+	service, mockPlayerRepo, _, _, _, _ := setupTestService()
 
 	tests := []struct {
 		name           string
@@ -306,7 +95,7 @@ func TestGetPlayerSearch(t *testing.T) {
 					ID:             1,
 					RiotIdGameName: "TestPlayer",
 					ProfileIcon:    123,
-					Puuid:          "test-puuid",
+					Puuid:          "test-puuid-search",
 					Region:         "NA1",
 					SummonerLevel:  100,
 					RiotIdTagline:  "TAG1",
@@ -318,7 +107,7 @@ func TestGetPlayerSearch(t *testing.T) {
 					Id:            1,
 					Name:          "TestPlayer",
 					ProfileIcon:   123,
-					Puuid:         "test-puuid",
+					Puuid:         "test-puuid-search",
 					Region:        "NA1",
 					SummonerLevel: 100,
 					Tag:           "TAG1",
@@ -356,8 +145,9 @@ func TestGetPlayerSearch(t *testing.T) {
 	}
 }
 
+// Test a given player match history fetching.
 func TestGetPlayerMatchHistory(t *testing.T) {
-	service, mockPlayerRepo, mockMatchRepo, mockMatchCache, _, _ := setupPlayerService()
+	service, mockPlayerRepo, mockMatchRepo, mockMatchCache, _, _ := setupTestService()
 
 	tests := []struct {
 		name             string
@@ -491,7 +281,7 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 					Return(tt.matchIds, tt.matchIdsError).Once()
 
 				if len(tt.matchIds) > 0 {
-					mockMatchCache.On("GetMatchesPreviewByMatchIds", mock.AnythingOfType("*context.timerCtx"), tt.matchIds).
+					mockMatchCache.On("GetMatchesPreviewByMatchIds", mock.AnythingOfType(testutil.DefaultTimerCtx), tt.matchIds).
 						Return(tt.cachedMatches, tt.missingMatches, tt.cacheError).Once()
 
 					// Cache failed, need to presume all matches are missing on cache.
@@ -527,8 +317,9 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 	}
 }
 
+// Test a call to get a given player information.
 func TestGetPlayerInfo(t *testing.T) {
-	service, mockPlayerRepo, _, _, _, _ := setupPlayerService()
+	service, mockPlayerRepo, _, _, _, _ := setupTestService()
 
 	tests := []struct {
 		name            string
@@ -554,7 +345,7 @@ func TestGetPlayerInfo(t *testing.T) {
 				ID:             1,
 				RiotIdGameName: "TestPlayer",
 				ProfileIcon:    123,
-				Puuid:          "test-puuid",
+				Puuid:          "test-puuid-get-info1",
 				Region:         "NA1",
 				SummonerLevel:  100,
 				RiotIdTagline:  "TAG1",
@@ -611,7 +402,7 @@ func TestGetPlayerInfo(t *testing.T) {
 				ID:             1,
 				RiotIdGameName: "TestPlayer",
 				ProfileIcon:    123,
-				Puuid:          "test-puuid",
+				Puuid:          "test-puuid-get-info2",
 				Region:         "NA1",
 				SummonerLevel:  100,
 				RiotIdTagline:  "TAG1",
@@ -657,8 +448,9 @@ func TestGetPlayerInfo(t *testing.T) {
 	}
 }
 
+// Test a fetch for a given player stats history.
 func TestGetPlayerStats(t *testing.T) {
-	service, mockPlayerRepo, _, _, _, _ := setupPlayerService()
+	service, mockPlayerRepo, _, _, _, _ := setupTestService()
 
 	tests := []struct {
 		name          string

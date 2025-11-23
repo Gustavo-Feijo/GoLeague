@@ -41,6 +41,13 @@ tail -n +2 coverage/pkg.out >> coverage/coverage.out 2>/dev/null || true
 tail -n +2 coverage/api.out >> coverage/coverage.out 2>/dev/null || true
 tail -n +2 coverage/fetcher.out >> coverage/coverage.out 2>/dev/null || true
 
+# Remove test files from report.
+for file in coverage/pkg.out coverage/api.out coverage/fetcher.out; do
+    if [ -f "$file" ]; then
+        tail -n +2 "$file" | grep -v "_test.go" >> coverage/coverage.out || true
+    fi
+done
+
 COVERAGE=$(go tool cover -func=coverage/coverage.out | grep total | awk '{print $3}')
 
 echo -e "${GREEN}Total coverage: ${COVERAGE}${NC}"

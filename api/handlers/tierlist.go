@@ -3,7 +3,7 @@ package handlers
 import (
 	"goleague/api/cache"
 	"goleague/api/filters"
-	"goleague/api/services"
+	tierlistservice "goleague/api/services/tierlist"
 	"goleague/pkg/redis"
 	"net/http"
 
@@ -14,13 +14,13 @@ import (
 type TierlistHandler struct {
 	memCache        cache.MemCache
 	redis           *redis.RedisClient
-	tierlistService *services.TierlistService
+	tierlistService *tierlistservice.TierlistService
 }
 
 type TierlistHandlerDependencies struct {
 	MemCache        cache.MemCache
 	Redis           *redis.RedisClient
-	TierlistService *services.TierlistService
+	TierlistService *tierlistservice.TierlistService
 }
 
 // Create a new instance of the tierlist handler.
@@ -45,11 +45,6 @@ func (h *TierlistHandler) GetTierlist(c *gin.Context) {
 
 	result, err := h.tierlistService.GetTierlist(filters)
 	if err != nil {
-		if err.Error() == "cache failed" {
-			c.JSON(http.StatusOK, gin.H{"result": result})
-			return
-		}
-
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

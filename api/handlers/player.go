@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"goleague/api/filters"
-	"goleague/api/services"
+	playerservice "goleague/api/services/player"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,11 +10,11 @@ import (
 
 // PlayerHandler is the handler for the player endpoints.
 type PlayerHandler struct {
-	playerService *services.PlayerService
+	playerService *playerservice.PlayerService
 }
 
 type PlayerHandlerDependencies struct {
-	PlayerService *services.PlayerService
+	PlayerService *playerservice.PlayerService
 }
 
 // NewPlayerHandler creates a new instance of the player handler.

@@ -1,4 +1,4 @@
-package services
+package playerservice
 
 import (
 	"context"
@@ -28,7 +28,7 @@ const (
 )
 
 type PlayerRedisClient interface {
-	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
+	SetNX(ctx context.Context, key string, value any, expiration time.Duration) *redis.BoolCmd
 	TTL(ctx context.Context, key string) *redis.DurationCmd
 }
 
