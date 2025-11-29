@@ -21,7 +21,7 @@ import (
 func TestNewPlayerService(t *testing.T) {
 	_, _, _, mockMatchCache, mockPlayerGRPCClient, mockPlayerRedisClient := setupTestService()
 	deps := &PlayerServiceDeps{
-		DB:         &gorm.DB{},
+		DB:         new(gorm.DB),
 		GrpcClient: mockPlayerGRPCClient,
 		MatchCache: mockMatchCache,
 		Redis:      mockPlayerRedisClient,
@@ -29,7 +29,7 @@ func TestNewPlayerService(t *testing.T) {
 
 	service := NewPlayerService(deps)
 	assert.NotNil(t, service)
-	assert.Equal(t, &gorm.DB{}, service.db)
+	assert.Equal(t, new(gorm.DB), service.db)
 	assert.Equal(t, mockPlayerGRPCClient, service.grpcClient)
 	assert.NotNil(t, service.MatchRepository)
 	assert.NotNil(t, service.PlayerRepository)

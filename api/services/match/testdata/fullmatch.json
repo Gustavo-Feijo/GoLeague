@@ -1,0 +1,135 @@
+{
+  "metadata": {
+    "averageElo": "IRON IV",
+    "duration": 993,
+    "date": "0001-01-01T00:00:00Z",
+    "matchId": "BR1_TEST",
+    "internalId": 1,
+    "queueId": 900,
+    "winnerTeamId": 100
+  },
+  "participants": [
+    {
+      "playerId": 9,
+      "gameName": "TestPlayer1",
+      "tagLine": "br1",
+      "region": "BR1",
+      "assists": 6,
+      "kills": 9,
+      "deaths": 8,
+      "championLevel": 19,
+      "championId": 67,
+      "teamId": 200,
+      "items": [],
+      "totalCs": 117,
+      "participantId": 1,
+      "win": false,
+      "queueId": 900
+    },
+    {
+      "playerId": 1,
+      "gameName": "TestPlayer2",
+      "tagLine": "br1",
+      "region": "BR1",
+      "assists": 10,
+      "kills": 9,
+      "deaths": 7,
+      "championLevel": 20,
+      "championId": 42,
+      "teamId": 200,
+      "items": [],
+      "totalCs": 169,
+      "participantId": 2,
+      "win": false,
+      "queueId": 900
+    }
+  ],
+  "participant_frames": {
+    "1": [
+      {
+        "currentGold": 500,
+        "frameIndex": 0,
+        "jungleMinionsKilled": 0,
+        "level": 1,
+        "magicDamageDone": 0,
+        "magicDamageDoneToChampions": 0,
+        "magicDamageTaken": 0,
+        "matchStatId": 1,
+        "minionsKilled": 0,
+        "participantId": 1,
+        "physicalDamageDone": 0,
+        "physicalDamageDoneToChampions": 0,
+        "physicalDamageTaken": 0,
+        "totalDamageDone": 0,
+        "totalDamageDoneToChampions": 0,
+        "totalDamageTaken": 0,
+        "totalGold": 500,
+        "trueDamageDone": 0,
+        "trueDamageDoneToChampions": 0,
+        "trueDamageTaken": 0,
+        "xp": 0
+      }
+    ],
+    "2": [
+      {
+        "currentGold": 150,
+        "frameIndex": 1,
+        "jungleMinionsKilled": 0,
+        "level": 1,
+        "magicDamageDone": 0,
+        "magicDamageDoneToChampions": 0,
+        "magicDamageTaken": 0,
+        "matchStatId": 2,
+        "minionsKilled": 0,
+        "participantId": 2,
+        "physicalDamageDone": 265,
+        "physicalDamageDoneToChampions": 265,
+        "physicalDamageTaken": 0,
+        "totalDamageDone": 302,
+        "totalDamageDoneToChampions": 302,
+        "totalDamageTaken": 0,
+        "totalGold": 500,
+        "trueDamageDone": 37,
+        "trueDamageDoneToChampions": 37,
+        "trueDamageTaken": 0,
+        "xp": 0
+      }
+    ]
+  },
+  "events": [
+    {
+      "timestamp": 4999,
+      "eventType": "item",
+      "participantId": 1,
+      "data": {
+        "item_id": 1055,
+        "after_id": null,
+        "action": "ITEM_PURCHASED"
+      }
+    },
+    {
+      "timestamp": 5266,
+      "eventType": "item",
+      "participantId": 2,
+      "data": {
+        "item_id": 2003,
+        "after_id": null,
+        "action": "ITEM_PURCHASED"
+      }
+    },
+    {
+      "timestamp": 192903,
+      "eventType": "kill_struct",
+      "participantId": null,
+      "data": {
+        "building_type": null,
+        "event_type": "TURRET_PLATE_DESTROYED",
+        "lane_type": "MID_LANE",
+        "team_id": 100,
+        "tower_type": null,
+        "x": 5846,
+        "y": 6396
+      }
+    }
+  ]
+}

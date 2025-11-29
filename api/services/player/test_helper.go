@@ -15,14 +15,14 @@ func setupTestService() (
 	*testutil.MockPlayerGRPCClient,
 	*testutil.MockPlayerRedisClient,
 ) {
-	mockPlayerRepo := &testutil.MockPlayerRepository{}
-	mockMatchRepo := &testutil.MockMatchRepository{}
-	mockMatchCache := &testutil.MockMatchCache{}
-	mockPlayerGRPCClient := &testutil.MockPlayerGRPCClient{}
-	mockPlayerRedisClient := &testutil.MockPlayerRedisClient{}
+	mockPlayerRepo := new(testutil.MockPlayerRepository)
+	mockMatchRepo := new(testutil.MockMatchRepository)
+	mockMatchCache := new(testutil.MockMatchCache)
+	mockPlayerGRPCClient := new(testutil.MockPlayerGRPCClient)
+	mockPlayerRedisClient := new(testutil.MockPlayerRedisClient)
 
 	service := &PlayerService{
-		db:               &gorm.DB{},
+		db:               new(gorm.DB),
 		grpcClient:       mockPlayerGRPCClient,
 		matchCache:       mockMatchCache,
 		MatchRepository:  mockMatchRepo,

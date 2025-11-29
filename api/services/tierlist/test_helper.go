@@ -158,14 +158,3 @@ func assertTierlistResult(
 	assert.Equal(t, len(expectedData), len(result))
 	assert.Equal(t, expectedData, result)
 }
-
-// Assert the expectations of all mocks.
-func verifyAllMocks(t *testing.T, mocks ...any) {
-	t.Helper()
-
-	for _, m := range mocks {
-		if mockObj, ok := m.(interface{ AssertExpectations(*testing.T) bool }); ok {
-			mockObj.AssertExpectations(t)
-		}
-	}
-}

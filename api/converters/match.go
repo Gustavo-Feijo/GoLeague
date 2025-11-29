@@ -9,20 +9,26 @@ import (
 	tiervalues "goleague/pkg/riotvalues/tier"
 )
 
+const (
+	ErrFailedToConvert = "failed to convert match %s: %w"
+	ErrMismatchedIds   = "mismatched match IDs: expected %s, got %s"
+	ErrNoPreviews      = "no previews provided"
+)
+
 // MatchConverter is used to parse data to more usable/formatted structures.
 type MatchConverter struct{}
 
 // ConvertSingleMatch parses all previews for a given match and return it as the DTO.
 func (c *MatchConverter) ConvertSingleMatch(matchPreviews []repositories.RawMatchPreview) (*dto.MatchPreview, error) {
 	if len(matchPreviews) == 0 {
-		return nil, errors.New("no previews provided")
+		return nil, errors.New(ErrNoPreviews)
 	}
 
 	// Validate all previews belong to the same match
 	firstMatchID := matchPreviews[0].MatchID
 	for _, preview := range matchPreviews {
 		if preview.MatchID != firstMatchID {
-			return nil, fmt.Errorf("mismatched match IDs: expected %s, got %s", firstMatchID, preview.MatchID)
+			return nil, fmt.Errorf(ErrMismatchedIds, firstMatchID, preview.MatchID)
 		}
 	}
 
@@ -57,7 +63,7 @@ func (c *MatchConverter) ConvertMultipleMatches(rawPreviews []repositories.RawMa
 	for matchID, matchPreviews := range grouped {
 		matchPreview, err := c.ConvertSingleMatch(matchPreviews)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert match %s: %w", matchID, err)
+			return nil, fmt.Errorf(ErrFailedToConvert, matchID, err)
 		}
 
 		result.AddMatch(matchID, matchPreview)

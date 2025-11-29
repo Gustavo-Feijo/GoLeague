@@ -106,7 +106,7 @@ func TestGetTierlist(t *testing.T) {
 
 			assertTierlistResult(t, result, err, tt.returnData, tt.expectedError)
 
-			verifyAllMocks(t, mockMemCache, mockRedis, mockTierlistRepository)
+			testutil.VerifyAllMocks(t, mockMemCache, mockRedis, mockTierlistRepository)
 		})
 	}
 }

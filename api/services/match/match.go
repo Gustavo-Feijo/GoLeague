@@ -15,7 +15,7 @@ import (
 type MatchService struct {
 	db              *gorm.DB
 	memCache        cache.MemCache
-	matchConverter  *converters.MatchConverter
+	matchConverter  converters.MatchConverter
 	MatchRepository repositories.MatchRepository
 }
 
@@ -30,7 +30,6 @@ func NewMatchService(deps *MatchServiceDeps) *MatchService {
 	return &MatchService{
 		db:              deps.DB,
 		MatchRepository: repositories.NewMatchRepository(deps.DB),
-		matchConverter:  &converters.MatchConverter{},
 		memCache:        deps.MemCache,
 	}
 }

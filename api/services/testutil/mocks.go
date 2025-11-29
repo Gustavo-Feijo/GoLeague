@@ -7,11 +7,23 @@ import (
 	"goleague/api/repositories"
 	"goleague/pkg/database/models"
 	pb "goleague/pkg/grpc"
+	"testing"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/mock"
 )
+
+// Assert the expectations of all mocks.
+func VerifyAllMocks(t *testing.T, mocks ...any) {
+	t.Helper()
+
+	for _, m := range mocks {
+		if mockObj, ok := m.(interface{ AssertExpectations(*testing.T) bool }); ok {
+			mockObj.AssertExpectations(t)
+		}
+	}
+}
 
 // ============================================================================
 // Mock Implementations used on the Player service tests.
