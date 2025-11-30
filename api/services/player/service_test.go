@@ -7,7 +7,8 @@ import (
 
 	"goleague/api/dto"
 	"goleague/api/filters"
-	"goleague/api/repositories"
+	matchrepo "goleague/api/repositories/match"
+	playerrepo "goleague/api/repositories/player"
 	"goleague/api/services/testutil"
 	"goleague/pkg/database/models"
 	"goleague/pkg/messages"
@@ -159,7 +160,7 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 		cachedMatches    []dto.MatchPreview
 		missingMatches   []uint
 		cacheError       error
-		rawPreviews      []repositories.RawMatchPreview
+		rawPreviews      []matchrepo.RawMatchPreview
 		rawPreviewsError error
 		expectedError    string
 	}{
@@ -457,7 +458,7 @@ func TestGetPlayerStats(t *testing.T) {
 		filter        *filters.PlayerStatsFilter
 		playerId      uint
 		playerIdError error
-		playerStats   []repositories.RawPlayerStatsStruct
+		playerStats   []playerrepo.RawPlayerStatsStruct
 		statsError    error
 		expectedError string
 	}{
@@ -470,7 +471,7 @@ func TestGetPlayerStats(t *testing.T) {
 			},
 			playerId:      1,
 			playerIdError: nil,
-			playerStats: []repositories.RawPlayerStatsStruct{
+			playerStats: []playerrepo.RawPlayerStatsStruct{
 				{
 					ChampionId:       1,
 					TeamPosition:     "ADC",
@@ -497,7 +498,7 @@ func TestGetPlayerStats(t *testing.T) {
 			},
 			playerId:      1,
 			playerIdError: nil,
-			playerStats: []repositories.RawPlayerStatsStruct{
+			playerStats: []playerrepo.RawPlayerStatsStruct{
 				{
 					ChampionId:       400,
 					TeamPosition:     "MIDDLE",
@@ -524,7 +525,7 @@ func TestGetPlayerStats(t *testing.T) {
 			},
 			playerId:      1,
 			playerIdError: nil,
-			playerStats: []repositories.RawPlayerStatsStruct{
+			playerStats: []playerrepo.RawPlayerStatsStruct{
 				{
 					ChampionId:       -1,
 					TeamPosition:     "ALL",
@@ -573,7 +574,7 @@ func TestGetPlayerStats(t *testing.T) {
 			},
 			playerId:      1,
 			playerIdError: nil,
-			playerStats:   []repositories.RawPlayerStatsStruct{},
+			playerStats:   []playerrepo.RawPlayerStatsStruct{},
 			statsError:    nil,
 			expectedError: "",
 		},

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"goleague/api/dto"
 	"goleague/api/filters"
-	"goleague/api/repositories"
+	tierlistrepo "goleague/api/repositories/tierlist"
 	"goleague/api/services/testutil"
 	"testing"
 
@@ -14,7 +14,7 @@ import (
 )
 
 type RepoGetTierlist struct {
-	data []*repositories.TierlistResult
+	data []*tierlistrepo.TierlistResult
 	err  error
 }
 
@@ -75,8 +75,8 @@ func createExpectedSuccessFullTierlist() []*dto.TierlistResult {
 }
 
 // Create a tierlist correct repository return.
-func createSuccessRepoTierlist() []*repositories.TierlistResult {
-	return []*repositories.TierlistResult{
+func createSuccessRepoTierlist() []*tierlistrepo.TierlistResult {
+	return []*tierlistrepo.TierlistResult{
 		{
 			BanCount:     10,
 			BanRate:      0.15,

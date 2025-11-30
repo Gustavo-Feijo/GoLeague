@@ -5,7 +5,7 @@ import (
 	"goleague/api/converters"
 	"goleague/api/dto"
 	"goleague/api/filters"
-	"goleague/api/repositories"
+	matchrepo "goleague/api/repositories/match"
 	"goleague/pkg/database/models"
 
 	"gorm.io/gorm"
@@ -16,7 +16,7 @@ type MatchService struct {
 	db              *gorm.DB
 	memCache        cache.MemCache
 	matchConverter  converters.MatchConverter
-	MatchRepository repositories.MatchRepository
+	MatchRepository matchrepo.MatchRepository
 }
 
 // MatchServiceDeps is the dependency list for the tierlist service.
@@ -29,7 +29,7 @@ type MatchServiceDeps struct {
 func NewMatchService(deps *MatchServiceDeps) *MatchService {
 	return &MatchService{
 		db:              deps.DB,
-		MatchRepository: repositories.NewMatchRepository(deps.DB),
+		MatchRepository: matchrepo.NewMatchRepository(deps.DB),
 		memCache:        deps.MemCache,
 	}
 }

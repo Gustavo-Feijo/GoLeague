@@ -6,7 +6,7 @@ import (
 	"goleague/api/cache"
 	"goleague/api/dto"
 	"goleague/api/filters"
-	"goleague/api/repositories"
+	tierlistrepo "goleague/api/repositories/tierlist"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +29,7 @@ type TierlistService struct {
 	db                 *gorm.DB
 	memCache           cache.MemCache
 	redis              TierlistRedisClient
-	TierlistRepository repositories.TierlistRepository
+	TierlistRepository tierlistrepo.TierlistRepository
 }
 
 // TierlistServiceDeps is the dependency list for the tierlist service.
@@ -45,7 +45,7 @@ func NewTierlistService(deps *TierlistServiceDeps) *TierlistService {
 		db:                 deps.DB,
 		memCache:           deps.MemCache,
 		redis:              deps.Redis,
-		TierlistRepository: repositories.NewTierlistRepository(deps.DB),
+		TierlistRepository: tierlistrepo.NewTierlistRepository(deps.DB),
 	}
 }
 

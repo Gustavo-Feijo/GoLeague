@@ -5,7 +5,7 @@ import (
 	"errors"
 	"goleague/api/dto"
 	"goleague/api/filters"
-	"goleague/api/repositories"
+	matchrepo "goleague/api/repositories/match"
 	"goleague/api/services/testutil"
 	"goleague/pkg/database/models"
 	"os"
@@ -31,8 +31,8 @@ type mockSetup struct {
 	repo       *testutil.MockMatchRepository
 
 	mockMatch    *RepoGetData[*models.MatchInfo]
-	mockPreviews *RepoGetData[[]repositories.RawMatchPreview]
-	mockFrames   *RepoGetData[[]repositories.RawMatchParticipantFrame]
+	mockPreviews *RepoGetData[[]matchrepo.RawMatchPreview]
+	mockFrames   *RepoGetData[[]matchrepo.RawMatchParticipantFrame]
 	mockEvents   *RepoGetData[[]models.AllEvents]
 
 	returnData *dto.FullMatchData
@@ -115,13 +115,13 @@ func getMockMatch() *models.MatchInfo {
 }
 
 // Return a mock for empty previews return.
-func getEmptyMockPreviews() []repositories.RawMatchPreview {
-	return []repositories.RawMatchPreview{}
+func getEmptyMockPreviews() []matchrepo.RawMatchPreview {
+	return []matchrepo.RawMatchPreview{}
 }
 
 // Return mocked previews.
-func getMockPreviews() []repositories.RawMatchPreview {
-	return []repositories.RawMatchPreview{
+func getMockPreviews() []matchrepo.RawMatchPreview {
+	return []matchrepo.RawMatchPreview{
 		{
 
 			Assists:              6,
@@ -216,8 +216,8 @@ func getMockEvents() []models.AllEvents {
 	}
 }
 
-func getMockFrames() []repositories.RawMatchParticipantFrame {
-	return []repositories.RawMatchParticipantFrame{
+func getMockFrames() []matchrepo.RawMatchParticipantFrame {
+	return []matchrepo.RawMatchParticipantFrame{
 		{
 			CurrentGold:                   500,
 			FrameIndex:                    0,

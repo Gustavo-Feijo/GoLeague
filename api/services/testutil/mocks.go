@@ -4,7 +4,9 @@ import (
 	"context"
 	"goleague/api/dto"
 	"goleague/api/filters"
-	"goleague/api/repositories"
+	matchrepo "goleague/api/repositories/match"
+	playerrepo "goleague/api/repositories/player"
+	tierlistrepo "goleague/api/repositories/tierlist"
 	"goleague/pkg/database/models"
 	pb "goleague/pkg/grpc"
 	"testing"
@@ -59,9 +61,9 @@ func (m *MockPlayerRepository) GetPlayerRatingsById(id uint) ([]models.RatingEnt
 	return args.Get(0).([]models.RatingEntry), args.Error(1)
 }
 
-func (m *MockPlayerRepository) GetPlayerStats(filters *filters.PlayerStatsFilter) ([]repositories.RawPlayerStatsStruct, error) {
+func (m *MockPlayerRepository) GetPlayerStats(filters *filters.PlayerStatsFilter) ([]playerrepo.RawPlayerStatsStruct, error) {
 	args := m.Called(filters)
-	return args.Get(0).([]repositories.RawPlayerStatsStruct), args.Error(1)
+	return args.Get(0).([]playerrepo.RawPlayerStatsStruct), args.Error(1)
 }
 
 // Match mock implementations.
@@ -74,14 +76,14 @@ func (m *MockMatchRepository) GetAllEvents(matchID uint) ([]models.AllEvents, er
 	return args.Get(0).([]models.AllEvents), args.Error(1)
 }
 
-func (m *MockMatchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]repositories.RawMatchPreview, error) {
+func (m *MockMatchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]matchrepo.RawMatchPreview, error) {
 	args := m.Called(matchID)
-	return args.Get(0).([]repositories.RawMatchPreview), args.Error(1)
+	return args.Get(0).([]matchrepo.RawMatchPreview), args.Error(1)
 }
 
-func (m *MockMatchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]repositories.RawMatchPreview, error) {
+func (m *MockMatchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]matchrepo.RawMatchPreview, error) {
 	args := m.Called(matchIDs)
-	return args.Get(0).([]repositories.RawMatchPreview), args.Error(1)
+	return args.Get(0).([]matchrepo.RawMatchPreview), args.Error(1)
 }
 
 func (m *MockMatchRepository) GetMatchByMatchId(matchID string) (*models.MatchInfo, error) {
@@ -89,9 +91,9 @@ func (m *MockMatchRepository) GetMatchByMatchId(matchID string) (*models.MatchIn
 	return args.Get(0).(*models.MatchInfo), args.Error(1)
 }
 
-func (m *MockMatchRepository) GetParticipantFramesByInternalId(matchID uint) ([]repositories.RawMatchParticipantFrame, error) {
+func (m *MockMatchRepository) GetParticipantFramesByInternalId(matchID uint) ([]matchrepo.RawMatchParticipantFrame, error) {
 	args := m.Called(matchID)
-	return args.Get(0).([]repositories.RawMatchParticipantFrame), args.Error(1)
+	return args.Get(0).([]matchrepo.RawMatchParticipantFrame), args.Error(1)
 }
 
 // Cache mock implementations.
@@ -148,9 +150,9 @@ type MockTierlistRepository struct {
 	mock.Mock
 }
 
-func (m *MockTierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*repositories.TierlistResult, error) {
+func (m *MockTierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*tierlistrepo.TierlistResult, error) {
 	args := m.Called(filters)
-	return args.Get(0).([]*repositories.TierlistResult), args.Error(1)
+	return args.Get(0).([]*tierlistrepo.TierlistResult), args.Error(1)
 }
 
 // ChampionCache mock implementation.

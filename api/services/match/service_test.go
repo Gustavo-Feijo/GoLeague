@@ -5,7 +5,7 @@ import (
 	"goleague/api/converters"
 	"goleague/api/dto"
 	"goleague/api/filters"
-	"goleague/api/repositories"
+	matchrepo "goleague/api/repositories/match"
 	"goleague/api/services/testutil"
 	"goleague/pkg/database/models"
 	"testing"
@@ -37,8 +37,8 @@ func TestGetFullMatchData(t *testing.T) {
 		filters    *filters.GetFullMatchDataFilter
 
 		mockMatch    *RepoGetData[*models.MatchInfo]
-		mockPreviews *RepoGetData[[]repositories.RawMatchPreview]
-		mockFrames   *RepoGetData[[]repositories.RawMatchParticipantFrame]
+		mockPreviews *RepoGetData[[]matchrepo.RawMatchPreview]
+		mockFrames   *RepoGetData[[]matchrepo.RawMatchParticipantFrame]
 		mockEvents   *RepoGetData[[]models.AllEvents]
 
 		expectedError error
@@ -55,7 +55,7 @@ func TestGetFullMatchData(t *testing.T) {
 			returnData:    &dto.FullMatchData{},
 			filters:       defaultFilter,
 			mockMatch:     toRepoGetData(getMockMatch()),
-			mockPreviews:  getMockRepoError[[]repositories.RawMatchPreview](),
+			mockPreviews:  getMockRepoError[[]matchrepo.RawMatchPreview](),
 			expectedError: errors.New(testutil.DatabaseError),
 		},
 		{
@@ -72,7 +72,7 @@ func TestGetFullMatchData(t *testing.T) {
 			filters:       defaultFilter,
 			mockMatch:     toRepoGetData(getMockMatch()),
 			mockPreviews:  toRepoGetData(getMockPreviews()),
-			mockFrames:    getMockRepoError[[]repositories.RawMatchParticipantFrame](),
+			mockFrames:    getMockRepoError[[]matchrepo.RawMatchParticipantFrame](),
 			expectedError: errors.New(testutil.DatabaseError),
 		},
 		{

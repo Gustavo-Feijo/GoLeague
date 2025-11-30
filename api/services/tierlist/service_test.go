@@ -4,7 +4,7 @@ import (
 	"errors"
 	"goleague/api/dto"
 	"goleague/api/filters"
-	"goleague/api/repositories"
+	tierlistrepo "goleague/api/repositories/tierlist"
 	"goleague/api/services/testutil"
 	"testing"
 
@@ -67,7 +67,7 @@ func TestGetTierlist(t *testing.T) {
 			testStrategy: "nocache",
 			filters:      &filters.TierlistFilter{Queue: 420, NumericTier: 1},
 			repositoryReturnData: &RepoGetTierlist{
-				data: []*repositories.TierlistResult{},
+				data: []*tierlistrepo.TierlistResult{},
 				err:  nil,
 			},
 		},

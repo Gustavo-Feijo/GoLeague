@@ -4,7 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"goleague/api/dto"
-	"goleague/api/repositories"
+	matchrepo "goleague/api/repositories/match"
+	repositories "goleague/api/repositories/match"
 	"goleague/pkg/database/models"
 	tiervalues "goleague/pkg/riotvalues/tier"
 )
@@ -19,7 +20,7 @@ const (
 type MatchConverter struct{}
 
 // ConvertSingleMatch parses all previews for a given match and return it as the DTO.
-func (c *MatchConverter) ConvertSingleMatch(matchPreviews []repositories.RawMatchPreview) (*dto.MatchPreview, error) {
+func (c *MatchConverter) ConvertSingleMatch(matchPreviews []matchrepo.RawMatchPreview) (*dto.MatchPreview, error) {
 	if len(matchPreviews) == 0 {
 		return nil, errors.New(ErrNoPreviews)
 	}

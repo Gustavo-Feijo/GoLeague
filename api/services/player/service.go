@@ -10,7 +10,8 @@ import (
 	"goleague/api/dto"
 	"goleague/api/filters"
 	grpcclient "goleague/api/grpc"
-	"goleague/api/repositories"
+	matchrepo "goleague/api/repositories/match"
+	playerrepo "goleague/api/repositories/player"
 	"goleague/pkg/messages"
 	"strconv"
 	"strings"
@@ -39,8 +40,8 @@ type PlayerService struct {
 	matchCache       cache.MatchCache
 	redis            PlayerRedisClient
 	matchConverter   converters.MatchConverter
-	MatchRepository  repositories.MatchRepository
-	PlayerRepository repositories.PlayerRepository
+	MatchRepository  matchrepo.MatchRepository
+	PlayerRepository playerrepo.PlayerRepository
 }
 
 type PlayerServiceDeps struct {
@@ -56,8 +57,8 @@ func NewPlayerService(deps *PlayerServiceDeps) *PlayerService {
 		db:               deps.DB,
 		grpcClient:       deps.GrpcClient,
 		matchCache:       deps.MatchCache,
-		MatchRepository:  repositories.NewMatchRepository(deps.DB),
-		PlayerRepository: repositories.NewPlayerRepository(deps.DB),
+		MatchRepository:  matchrepo.NewMatchRepository(deps.DB),
+		PlayerRepository: playerrepo.NewPlayerRepository(deps.DB),
 		redis:            deps.Redis,
 	}
 }
@@ -310,7 +311,7 @@ func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters *filters.PlayerFor
 }
 
 // parsePlayerStats parse a raw player stats entry to insert into the DTO.
-func parsePlayerStats(playerStatsDto dto.FullPlayerStats, stats repositories.RawPlayerStatsStruct) {
+func parsePlayerStats(playerStatsDto dto.FullPlayerStats, stats playerrepo.RawPlayerStatsStruct) {
 	var champion string
 	var lane string
 	var queue string

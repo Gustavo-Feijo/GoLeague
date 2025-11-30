@@ -1,6 +1,6 @@
 package dto
 
-import "goleague/api/repositories"
+import tierlistrepo "goleague/api/repositories/tierlist"
 
 // Result of a tierlist fetch.
 type TierlistResult struct {
@@ -14,7 +14,7 @@ type TierlistResult struct {
 }
 
 // FromRepositorySlice creates the DTO from the repository result (Same structure)
-func (TierlistResult) FromRepositorySlice(repoResults []*repositories.TierlistResult) []*TierlistResult {
+func (TierlistResult) FromRepositorySlice(repoResults []*tierlistrepo.TierlistResult) []*TierlistResult {
 	dtoResults := make([]*TierlistResult, len(repoResults))
 
 	for i, repo := range repoResults {

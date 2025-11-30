@@ -1,4 +1,4 @@
-package repositories
+package cache
 
 import (
 	"goleague/pkg/database/models"

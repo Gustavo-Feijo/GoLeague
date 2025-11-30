@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"goleague/api/repositories"
+	cacherepo "goleague/api/repositories/cache"
 	"goleague/pkg/redis"
 	"time"
 
@@ -26,7 +26,7 @@ type ChampionCacheRedisClient interface {
 type championCache struct {
 	memCache        MemCache
 	redis           ChampionCacheRedisClient
-	cacheRepository repositories.CacheRepository
+	cacheRepository cacherepo.CacheRepository
 }
 
 // NewchampionCache creates the instance of the champion cache.
@@ -34,7 +34,7 @@ func NewChampionCache(db *gorm.DB, redis *redis.RedisClient, memCache MemCache) 
 	cc := &championCache{
 		memCache:        memCache,
 		redis:           redis,
-		cacheRepository: repositories.NewCacheRepository(db),
+		cacheRepository: cacherepo.NewCacheRepository(db),
 	}
 
 	return cc
