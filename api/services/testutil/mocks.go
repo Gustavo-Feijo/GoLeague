@@ -36,33 +36,33 @@ type MockPlayerRepository struct {
 	mock.Mock
 }
 
-func (m *MockPlayerRepository) SearchPlayer(filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error) {
-	args := m.Called(filters)
+func (m *MockPlayerRepository) SearchPlayer(ctx context.Context, filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error) {
+	args := m.Called(ctx, filters)
 	return args.Get(0).([]*models.PlayerInfo), args.Error(1)
 }
 
-func (m *MockPlayerRepository) GetPlayerIdByNameTagRegion(name, tag, region string) (uint, error) {
-	args := m.Called(name, tag, region)
+func (m *MockPlayerRepository) GetPlayerIdByNameTagRegion(ctx context.Context, name, tag, region string) (uint, error) {
+	args := m.Called(ctx, name, tag, region)
 	return args.Get(0).(uint), args.Error(1)
 }
 
-func (m *MockPlayerRepository) GetPlayerMatchHistoryIds(filters *filters.PlayerMatchHistoryFilter) ([]uint, error) {
-	args := m.Called(filters)
+func (m *MockPlayerRepository) GetPlayerMatchHistoryIds(ctx context.Context, filters *filters.PlayerMatchHistoryFilter) ([]uint, error) {
+	args := m.Called(ctx, filters)
 	return args.Get(0).([]uint), args.Error(1)
 }
 
-func (m *MockPlayerRepository) GetPlayerById(id uint) (*models.PlayerInfo, error) {
-	args := m.Called(id)
+func (m *MockPlayerRepository) GetPlayerById(ctx context.Context, id uint) (*models.PlayerInfo, error) {
+	args := m.Called(ctx, id)
 	return args.Get(0).(*models.PlayerInfo), args.Error(1)
 }
 
-func (m *MockPlayerRepository) GetPlayerRatingsById(id uint) ([]models.RatingEntry, error) {
-	args := m.Called(id)
+func (m *MockPlayerRepository) GetPlayerRatingsById(ctx context.Context, id uint) ([]models.RatingEntry, error) {
+	args := m.Called(ctx, id)
 	return args.Get(0).([]models.RatingEntry), args.Error(1)
 }
 
-func (m *MockPlayerRepository) GetPlayerStats(filters *filters.PlayerStatsFilter) ([]playerrepo.RawPlayerStatsStruct, error) {
-	args := m.Called(filters)
+func (m *MockPlayerRepository) GetPlayerStats(ctx context.Context, filters *filters.PlayerStatsFilter) ([]playerrepo.RawPlayerStatsStruct, error) {
+	args := m.Called(ctx, filters)
 	return args.Get(0).([]playerrepo.RawPlayerStatsStruct), args.Error(1)
 }
 
@@ -71,28 +71,28 @@ type MockMatchRepository struct {
 	mock.Mock
 }
 
-func (m *MockMatchRepository) GetAllEvents(matchID uint) ([]models.AllEvents, error) {
-	args := m.Called(matchID)
+func (m *MockMatchRepository) GetAllEvents(ctx context.Context, matchID uint) ([]models.AllEvents, error) {
+	args := m.Called(ctx, matchID)
 	return args.Get(0).([]models.AllEvents), args.Error(1)
 }
 
-func (m *MockMatchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]matchrepo.RawMatchPreview, error) {
-	args := m.Called(matchID)
+func (m *MockMatchRepository) GetMatchPreviewsByInternalId(ctx context.Context, matchID uint) ([]matchrepo.RawMatchPreview, error) {
+	args := m.Called(ctx, matchID)
 	return args.Get(0).([]matchrepo.RawMatchPreview), args.Error(1)
 }
 
-func (m *MockMatchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]matchrepo.RawMatchPreview, error) {
-	args := m.Called(matchIDs)
+func (m *MockMatchRepository) GetMatchPreviewsByInternalIds(ctx context.Context, matchIDs []uint) ([]matchrepo.RawMatchPreview, error) {
+	args := m.Called(ctx, matchIDs)
 	return args.Get(0).([]matchrepo.RawMatchPreview), args.Error(1)
 }
 
-func (m *MockMatchRepository) GetMatchByMatchId(matchID string) (*models.MatchInfo, error) {
-	args := m.Called(matchID)
+func (m *MockMatchRepository) GetMatchByMatchId(ctx context.Context, matchID string) (*models.MatchInfo, error) {
+	args := m.Called(ctx, matchID)
 	return args.Get(0).(*models.MatchInfo), args.Error(1)
 }
 
-func (m *MockMatchRepository) GetParticipantFramesByInternalId(matchID uint) ([]matchrepo.RawMatchParticipantFrame, error) {
-	args := m.Called(matchID)
+func (m *MockMatchRepository) GetParticipantFramesByInternalId(ctx context.Context, matchID uint) ([]matchrepo.RawMatchParticipantFrame, error) {
+	args := m.Called(ctx, matchID)
 	return args.Get(0).([]matchrepo.RawMatchParticipantFrame), args.Error(1)
 }
 
@@ -150,8 +150,8 @@ type MockTierlistRepository struct {
 	mock.Mock
 }
 
-func (m *MockTierlistRepository) GetTierlist(filters *filters.TierlistFilter) ([]*tierlistrepo.TierlistResult, error) {
-	args := m.Called(filters)
+func (m *MockTierlistRepository) GetTierlist(ctx context.Context, filters *filters.TierlistFilter) ([]*tierlistrepo.TierlistResult, error) {
+	args := m.Called(ctx, filters)
 	return args.Get(0).([]*tierlistrepo.TierlistResult), args.Error(1)
 }
 

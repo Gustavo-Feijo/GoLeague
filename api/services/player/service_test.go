@@ -1,6 +1,7 @@
 package playerservice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -9,7 +10,6 @@ import (
 	"goleague/api/filters"
 	matchrepo "goleague/api/repositories/match"
 	playerrepo "goleague/api/repositories/player"
-	"goleague/api/services/testutil"
 	"goleague/pkg/database/models"
 	"goleague/pkg/messages"
 
@@ -128,9 +128,9 @@ func TestGetPlayerSearch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockPlayerRepo.On("SearchPlayer", tt.filter).Return(tt.repoResponse, tt.repoError).Once()
+			mockPlayerRepo.On("SearchPlayer", mock.Anything, tt.filter).Return(tt.repoResponse, tt.repoError).Once()
 
-			result, err := service.GetPlayerSearch(tt.filter)
+			result, err := service.GetPlayerSearch(context.Background(), tt.filter)
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -268,7 +268,7 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockPlayerRepo.On("GetPlayerIdByNameTagRegion", tt.filter.GameName, tt.filter.GameTag, tt.filter.Region).
+			mockPlayerRepo.On("GetPlayerIdByNameTagRegion", mock.Anything, tt.filter.GameName, tt.filter.GameTag, tt.filter.Region).
 				Return(tt.playerId, tt.playerIdError).Once()
 
 			if tt.playerIdError == nil {
@@ -278,11 +278,11 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 					Region:   tt.filter.Region,
 					PlayerId: &tt.playerId,
 				}
-				mockPlayerRepo.On("GetPlayerMatchHistoryIds", expectedFilter).
+				mockPlayerRepo.On("GetPlayerMatchHistoryIds", mock.Anything, expectedFilter).
 					Return(tt.matchIds, tt.matchIdsError).Once()
 
 				if len(tt.matchIds) > 0 {
-					mockMatchCache.On("GetMatchesPreviewByMatchIds", mock.AnythingOfType(testutil.DefaultTimerCtx), tt.matchIds).
+					mockMatchCache.On("GetMatchesPreviewByMatchIds", mock.Anything, tt.matchIds).
 						Return(tt.cachedMatches, tt.missingMatches, tt.cacheError).Once()
 
 					// Cache failed, need to presume all matches are missing on cache.
@@ -291,13 +291,13 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 					}
 
 					if len(tt.missingMatches) > 0 {
-						mockMatchRepo.On("GetMatchPreviewsByInternalIds", tt.missingMatches).
+						mockMatchRepo.On("GetMatchPreviewsByInternalIds", mock.Anything, tt.missingMatches).
 							Return(tt.rawPreviews, tt.rawPreviewsError).Once()
 					}
 				}
 			}
 
-			result, err := service.GetPlayerMatchHistory(tt.filter)
+			result, err := service.GetPlayerMatchHistory(context.Background(), tt.filter)
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -417,20 +417,20 @@ func TestGetPlayerInfo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockPlayerRepo.On("GetPlayerIdByNameTagRegion", tt.filter.GameName, tt.filter.GameTag, tt.filter.Region).
+			mockPlayerRepo.On("GetPlayerIdByNameTagRegion", mock.Anything, tt.filter.GameName, tt.filter.GameTag, tt.filter.Region).
 				Return(tt.playerId, tt.playerIdError).Once()
 
 			if tt.playerIdError == nil {
-				mockPlayerRepo.On("GetPlayerById", tt.playerId).
+				mockPlayerRepo.On("GetPlayerById", mock.Anything, tt.playerId).
 					Return(tt.playerInfo, tt.playerInfoError).Once()
 
 				if tt.playerInfoError == nil {
-					mockPlayerRepo.On("GetPlayerRatingsById", tt.playerId).
+					mockPlayerRepo.On("GetPlayerRatingsById", mock.Anything, tt.playerId).
 						Return(tt.playerRatings, tt.ratingsError).Once()
 				}
 			}
 
-			result, err := service.GetPlayerInfo(tt.filter)
+			result, err := service.GetPlayerInfo(context.Background(), tt.filter)
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -582,7 +582,7 @@ func TestGetPlayerStats(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockPlayerRepo.On("GetPlayerIdByNameTagRegion", tt.filter.GameName, tt.filter.GameTag, tt.filter.Region).
+			mockPlayerRepo.On("GetPlayerIdByNameTagRegion", mock.Anything, tt.filter.GameName, tt.filter.GameTag, tt.filter.Region).
 				Return(tt.playerId, tt.playerIdError).Once()
 
 			if tt.playerIdError == nil {
@@ -592,11 +592,11 @@ func TestGetPlayerStats(t *testing.T) {
 					Region:   tt.filter.Region,
 					PlayerId: &tt.playerId,
 				}
-				mockPlayerRepo.On("GetPlayerStats", expectedFilter).
+				mockPlayerRepo.On("GetPlayerStats", mock.Anything, expectedFilter).
 					Return(tt.playerStats, tt.statsError).Once()
 			}
 
-			result, err := service.GetPlayerStats(tt.filter)
+			result, err := service.GetPlayerStats(context.Background(), tt.filter)
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)

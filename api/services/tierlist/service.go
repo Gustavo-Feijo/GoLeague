@@ -50,7 +50,7 @@ func NewTierlistService(deps *TierlistServiceDeps) *TierlistService {
 }
 
 // GetTierlist get the tierlist based on the filters.
-func (ts *TierlistService) GetTierlist(filters *filters.TierlistFilter) ([]*dto.TierlistResult, error) {
+func (ts *TierlistService) GetTierlist(ctx context.Context, filters *filters.TierlistFilter) ([]*dto.TierlistResult, error) {
 	key := ts.getTierlistKey(filters)
 
 	if mem := ts.getFromMemCache(key); mem != nil {
@@ -63,7 +63,7 @@ func (ts *TierlistService) GetTierlist(filters *filters.TierlistFilter) ([]*dto.
 	}
 
 	// Get the data from the repository.
-	results, err := ts.TierlistRepository.GetTierlist(filters)
+	results, err := ts.TierlistRepository.GetTierlist(ctx, filters)
 	if err != nil {
 		return nil, err
 	}

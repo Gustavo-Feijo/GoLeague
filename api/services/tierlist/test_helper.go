@@ -129,7 +129,7 @@ func setupNoCacheHit(setup mockSetup) {
 	setup.memCache.On("Get", setup.key).Return(nil)
 	setup.redis.On("Get", mock.AnythingOfType(testutil.DefaultTimerCtx), setup.key).Return("", nil)
 
-	setup.repo.On("GetTierlist", setup.filters).Return(setup.repoData.data, setup.repoData.err)
+	setup.repo.On("GetTierlist", mock.Anything, setup.filters).Return(setup.repoData.data, setup.repoData.err)
 
 	setup.memCache.On("Set", setup.key, setup.returnData, TierlistMemoryCacheDuration).Return(nil)
 

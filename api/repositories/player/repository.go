@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"goleague/api/filters"
@@ -17,12 +18,12 @@ const searchLimit = 20
 
 // PlayerRepository is the public interface for accessing the player repository.
 type PlayerRepository interface {
-	SearchPlayer(filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error)
-	GetPlayerById(playerId uint) (*models.PlayerInfo, error)
-	GetPlayerIdByNameTagRegion(name string, tag string, region string) (uint, error)
-	GetPlayerMatchHistoryIds(filters *filters.PlayerMatchHistoryFilter) ([]uint, error)
-	GetPlayerRatingsById(playerId uint) ([]models.RatingEntry, error)
-	GetPlayerStats(filters *filters.PlayerStatsFilter) ([]RawPlayerStatsStruct, error)
+	SearchPlayer(ctx context.Context, filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error)
+	GetPlayerById(ctx context.Context, playerId uint) (*models.PlayerInfo, error)
+	GetPlayerIdByNameTagRegion(ctx context.Context, name string, tag string, region string) (uint, error)
+	GetPlayerMatchHistoryIds(ctx context.Context, filters *filters.PlayerMatchHistoryFilter) ([]uint, error)
+	GetPlayerRatingsById(ctx context.Context, playerId uint) ([]models.RatingEntry, error)
+	GetPlayerStats(ctx context.Context, filters *filters.PlayerStatsFilter) ([]RawPlayerStatsStruct, error)
 }
 
 // playerRepository repository structure.
@@ -51,7 +52,7 @@ type RawPlayerStatsStruct struct {
 }
 
 // SearchPlayer searchs a given player by it's name, tag and region.
-func (ps *playerRepository) SearchPlayer(filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error) {
+func (ps *playerRepository) SearchPlayer(ctx context.Context, filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error) {
 	if filters == nil {
 		return nil, fmt.Errorf(messages.FiltersNotNil)
 	}
@@ -90,7 +91,7 @@ func (ps *playerRepository) SearchPlayer(filters *filters.PlayerSearchFilter) ([
 }
 
 // GetPlayerMatchHistoryIds returns the internal ids of the matches that a given player played.
-func (ps *playerRepository) GetPlayerMatchHistoryIds(filters *filters.PlayerMatchHistoryFilter) ([]uint, error) {
+func (ps *playerRepository) GetPlayerMatchHistoryIds(ctx context.Context, filters *filters.PlayerMatchHistoryFilter) ([]uint, error) {
 	if filters == nil {
 		return nil, fmt.Errorf(messages.FiltersNotNil)
 	}
@@ -125,7 +126,7 @@ func (ps *playerRepository) GetPlayerMatchHistoryIds(filters *filters.PlayerMatc
 }
 
 // GetPlayerStats returns the raw player stats.
-func (ps *playerRepository) GetPlayerStats(filters *filters.PlayerStatsFilter) ([]RawPlayerStatsStruct, error) {
+func (ps *playerRepository) GetPlayerStats(ctx context.Context, filters *filters.PlayerStatsFilter) ([]RawPlayerStatsStruct, error) {
 	if filters == nil {
 		return nil, fmt.Errorf(messages.FiltersNotNil)
 	}
@@ -218,7 +219,7 @@ func (ps *playerRepository) GetPlayerStats(filters *filters.PlayerStatsFilter) (
 }
 
 // GetPlayerIdByNameTagRegion retrieves the id of a given player based on the params.
-func (ps *playerRepository) GetPlayerIdByNameTagRegion(name string, tag string, region string) (uint, error) {
+func (ps *playerRepository) GetPlayerIdByNameTagRegion(ctx context.Context, name string, tag string, region string) (uint, error) {
 	var id uint
 
 	formattedRegion := regions.SubRegion(strings.ToUpper(region))
@@ -242,7 +243,7 @@ func (ps *playerRepository) GetPlayerIdByNameTagRegion(name string, tag string, 
 }
 
 // GetPlayerInfo returns all the player information.
-func (ps *playerRepository) GetPlayerById(playerId uint) (*models.PlayerInfo, error) {
+func (ps *playerRepository) GetPlayerById(ctx context.Context, playerId uint) (*models.PlayerInfo, error) {
 	var player models.PlayerInfo
 	if err := ps.db.Where(&models.PlayerInfo{ID: playerId}).First(&player).Error; err != nil {
 		return nil, fmt.Errorf("couldn't get the player by the ID: %v", err)
@@ -252,7 +253,7 @@ func (ps *playerRepository) GetPlayerById(playerId uint) (*models.PlayerInfo, er
 }
 
 // GetPlayerRatingById returns all the rating information regarding a player.
-func (ps *playerRepository) GetPlayerRatingsById(playerId uint) ([]models.RatingEntry, error) {
+func (ps *playerRepository) GetPlayerRatingsById(ctx context.Context, playerId uint) ([]models.RatingEntry, error) {
 	var ratings []models.RatingEntry
 	err := ps.db.Raw(`
     SELECT DISTINCT ON (queue, region) *

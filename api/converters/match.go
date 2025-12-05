@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"goleague/api/dto"
 	matchrepo "goleague/api/repositories/match"
-	repositories "goleague/api/repositories/match"
 	"goleague/pkg/database/models"
 	tiervalues "goleague/pkg/riotvalues/tier"
 )
@@ -16,11 +15,8 @@ const (
 	ErrNoPreviews      = "no previews provided"
 )
 
-// MatchConverter is used to parse data to more usable/formatted structures.
-type MatchConverter struct{}
-
 // ConvertSingleMatch parses all previews for a given match and return it as the DTO.
-func (c *MatchConverter) ConvertSingleMatch(matchPreviews []matchrepo.RawMatchPreview) (*dto.MatchPreview, error) {
+func ConvertSingleMatch(matchPreviews []matchrepo.RawMatchPreview) (*dto.MatchPreview, error) {
 	if len(matchPreviews) == 0 {
 		return nil, errors.New(ErrNoPreviews)
 	}
@@ -36,13 +32,13 @@ func (c *MatchConverter) ConvertSingleMatch(matchPreviews []matchrepo.RawMatchPr
 	firstPreview := matchPreviews[0]
 
 	result := &dto.MatchPreview{
-		Metadata: c.NewMatchPreviewMetadata(firstPreview),
+		Metadata: NewMatchPreviewMetadata(firstPreview),
 		Data:     make([]*dto.MatchPreviewData, 0, len(matchPreviews)),
 	}
 
 	// Convert each participant's data
 	for _, rawPreview := range matchPreviews {
-		previewData := c.NewMatchPreviewData(rawPreview)
+		previewData := NewMatchPreviewData(rawPreview)
 		result.Data = append(result.Data, previewData)
 	}
 
@@ -50,19 +46,19 @@ func (c *MatchConverter) ConvertSingleMatch(matchPreviews []matchrepo.RawMatchPr
 }
 
 // ConvertMultipleMatches creates a preview list from multiple raw match previews.
-func (c *MatchConverter) ConvertMultipleMatches(rawPreviews []repositories.RawMatchPreview) (dto.MatchPreviewList, error) {
+func ConvertMultipleMatches(rawPreviews []matchrepo.RawMatchPreview) (dto.MatchPreviewList, error) {
 	if len(rawPreviews) == 0 {
 		return dto.NewMatchPreviewList(), nil
 	}
 
 	// Group first
-	grouped := c.GroupRawMatchPreviewsByMatchId(rawPreviews)
+	grouped := GroupRawMatchPreviewsByMatchId(rawPreviews)
 
 	result := dto.NewMatchPreviewList()
 
 	// Convert each group
 	for matchID, matchPreviews := range grouped {
-		matchPreview, err := c.ConvertSingleMatch(matchPreviews)
+		matchPreview, err := ConvertSingleMatch(matchPreviews)
 		if err != nil {
 			return nil, fmt.Errorf(ErrFailedToConvert, matchID, err)
 		}
@@ -74,8 +70,8 @@ func (c *MatchConverter) ConvertMultipleMatches(rawPreviews []repositories.RawMa
 }
 
 // GroupRawMatchPreviewsByMatchId creates a map with the match id as key and the match previews array as value.
-func (c MatchConverter) GroupRawMatchPreviewsByMatchId(rawPreviews []repositories.RawMatchPreview) map[string][]repositories.RawMatchPreview {
-	grouped := make(map[string][]repositories.RawMatchPreview)
+func GroupRawMatchPreviewsByMatchId(rawPreviews []matchrepo.RawMatchPreview) map[string][]matchrepo.RawMatchPreview {
+	grouped := make(map[string][]matchrepo.RawMatchPreview)
 
 	for _, preview := range rawPreviews {
 		grouped[preview.MatchID] = append(grouped[preview.MatchID], preview)
@@ -85,7 +81,7 @@ func (c MatchConverter) GroupRawMatchPreviewsByMatchId(rawPreviews []repositorie
 }
 
 // NewMatchPreviewData create a formatted match preview DTO.
-func (c MatchConverter) NewMatchPreviewData(matchPreview repositories.RawMatchPreview) *dto.MatchPreviewData {
+func NewMatchPreviewData(matchPreview matchrepo.RawMatchPreview) *dto.MatchPreviewData {
 	rawItems := []*int{matchPreview.Item0, matchPreview.Item1, matchPreview.Item2, matchPreview.Item3, matchPreview.Item4, matchPreview.Item5}
 	items := make([]int, 0, 6)
 	for _, it := range rawItems {
@@ -114,7 +110,7 @@ func (c MatchConverter) NewMatchPreviewData(matchPreview repositories.RawMatchPr
 }
 
 // NewMatchPreviewMetadata generates the match metadata.
-func (c MatchConverter) NewMatchPreviewMetadata(matchPreview repositories.RawMatchPreview) *dto.MatchPreviewMetadata {
+func NewMatchPreviewMetadata(matchPreview matchrepo.RawMatchPreview) *dto.MatchPreviewMetadata {
 	return &dto.MatchPreviewMetadata{
 		AverageElo:   tiervalues.CalculateInverseRank(int(matchPreview.AverageRating)),
 		Date:         matchPreview.Date,
@@ -127,7 +123,7 @@ func (c MatchConverter) NewMatchPreviewMetadata(matchPreview repositories.RawMat
 }
 
 // GroupParticipantFramesByParticipantId creates a formatted dto of the participant frames.
-func (c MatchConverter) GroupParticipantFramesByParticipantId(participantFrames []repositories.RawMatchParticipantFrame) dto.ParticipantFrameList {
+func GroupParticipantFramesByParticipantId(participantFrames []matchrepo.RawMatchParticipantFrame) dto.ParticipantFrameList {
 	if len(participantFrames) == 0 {
 		return dto.NewParticipantFrameList()
 	}
@@ -166,7 +162,7 @@ func (c MatchConverter) GroupParticipantFramesByParticipantId(participantFrames 
 }
 
 // ConvertEvents converts raw events to formatted dto events.
-func (c MatchConverter) ConvertEvents(rawEvents []models.AllEvents) []dto.MatchEvents {
+func ConvertEvents(rawEvents []models.AllEvents) []dto.MatchEvents {
 	converted := make([]dto.MatchEvents, len(rawEvents))
 
 	for i, event := range rawEvents {

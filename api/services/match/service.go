@@ -1,6 +1,7 @@
 package matchservice
 
 import (
+	"context"
 	"goleague/api/cache"
 	"goleague/api/converters"
 	"goleague/api/dto"
@@ -15,7 +16,6 @@ import (
 type MatchService struct {
 	db              *gorm.DB
 	memCache        cache.MemCache
-	matchConverter  converters.MatchConverter
 	MatchRepository matchrepo.MatchRepository
 }
 
@@ -35,35 +35,35 @@ func NewMatchService(deps *MatchServiceDeps) *MatchService {
 }
 
 // GetFullMatchData retrieves and parses all data for a given match.
-func (ms *MatchService) GetFullMatchData(filter *filters.GetFullMatchDataFilter) (*dto.FullMatchData, error) {
-	match, err := ms.GetMatchByMatchId(filter.MatchId)
+func (ms *MatchService) GetFullMatchData(ctx context.Context, filter *filters.GetFullMatchDataFilter) (*dto.FullMatchData, error) {
+	match, err := ms.GetMatchByMatchId(ctx, filter.MatchId)
 	if err != nil {
 		return nil, err
 	}
 
-	matchPreviews, err := ms.MatchRepository.GetMatchPreviewsByInternalId(match.ID)
+	matchPreviews, err := ms.MatchRepository.GetMatchPreviewsByInternalId(ctx, match.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	formattedPreview, err := ms.matchConverter.ConvertSingleMatch(matchPreviews)
+	formattedPreview, err := converters.ConvertSingleMatch(matchPreviews)
 	if err != nil {
 		return nil, err
 	}
 
-	participantFrames, err := ms.MatchRepository.GetParticipantFramesByInternalId(match.ID)
+	participantFrames, err := ms.MatchRepository.GetParticipantFramesByInternalId(ctx, match.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	formattedParticipantFrames := ms.matchConverter.GroupParticipantFramesByParticipantId(participantFrames)
+	formattedParticipantFrames := converters.GroupParticipantFramesByParticipantId(participantFrames)
 
-	rawEvents, err := ms.MatchRepository.GetAllEvents(match.ID)
+	rawEvents, err := ms.MatchRepository.GetAllEvents(ctx, match.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	events := ms.matchConverter.ConvertEvents(rawEvents)
+	events := converters.ConvertEvents(rawEvents)
 
 	fullMatch := &dto.FullMatchData{
 		Metadata:             formattedPreview.Metadata,
@@ -76,6 +76,6 @@ func (ms *MatchService) GetFullMatchData(filter *filters.GetFullMatchDataFilter)
 }
 
 // GetMatchByMatchId is a simple wrapper for getting the match repository data.
-func (ms *MatchService) GetMatchByMatchId(matchId string) (*models.MatchInfo, error) {
-	return ms.MatchRepository.GetMatchByMatchId(matchId)
+func (ms *MatchService) GetMatchByMatchId(ctx context.Context, matchId string) (*models.MatchInfo, error) {
+	return ms.MatchRepository.GetMatchByMatchId(ctx, matchId)
 }

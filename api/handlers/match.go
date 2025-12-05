@@ -44,7 +44,7 @@ func (h *MatchHandler) GetFullMatchData(c *gin.Context) {
 
 	filters := filters.NewGetFullMatchDataFilter(pp)
 
-	matchData, err := h.MatchService.GetFullMatchData(filters)
+	matchData, err := h.MatchService.GetFullMatchData(c, filters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

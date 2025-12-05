@@ -39,7 +39,6 @@ type PlayerService struct {
 	grpcClient       grpcclient.PlayerGRPCClient
 	matchCache       cache.MatchCache
 	redis            PlayerRedisClient
-	matchConverter   converters.MatchConverter
 	MatchRepository  matchrepo.MatchRepository
 	PlayerRepository playerrepo.PlayerRepository
 }
@@ -108,8 +107,8 @@ func (ps *PlayerService) checkRateLimit(ctx context.Context, rateLimitKey string
 }
 
 // GetPlayerSearch returns the result of a given search.
-func (ps *PlayerService) GetPlayerSearch(filters *filters.PlayerSearchFilter) ([]*dto.PlayerSearch, error) {
-	players, err := ps.PlayerRepository.SearchPlayer(filters)
+func (ps *PlayerService) GetPlayerSearch(ctx context.Context, filters *filters.PlayerSearchFilter) ([]*dto.PlayerSearch, error) {
+	players, err := ps.PlayerRepository.SearchPlayer(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -131,20 +130,20 @@ func (ps *PlayerService) GetPlayerSearch(filters *filters.PlayerSearchFilter) ([
 }
 
 // GetPlayerMatchHistory returns a player match list based on filters.
-func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHistoryFilter) (dto.MatchPreviewList, error) {
+func (ps *PlayerService) GetPlayerMatchHistory(ctx context.Context, filters *filters.PlayerMatchHistoryFilter) (dto.MatchPreviewList, error) {
 	// Convert to string.
 	// Received through path params.
 	name := filters.GameName
 	tag := filters.GameTag
 	region := filters.Region
 
-	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
+	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(ctx, name, tag, region)
 	if err != nil {
 		return nil, fmt.Errorf(messages.CouldNotFindId+": %w", "player", err)
 	}
 
 	filters.PlayerId = &playerId
-	matchesIds, err := ps.PlayerRepository.GetPlayerMatchHistoryIds(filters)
+	matchesIds, err := ps.PlayerRepository.GetPlayerMatchHistoryIds(ctx, filters)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the match ids: %w", err)
 	}
@@ -153,7 +152,7 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHisto
 		return nil, nil
 	}
 
-	cachedMatches, missingMatches := ps.getCachedMatchPreviews(matchesIds)
+	cachedMatches, missingMatches := ps.getCachedMatchPreviews(ctx, matchesIds)
 
 	// All previews cached.
 	if len(missingMatches) == 0 {
@@ -165,12 +164,12 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHisto
 	matchesIds = missingMatches
 
 	// Get the non cached matches from the database.
-	matchPreviews, err := ps.MatchRepository.GetMatchPreviewsByInternalIds(matchesIds)
+	matchPreviews, err := ps.MatchRepository.GetMatchPreviewsByInternalIds(context.Background(), matchesIds)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the match history for the player: %w", err)
 	}
 
-	formattedPreviews, err := ps.matchConverter.ConvertMultipleMatches(matchPreviews)
+	formattedPreviews, err := converters.ConvertMultipleMatches(matchPreviews)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't parse the matches data: %w", err)
 	}
@@ -191,13 +190,13 @@ func (ps *PlayerService) GetPlayerMatchHistory(filters *filters.PlayerMatchHisto
 }
 
 // getCachedMatchPreviews return the cached raw match previews for the provided match ids.
-func (ps *PlayerService) getCachedMatchPreviews(matchesIds []uint) ([]dto.MatchPreview, []uint) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func (ps *PlayerService) getCachedMatchPreviews(ctx context.Context, matchesIds []uint) ([]dto.MatchPreview, []uint) {
+	cacheCtx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
 	// Get all the cached matches previews.
 	// Match previews shouldn't change, using cache to reduce load into the database.
-	cachedMatches, missingMatches, err := ps.matchCache.GetMatchesPreviewByMatchIds(ctx, matchesIds)
+	cachedMatches, missingMatches, err := ps.matchCache.GetMatchesPreviewByMatchIds(cacheCtx, matchesIds)
 	if err != nil {
 		return []dto.MatchPreview{}, matchesIds
 	}
@@ -206,22 +205,22 @@ func (ps *PlayerService) getCachedMatchPreviews(matchesIds []uint) ([]dto.MatchP
 }
 
 // GetPlayerInfo returns the player information of a given player with it's ratings.
-func (ps *PlayerService) GetPlayerInfo(filters *filters.PlayerInfoFilter) (*dto.FullPlayerInfo, error) {
+func (ps *PlayerService) GetPlayerInfo(ctx context.Context, filters *filters.PlayerInfoFilter) (*dto.FullPlayerInfo, error) {
 	name := filters.GameName
 	tag := filters.GameTag
 	region := filters.Region
 
-	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
+	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(ctx, name, tag, region)
 	if err != nil {
 		return nil, fmt.Errorf(messages.CouldNotFindId+": %w", "player", err)
 	}
 
-	playerInfo, err := ps.PlayerRepository.GetPlayerById(playerId)
+	playerInfo, err := ps.PlayerRepository.GetPlayerById(ctx, playerId)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the player info: %w", err)
 	}
 
-	playerRatings, err := ps.PlayerRepository.GetPlayerRatingsById(playerId)
+	playerRatings, err := ps.PlayerRepository.GetPlayerRatingsById(ctx, playerId)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the player rating: %w", err)
 	}
@@ -256,18 +255,18 @@ func (ps *PlayerService) GetPlayerInfo(filters *filters.PlayerInfoFilter) (*dto.
 }
 
 // GetPlayerStats returns the player stats for a given player.
-func (ps *PlayerService) GetPlayerStats(filters *filters.PlayerStatsFilter) (dto.FullPlayerStats, error) {
+func (ps *PlayerService) GetPlayerStats(ctx context.Context, filters *filters.PlayerStatsFilter) (dto.FullPlayerStats, error) {
 	name := filters.GameName
 	tag := filters.GameTag
 	region := filters.Region
 
-	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(name, tag, region)
+	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(ctx, name, tag, region)
 	if err != nil {
 		return nil, fmt.Errorf(messages.CouldNotFindId+": %w", "player", err)
 	}
 
 	filters.PlayerId = &playerId
-	playerStats, err := ps.PlayerRepository.GetPlayerStats(filters)
+	playerStats, err := ps.PlayerRepository.GetPlayerStats(ctx, filters)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the player stats: %w", err)
 	}

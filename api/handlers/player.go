@@ -84,7 +84,7 @@ func (h *PlayerHandler) GetPlayerSearch(c *gin.Context) {
 
 	filters := filters.NewPlayerSearchFilter(qp)
 
-	result, err := h.playerService.GetPlayerSearch(filters)
+	result, err := h.playerService.GetPlayerSearch(c, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -110,7 +110,7 @@ func (h *PlayerHandler) GetPlayerMatchHistory(c *gin.Context) {
 
 	filters := filters.NewPlayerMatchHistoryFilter(qp, pp)
 
-	matchList, err := h.playerService.GetPlayerMatchHistory(filters)
+	matchList, err := h.playerService.GetPlayerMatchHistory(c, filters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -137,7 +137,7 @@ func (h *PlayerHandler) GetPlayerStats(c *gin.Context) {
 
 	filters := filters.NewPlayerStatsFilter(qp, pp)
 
-	playerStats, err := h.playerService.GetPlayerStats(filters)
+	playerStats, err := h.playerService.GetPlayerStats(c, filters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -157,7 +157,7 @@ func (h *PlayerHandler) GetPlayerInfo(c *gin.Context) {
 
 	filters := filters.NewPlayerInfoFilter(pp)
 
-	playerInfo, err := h.playerService.GetPlayerInfo(filters)
+	playerInfo, err := h.playerService.GetPlayerInfo(c, filters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

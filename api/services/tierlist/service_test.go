@@ -1,6 +1,7 @@
 package tierlistservice
 
 import (
+	"context"
 	"errors"
 	"goleague/api/dto"
 	"goleague/api/filters"
@@ -102,7 +103,7 @@ func TestGetTierlist(t *testing.T) {
 				strategy:   tt.testStrategy,
 			})
 
-			result, err := service.GetTierlist(tt.filters)
+			result, err := service.GetTierlist(context.Background(), tt.filters)
 
 			assertTierlistResult(t, result, err, tt.returnData, tt.expectedError)
 

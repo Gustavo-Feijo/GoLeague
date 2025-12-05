@@ -1,6 +1,7 @@
 package matchservice
 
 import (
+	"context"
 	"errors"
 	"goleague/api/converters"
 	"goleague/api/dto"
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
 )
 
@@ -116,7 +118,7 @@ func TestGetFullMatchData(t *testing.T) {
 				returnData: tt.returnData,
 			})
 
-			result, err := service.GetFullMatchData(tt.filters)
+			result, err := service.GetFullMatchData(context.Background(), tt.filters)
 
 			assertGetMatchResult(t, result, err, tt.returnData, tt.expectedError)
 
@@ -130,9 +132,9 @@ func TestGetMatchByMatchId(t *testing.T) {
 
 	expectedMatch := &models.MatchInfo{MatchId: "NA1_12345"}
 
-	mockMatchRepo.On("GetMatchByMatchId", "NA1_12345").Return(expectedMatch, nil)
+	mockMatchRepo.On("GetMatchByMatchId", mock.Anything, "NA1_12345").Return(expectedMatch, nil)
 
-	result, err := service.GetMatchByMatchId("NA1_12345")
+	result, err := service.GetMatchByMatchId(context.Background(), "NA1_12345")
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedMatch, result)

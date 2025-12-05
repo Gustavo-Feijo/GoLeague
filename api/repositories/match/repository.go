@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"context"
 	"fmt"
 	"goleague/pkg/database/models"
 	"time"
@@ -10,11 +11,11 @@ import (
 
 // MatchRepository is the public interface for accessing the player repository.
 type MatchRepository interface {
-	GetAllEvents(matchID uint) ([]models.AllEvents, error)
-	GetMatchByMatchId(matchID string) (*models.MatchInfo, error)
-	GetMatchPreviewsByInternalId(matchID uint) ([]RawMatchPreview, error)
-	GetMatchPreviewsByInternalIds(matchIDs []uint) ([]RawMatchPreview, error)
-	GetParticipantFramesByInternalId(matchID uint) ([]RawMatchParticipantFrame, error)
+	GetAllEvents(ctx context.Context, matchID uint) ([]models.AllEvents, error)
+	GetMatchByMatchId(ctx context.Context, matchID string) (*models.MatchInfo, error)
+	GetMatchPreviewsByInternalId(ctx context.Context, matchID uint) ([]RawMatchPreview, error)
+	GetMatchPreviewsByInternalIds(ctx context.Context, matchIDs []uint) ([]RawMatchPreview, error)
+	GetParticipantFramesByInternalId(ctx context.Context, matchID uint) ([]RawMatchParticipantFrame, error)
 }
 
 // matchRepository repository structure.
@@ -83,9 +84,9 @@ type RawMatchParticipantFrame struct {
 }
 
 // GetAllEvents retrieves all events for a given match internal ID.
-func (ms *matchRepository) GetAllEvents(matchID uint) ([]models.AllEvents, error) {
+func (ms *matchRepository) GetAllEvents(ctx context.Context, matchID uint) ([]models.AllEvents, error) {
 	var results []models.AllEvents
-	if err := ms.db.Where("match_id = ?", matchID).Order("timestamp asc").Find(&results).Error; err != nil {
+	if err := ms.db.WithContext(ctx).Where("match_id = ?", matchID).Order("timestamp asc").Find(&results).Error; err != nil {
 		return nil, err
 	}
 
@@ -93,7 +94,7 @@ func (ms *matchRepository) GetAllEvents(matchID uint) ([]models.AllEvents, error
 }
 
 // GetMatchPreviews gets the formatted preview for a list of matches.
-func (ms *matchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]RawMatchPreview, error) {
+func (ms *matchRepository) GetMatchPreviewsByInternalIds(ctx context.Context, matchIDs []uint) ([]RawMatchPreview, error) {
 	var rawResults []RawMatchPreview
 
 	query := `
@@ -131,7 +132,7 @@ func (ms *matchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]Raw
 		WHERE ms.match_id IN ?
 	`
 
-	if err := ms.db.Raw(query, matchIDs).Scan(&rawResults).Error; err != nil {
+	if err := ms.db.WithContext(ctx).Raw(query, matchIDs).Scan(&rawResults).Error; err != nil {
 		return nil, err
 	}
 
@@ -139,7 +140,7 @@ func (ms *matchRepository) GetMatchPreviewsByInternalIds(matchIDs []uint) ([]Raw
 }
 
 // GetMatchPreviews gets the formatted preview for a given match.
-func (ms *matchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]RawMatchPreview, error) {
+func (ms *matchRepository) GetMatchPreviewsByInternalId(ctx context.Context, matchID uint) ([]RawMatchPreview, error) {
 	var rawResults []RawMatchPreview
 
 	query := `
@@ -177,7 +178,7 @@ func (ms *matchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]RawMatc
 		WHERE ms.match_id = ?
 	`
 
-	if err := ms.db.Raw(query, matchID).Scan(&rawResults).Error; err != nil {
+	if err := ms.db.WithContext(ctx).Raw(query, matchID).Scan(&rawResults).Error; err != nil {
 		return nil, err
 	}
 
@@ -185,9 +186,9 @@ func (ms *matchRepository) GetMatchPreviewsByInternalId(matchID uint) ([]RawMatc
 }
 
 // GetMatchInfo returns all the matches information.
-func (ms *matchRepository) GetMatchByMatchId(matchID string) (*models.MatchInfo, error) {
+func (ms *matchRepository) GetMatchByMatchId(ctx context.Context, matchID string) (*models.MatchInfo, error) {
 	var match models.MatchInfo
-	if err := ms.db.Where(&models.MatchInfo{MatchId: matchID}).First(&match).Error; err != nil {
+	if err := ms.db.WithContext(ctx).Where(&models.MatchInfo{MatchId: matchID}).First(&match).Error; err != nil {
 		return nil, fmt.Errorf("couldn't get the match by the match ID: %v", err)
 	}
 
@@ -195,10 +196,11 @@ func (ms *matchRepository) GetMatchByMatchId(matchID string) (*models.MatchInfo,
 }
 
 // GetParticipantFramesByInternalId retrieves all participant frames by the auto increment internal ID.
-func (ms *matchRepository) GetParticipantFramesByInternalId(matchID uint) ([]RawMatchParticipantFrame, error) {
+func (ms *matchRepository) GetParticipantFramesByInternalId(ctx context.Context, matchID uint) ([]RawMatchParticipantFrame, error) {
 	var results []RawMatchParticipantFrame
 
 	err := ms.db.
+		WithContext(ctx).
 		Table("participant_frames").
 		Select("participant_frames.*").
 		Joins("JOIN match_stats ON participant_frames.match_stat_id = match_stats.id").

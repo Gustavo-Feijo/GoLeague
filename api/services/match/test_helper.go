@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -63,19 +64,19 @@ func setupTestService() (
 func setupMocks(setup mockSetup) {
 
 	if setup.mockMatch != nil {
-		setup.repo.On("GetMatchByMatchId", setup.filters.MatchId).Return(setup.mockMatch.data, setup.mockMatch.err)
+		setup.repo.On("GetMatchByMatchId", mock.Anything, setup.filters.MatchId).Return(setup.mockMatch.data, setup.mockMatch.err)
 	}
 
 	if setup.mockPreviews != nil {
-		setup.repo.On("GetMatchPreviewsByInternalId", setup.mockMatch.data.ID).Return(setup.mockPreviews.data, setup.mockPreviews.err)
+		setup.repo.On("GetMatchPreviewsByInternalId", mock.Anything, setup.mockMatch.data.ID).Return(setup.mockPreviews.data, setup.mockPreviews.err)
 	}
 
 	if setup.mockFrames != nil {
-		setup.repo.On("GetParticipantFramesByInternalId", setup.mockMatch.data.ID).Return(setup.mockFrames.data, setup.mockFrames.err)
+		setup.repo.On("GetParticipantFramesByInternalId", mock.Anything, setup.mockMatch.data.ID).Return(setup.mockFrames.data, setup.mockFrames.err)
 	}
 
 	if setup.mockEvents != nil {
-		setup.repo.On("GetAllEvents", setup.mockMatch.data.ID).Return(setup.mockEvents.data, setup.mockEvents.err)
+		setup.repo.On("GetAllEvents", mock.Anything, setup.mockMatch.data.ID).Return(setup.mockEvents.data, setup.mockEvents.err)
 	}
 }
 
