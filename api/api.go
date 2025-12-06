@@ -9,24 +9,14 @@ import (
 	"goleague/pkg/redis"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
-	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Simple testing for the Redis.
 func main() {
-	// Load the environment variables if not running on Docker.
-	if os.Getenv("ENVIRONMENT") != "docker" {
-		err := godotenv.Load()
-		if err != nil {
-			log.Fatal("Error loading .env file")
-		}
-	}
-
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Couldn't initialize the configuration: %v", err)
@@ -44,7 +34,7 @@ func main() {
 		log.Fatalf("Couldn't get raw db connection: %v", err)
 	}
 
-	if err = database.RunMigrations(cfg.Database, rawDb); err != nil {
+	if err = database.RunMigrations(cfg, rawDb); err != nil {
 		log.Fatalf("Couldn't run migrations: %v", err)
 	}
 

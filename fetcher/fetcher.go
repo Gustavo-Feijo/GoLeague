@@ -15,20 +15,12 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func main() {
-	if os.Getenv("ENVIRONMENT") != "docker" {
-		err := godotenv.Load()
-		if err != nil {
-			log.Fatal("Error loading .env file")
-		}
-	}
-
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Couldn't initialize the configuration: %v", err)
@@ -52,7 +44,7 @@ func main() {
 		log.Fatalf("Couldn't get raw db connection: %v", err)
 	}
 
-	if err := database.RunMigrations(cfg.Database, rawDb); err != nil {
+	if err := database.RunMigrations(cfg, rawDb); err != nil {
 		log.Fatal(err)
 	}
 

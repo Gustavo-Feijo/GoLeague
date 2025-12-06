@@ -4,18 +4,22 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	ApiKey    string
-	Bucket    BucketConfig
-	Database  DatabaseConfig
-	Grpc      GRPCConfig
-	Limits    RiotLimiterConfig
-	PrintLogs bool
-	Redis     RedisConfig
+	ApiKey      string
+	Bucket      BucketConfig
+	Database    DatabaseConfig
+	Grpc        GRPCConfig
+	Limits      RiotLimiterConfig
+	PrintLogs   bool
+	ProjectRoot string
+	Redis       RedisConfig
 }
 
 type BucketConfig struct {
@@ -67,6 +71,18 @@ const (
 )
 
 func Load() (*Config, error) {
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		log.Fatal("Error finding project root")
+	}
+
+	if os.Getenv("ENVIRONMENT") != "docker" {
+		err = godotenv.Load(filepath.Join(projectRoot, ".env"))
+		if err != nil {
+			log.Fatal("Error loading .env file")
+		}
+	}
+
 	apiKey := os.Getenv("API_KEY")
 	if apiKey == "" {
 		return nil, fmt.Errorf("API_KEY is required")
@@ -129,7 +145,8 @@ func Load() (*Config, error) {
 			},
 			SlowInterval: time.Duration(jobInterval) * time.Millisecond,
 		},
-		PrintLogs: printLogs,
+		PrintLogs:   printLogs,
+		ProjectRoot: projectRoot,
 		Redis: RedisConfig{
 			Host:     os.Getenv("REDIS_HOST"),
 			Password: os.Getenv("REDIS_PASSWORD"),
@@ -155,4 +172,23 @@ func getEnvInt(key string, defaultVal int) int {
 	}
 
 	return intVal
+}
+
+func findProjectRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("project root not found")
+		}
+		dir = parent
+	}
 }

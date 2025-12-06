@@ -10,18 +10,9 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Load environment variables.
-	if os.Getenv("ENVIRONMENT") != "docker" {
-		err := godotenv.Load()
-		if err != nil {
-			log.Fatal("Error loading .env file")
-		}
-	}
-
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Couldn't initialize the configuration: %v", err)

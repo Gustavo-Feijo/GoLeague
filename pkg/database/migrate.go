@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"goleague/pkg/config"
 	"log"
+	"path/filepath"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -12,15 +13,15 @@ import (
 )
 
 // RunMigrations applies all pending migrations to the database.
-func RunMigrations(config config.DatabaseConfig, db *sql.DB) error {
+func RunMigrations(config *config.Config, db *sql.DB) error {
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("could not create migration driver: %w", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		fmt.Sprintf("file://%s", config.MigrationsPath),
-		config.Database,
+		filepath.Join("file://", config.ProjectRoot, config.Database.MigrationsPath),
+		config.Database.Database,
 		driver,
 	)
 	if err != nil {
