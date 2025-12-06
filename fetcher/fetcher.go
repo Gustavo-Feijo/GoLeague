@@ -29,7 +29,10 @@ func main() {
 		}
 	}
 
-	config.LoadEnv()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Couldn't initialize the configuration: %v", err)
+	}
 
 	_, stop := context.WithCancel(context.Background())
 
@@ -38,7 +41,7 @@ func main() {
 	log.Println("Running migration and creating triggers/enums...")
 
 	// Creates the database connection.
-	db, err := database.NewConnection()
+	db, err := database.NewConnection(cfg.Database.DSN)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,7 +52,7 @@ func main() {
 		log.Fatalf("Couldn't get raw db connection: %v", err)
 	}
 
-	if err := database.RunMigrations(rawDb); err != nil {
+	if err := database.RunMigrations(cfg.Database, rawDb); err != nil {
 		log.Fatal(err)
 	}
 
@@ -61,7 +64,7 @@ func main() {
 	}
 
 	// Create the manager that will be used to handle all the regions fetching.
-	manager, err := regionmanager.NewRegionManager(deps)
+	manager, err := regionmanager.NewRegionManager(cfg, deps)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,14 +76,14 @@ func main() {
 	go queue.StartQueue(manager)
 
 	// Start the gRPC server.
-	grpcServer, healthServer := startGRPCServer(manager)
+	grpcServer, healthServer := startGRPCServer(cfg, manager)
 
 	// Shutdown everything.
 	handleShutdown(grpcServer, healthServer, stop)
 }
 
 // Start the grpc server for handling cache on demand.
-func startGRPCServer(regionManager *regionmanager.RegionManager) (*grpc.Server, *health.Server) {
+func startGRPCServer(config *config.Config, regionManager *regionmanager.RegionManager) (*grpc.Server, *health.Server) {
 	// Start a TPC listener.
 	list, err := net.Listen("tcp", ":"+config.Grpc.Port)
 	if err != nil {
@@ -91,7 +94,7 @@ func startGRPCServer(regionManager *regionmanager.RegionManager) (*grpc.Server, 
 	grpcServer := grpc.NewServer()
 
 	// Create a logger for thge gRPC server requests.
-	logger, err := logger.CreateLogger()
+	logger, err := logger.CreateLogger(config)
 	if err != nil {
 		log.Fatalf("Couldn't start the gRPC server logger: %v", err)
 	}

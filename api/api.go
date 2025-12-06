@@ -27,9 +27,12 @@ func main() {
 		}
 	}
 
-	config.LoadEnv()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Couldn't initialize the configuration: %v", err)
+	}
 
-	moduleDeps, cleanup, err := initializeModuleDependencies()
+	moduleDeps, cleanup, err := initializeModuleDependencies(cfg)
 	if err != nil {
 		log.Fatalf("Couldn't initialize dependencies: %v", err)
 	}
@@ -41,7 +44,7 @@ func main() {
 		log.Fatalf("Couldn't get raw db connection: %v", err)
 	}
 
-	if err = database.RunMigrations(rawDb); err != nil {
+	if err = database.RunMigrations(cfg.Database, rawDb); err != nil {
 		log.Fatalf("Couldn't run migrations: %v", err)
 	}
 
@@ -74,7 +77,7 @@ func main() {
 }
 
 // initializeModuleDependencies starts all necessary dependencies.
-func initializeModuleDependencies() (*modules.ModuleDependencies, func(), error) {
+func initializeModuleDependencies(config *config.Config) (*modules.ModuleDependencies, func(), error) {
 	var cleanupFuncs []func()
 
 	cleanup := func() {
@@ -91,7 +94,7 @@ func initializeModuleDependencies() (*modules.ModuleDependencies, func(), error)
 	}
 
 	// Creates the database connection.
-	db, err := database.NewConnection()
+	db, err := database.NewConnection(config.Database.DSN)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
@@ -99,7 +102,7 @@ func initializeModuleDependencies() (*modules.ModuleDependencies, func(), error)
 
 	// Creates the redis connection.
 	// Can run without, could implement it to not start withou.
-	redis, err := redis.NewClient()
+	redis, err := redis.NewClient(config.Redis)
 	if err != nil {
 		log.Printf("Warning: Error connecting to Redis: %v", err)
 	} else {

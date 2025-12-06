@@ -21,7 +21,11 @@ func main() {
 			log.Fatal("Error loading .env file")
 		}
 	}
-	config.LoadEnv()
+
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Couldn't initialize the configuration: %v", err)
+	}
 
 	log.Println("Starting scheduler.")
 
@@ -43,6 +47,7 @@ func main() {
 		),
 		gocron.NewTask(
 			jobs.RevalidateCache,
+			cfg,
 		),
 		gocron.WithName("cache-revalidation"),
 		gocron.WithTags("cache"),
@@ -61,6 +66,7 @@ func main() {
 		),
 		gocron.NewTask(
 			jobs.RecalculateMatchRating,
+			cfg,
 		),
 		gocron.WithName("match-rating-revalidation"),
 		gocron.WithTags("rating"),

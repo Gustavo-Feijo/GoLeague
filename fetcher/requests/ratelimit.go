@@ -7,15 +7,15 @@ import (
 )
 
 // NewRateLimiter creates a instance of the rate limiter.
-func NewRateLimiter() *gomultirate.RateLimiter {
+func NewRateLimiter(config config.RiotLimiterConfig) *gomultirate.RateLimiter {
 	limits := map[string]*gomultirate.Limit{
 		"api": gomultirate.NewLimit(
-			config.Limits.Lower.ResetInterval,
-			config.Limits.Lower.Count,
+			config.Lower.ResetInterval,
+			config.Lower.Count,
 		),
 		"job": gomultirate.NewLimit(
-			config.Limits.Higher.ResetInterval,
-			config.Limits.Higher.Count,
+			config.Higher.ResetInterval,
+			config.Higher.Count,
 		),
 	}
 

@@ -20,19 +20,23 @@ type NewLogger struct {
 	mu           sync.Mutex
 	logFile      *os.File
 	filePath     string
+	bucketConfig appConfig.BucketConfig
+	printLogs    bool
 	writesNumber int
 }
 
 // CreateLogger creates a new temporary file and return the logger.
-func CreateLogger() (*NewLogger, error) {
+func CreateLogger(config *appConfig.Config) (*NewLogger, error) {
 	f, err := os.CreateTemp("", "log-*.log")
 	if err != nil {
 		return nil, err
 	}
 
 	return &NewLogger{
+		bucketConfig: config.Bucket,
 		logFile:      f,
 		filePath:     f.Name(),
+		printLogs:    config.PrintLogs,
 		writesNumber: 0,
 	}, nil
 }
@@ -50,7 +54,7 @@ func (l *NewLogger) Errorf(format string, args ...any) {
 // EmptyLine writes a empty line to the file.
 func (l *NewLogger) EmptyLine() {
 	l.logFile.WriteString("\n")
-	if appConfig.PrintLogs {
+	if l.printLogs {
 		fmt.Print("\n")
 	}
 }
@@ -65,7 +69,7 @@ func (l *NewLogger) write(infoType string, format string, args ...any) {
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	line := fmt.Sprintf("%-8s %s %s\n", infoType, timestamp, fmt.Sprintf(format, args...))
 
-	if appConfig.PrintLogs {
+	if l.printLogs {
 		fmt.Print(line)
 	}
 
@@ -98,11 +102,11 @@ func (l *NewLogger) UploadToS3Bucket(objectKey string) error {
 
 	// Get the config.
 	cfg := aws.Config{
-		Region: appConfig.Bucket.Region,
+		Region: l.bucketConfig.Region,
 		Credentials: aws.NewCredentialsCache(
 			credentials.NewStaticCredentialsProvider(
-				appConfig.Bucket.AccessKey,
-				appConfig.Bucket.AccessSecret,
+				l.bucketConfig.AccessKey,
+				l.bucketConfig.AccessSecret,
 				"",
 			),
 		),
@@ -110,12 +114,12 @@ func (l *NewLogger) UploadToS3Bucket(objectKey string) error {
 
 	// Create the client.
 	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.BaseEndpoint = aws.String(appConfig.Bucket.Endpoint)
+		o.BaseEndpoint = aws.String(l.bucketConfig.Endpoint)
 	})
 
 	// Run the put.
 	_, err := s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String(appConfig.Bucket.LogBucket),
+		Bucket: aws.String(l.bucketConfig.LogBucket),
 		Key:    aws.String(objectKey),
 		Body:   l.logFile,
 		ACL:    types.ObjectCannedACLPrivate,

@@ -8,7 +8,16 @@ import (
 	"time"
 )
 
-// Bucket configuration struct.
+type Config struct {
+	ApiKey    string
+	Bucket    BucketConfig
+	Database  DatabaseConfig
+	Grpc      GRPCConfig
+	Limits    RiotLimiterConfig
+	PrintLogs bool
+	Redis     RedisConfig
+}
+
 type BucketConfig struct {
 	AccessKey    string
 	AccessSecret string
@@ -17,25 +26,22 @@ type BucketConfig struct {
 	Region       string
 }
 
-// Database configuration struct.
-type DatabaseConfiguration struct {
+type DatabaseConfig struct {
 	Database       string
 	Host           string
 	MigrationsPath string
 	Password       string
 	Port           string
 	User           string
-	URL            string
+	DSN            string
 }
 
-// gRPC configuration struct.
-type GrpcConfiguration struct {
+type GRPCConfig struct {
 	Host string
 	Port string
 }
 
-// Redis configuration struct.
-type RedisConfiguration struct {
+type RedisConfig struct {
 	Host     string
 	Password string
 	Port     string
@@ -46,7 +52,7 @@ type riotLimits struct {
 	ResetInterval time.Duration
 }
 
-type RiotLimiterConfiguration struct {
+type RiotLimiterConfig struct {
 	Lower        riotLimits
 	Higher       riotLimits
 	SlowInterval time.Duration
@@ -60,40 +66,11 @@ const (
 	defaultHigherReset = 120 // Seconds
 )
 
-var (
-	ApiKey    string
-	Bucket    BucketConfig
-	Database  DatabaseConfiguration
-	Grpc      GrpcConfiguration
-	Limits    RiotLimiterConfiguration
-	PrintLogs bool
-	Redis     RedisConfiguration
-)
-
-// Load the variables.
-func LoadEnv() {
-	// Get the Riot API Key.
-	ApiKey = os.Getenv("API_KEY")
-
-	// Configure the bucket.
-	Bucket.AccessKey = os.Getenv("BUCKET_ACCESS_KEY")
-	Bucket.AccessSecret = os.Getenv("BUCKET_ACCESS_SECRET")
-	Bucket.Endpoint = os.Getenv("BUCKET_ENDPOINT")
-	Bucket.LogBucket = os.Getenv("BUCKET_LOGGER_NAME")
-	Bucket.Region = os.Getenv("BUCKET_REGION")
-
-	// Load the database configuration.
-	Database.Database = os.Getenv("POSTGRES_DATABASE")
-	Database.Host = os.Getenv("POSTGRES_HOST")
-	Database.Password = os.Getenv("POSTGRES_PASSWORD")
-	Database.Port = os.Getenv("POSTGRES_PORT")
-	Database.User = os.Getenv("POSTGRES_USER")
-	Database.URL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC", Database.Host, Database.User, Database.Password, Database.Database, Database.Port)
-	Database.MigrationsPath = os.Getenv("MIGRATIONS_PATH")
-
-	// Load the gRPC settings.
-	Grpc.Host = os.Getenv("GRPC_HOST")
-	Grpc.Port = os.Getenv("GRPC_PORT")
+func Load() (*Config, error) {
+	apiKey := os.Getenv("API_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("API_KEY is required")
+	}
 
 	// Load higher limit settings.
 	higherCount := getEnvInt("LIMIT_HIGHER_COUNT", defaultHigherCount)
@@ -104,28 +81,61 @@ func LoadEnv() {
 	lowerCount := getEnvInt("LIMIT_LOWER_COUNT", defaultLowerCount)
 	lowerReset := getEnvInt("LIMIT_LOWER_RESET", defaultLowerReset)
 
-	PrintLogs, _ = strconv.ParseBool(os.Getenv("ENABLE_CONSOLE_LOG"))
+	printLogs, _ := strconv.ParseBool(os.Getenv("ENABLE_CONSOLE_LOG"))
 
-	// Load the Redis configuration.
-	Redis.Host = os.Getenv("REDIS_HOST")
-	Redis.Password = os.Getenv("REDIS_PASSWORD")
-	Redis.Port = os.Getenv("REDIS_PORT")
-
-	// The job interval is how much queries you can run during the higher reset at a consistent rate.
-	// Multiply by 1000 to get in milliseconds.
 	jobInterval := (float64(higherReset) / float64(higherCount)) * 1000
 
-	Limits = RiotLimiterConfiguration{
-		Lower: riotLimits{
-			Count:         lowerCount,
-			ResetInterval: time.Duration(lowerReset) * time.Second,
-		},
-		Higher: riotLimits{
-			Count:         higherCount,
-			ResetInterval: time.Duration(higherReset) * time.Second,
-		},
-		SlowInterval: time.Duration(jobInterval) * time.Millisecond,
+	dbConfig := DatabaseConfig{
+		Database:       os.Getenv("POSTGRES_DATABASE"),
+		Host:           os.Getenv("POSTGRES_HOST"),
+		Password:       os.Getenv("POSTGRES_PASSWORD"),
+		Port:           os.Getenv("POSTGRES_PORT"),
+		User:           os.Getenv("POSTGRES_USER"),
+		MigrationsPath: os.Getenv("MIGRATIONS_PATH"),
 	}
+
+	dbConfig.DSN = fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
+		dbConfig.Host, dbConfig.User, dbConfig.Password, dbConfig.Database, dbConfig.Port,
+	)
+
+	// Validate required database fields
+	if dbConfig.Host == "" || dbConfig.User == "" || dbConfig.Database == "" {
+		return nil, fmt.Errorf("required database configuration missing")
+	}
+
+	return &Config{
+		ApiKey: apiKey,
+		Bucket: BucketConfig{
+			AccessKey:    os.Getenv("BUCKET_ACCESS_KEY"),
+			AccessSecret: os.Getenv("BUCKET_ACCESS_SECRET"),
+			Endpoint:     os.Getenv("BUCKET_ENDPOINT"),
+			LogBucket:    os.Getenv("BUCKET_LOGGER_NAME"),
+			Region:       os.Getenv("BUCKET_REGION"),
+		},
+		Database: dbConfig,
+		Grpc: GRPCConfig{
+			Host: os.Getenv("GRPC_HOST"),
+			Port: os.Getenv("GRPC_PORT"),
+		},
+		Limits: RiotLimiterConfig{
+			Lower: riotLimits{
+				Count:         lowerCount,
+				ResetInterval: time.Duration(lowerReset) * time.Second,
+			},
+			Higher: riotLimits{
+				Count:         higherCount,
+				ResetInterval: time.Duration(higherReset) * time.Second,
+			},
+			SlowInterval: time.Duration(jobInterval) * time.Millisecond,
+		},
+		PrintLogs: printLogs,
+		Redis: RedisConfig{
+			Host:     os.Getenv("REDIS_HOST"),
+			Password: os.Getenv("REDIS_PASSWORD"),
+			Port:     os.Getenv("REDIS_PORT"),
+		},
+	}, nil
 }
 
 // Convert a env key to int or return the default value.

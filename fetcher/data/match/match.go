@@ -12,27 +12,31 @@ import (
 
 // MatchFetcher with it's limiter and region.
 type MatchFetcher struct {
+	apiKey  string
 	limiter *gomultirate.RateLimiter
 	region  string
 }
 
 // SubMatchFetcher with it's limiter and region.
 type SubMatchFetcher struct {
+	apiKey  string
 	limiter *gomultirate.RateLimiter
 	region  string
 }
 
 // NewMatchFetcher creates a instance of the match fetcher.
-func NewMatchFetcher(limiter *gomultirate.RateLimiter, region string) *MatchFetcher {
+func NewMatchFetcher(apiKey string, limiter *gomultirate.RateLimiter, region string) *MatchFetcher {
 	return &MatchFetcher{
+		apiKey,
 		limiter,
 		region,
 	}
 }
 
 // NewSubMatchFetcher creates a instance of the match fetcher.
-func NewSubMatchFetcher(limiter *gomultirate.RateLimiter, region string) *SubMatchFetcher {
+func NewSubMatchFetcher(apiKey string, limiter *gomultirate.RateLimiter, region string) *SubMatchFetcher {
 	return &SubMatchFetcher{
+		apiKey,
 		limiter,
 		region,
 	}
@@ -76,7 +80,7 @@ func (m *MatchFetcher) GetMatchData(matchId string, onDemand bool) (*MatchData, 
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/match/v5/matches/%s", m.region, matchId)
 
-	return requests.HandleAuthRequest[*MatchData](url, "GET", map[string]string{})
+	return requests.HandleAuthRequest[*MatchData](m.apiKey, url, "GET", map[string]string{})
 }
 
 // GetMatchTimelineData returns a given match timeline.
@@ -91,5 +95,5 @@ func (m *MatchFetcher) GetMatchTimelineData(matchId string, onDemand bool) (*Mat
 	// Format the URL and create the params.
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/match/v5/matches/%s/timeline", m.region, matchId)
 
-	return requests.HandleAuthRequest[*MatchTimeline](url, "GET", map[string]string{})
+	return requests.HandleAuthRequest[*MatchTimeline](m.apiKey, url, "GET", map[string]string{})
 }

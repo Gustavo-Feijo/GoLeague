@@ -3,20 +3,21 @@ package jobs
 import (
 	"fmt"
 	"goleague/fetcher/assets"
+	"goleague/pkg/config"
 	"goleague/pkg/database"
 	"goleague/pkg/redis"
 	"log"
 )
 
-func RevalidateCache() error {
+func RevalidateCache(config *config.Config) error {
 	log.Println("Starting champion cache revalidation")
 	// Create a new connection pool.
-	db, err := database.NewConnection()
+	db, err := database.NewConnection(config.Database.DSN)
 	if err != nil {
 		return fmt.Errorf("couldn't get database connection: %w", err)
 	}
 
-	redis, err := redis.NewClient()
+	redis, err := redis.NewClient(config.Redis)
 	if err != nil {
 		return fmt.Errorf("couldn't get redis connection: %w", err)
 	}

@@ -3,7 +3,6 @@ package requests
 import (
 	"encoding/json"
 	"fmt"
-	"goleague/pkg/config"
 	"goleague/pkg/messages"
 	"log"
 	"net/http"
@@ -12,7 +11,7 @@ import (
 
 // AuthRequest make a authenticated request to the Riot API.
 // Return the respose.
-func AuthRequest(uri string, method string, params map[string]string) (*http.Response, error) {
+func AuthRequest(apiKey string, uri string, method string, params map[string]string) (*http.Response, error) {
 	// Parse the URL.
 	u, err := url.Parse(uri)
 	if err != nil {
@@ -33,11 +32,8 @@ func AuthRequest(uri string, method string, params map[string]string) (*http.Res
 		return nil, err
 	}
 
-	if config.ApiKey == "" {
-		panic("Can't do a authenticated request without the API Key.")
-	}
 	// Add the token from the .env.
-	req.Header.Set("X-Riot-Token", config.ApiKey)
+	req.Header.Set("X-Riot-Token", apiKey)
 	client := &http.Client{}
 	return client.Do(req)
 }
@@ -54,9 +50,9 @@ func Request(url string, method string) (*http.Response, error) {
 }
 
 // HandleAuthRequest works with generics to abstract the decoding process.
-func HandleAuthRequest[T any](url string, method string, params map[string]string) (T, error) {
+func HandleAuthRequest[T any](apiKey string, url string, method string, params map[string]string) (T, error) {
 	var zero T
-	resp, err := AuthRequest(url, method, params)
+	resp, err := AuthRequest(apiKey, url, method, params)
 	if err != nil {
 		return zero, fmt.Errorf(messages.RequestFailedMsg+": %w", url, err)
 	}

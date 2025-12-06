@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"goleague/fetcher/data"
 	"goleague/fetcher/repositories"
+	"goleague/pkg/config"
 	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
 	"goleague/pkg/regions"
@@ -63,6 +64,7 @@ func newMainRegionConfig() *MainRegionConfig {
 
 // NewMainRegionService creates the main region service.
 func NewMainRegionService(
+	config *config.Config,
 	db *gorm.DB,
 	fetcher *data.MainFetcher,
 	region regions.MainRegion,
@@ -88,10 +90,10 @@ func NewMainRegionService(
 		return nil, errors.New("failed to start the timeline service")
 	}
 
-	config := *newMainRegionConfig()
+	mainRegionConfig := *newMainRegionConfig()
 
 	// Create the logger.
-	logger, err := logger.CreateLogger()
+	logger, err := logger.CreateLogger(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start the logger on sub region %s: %v", region, err)
 	}
@@ -107,7 +109,7 @@ func NewMainRegionService(
 		playerRepository,
 		ratingRepository,
 		timelineRepository,
-		config.MaxRetries,
+		mainRegionConfig.MaxRetries,
 	)
 
 	playerService := playerservice.NewPlayerService(
@@ -121,12 +123,12 @@ func NewMainRegionService(
 		db,
 		*fetcher,
 		timelineRepository,
-		config.MaxRetries,
+		mainRegionConfig.MaxRetries,
 	)
 
 	// Return the new region service.
 	return &MainRegionService{
-		config:             config,
+		config:             mainRegionConfig,
 		fetcher:            *fetcher,
 		eventService:       eventservice,
 		matchService:       matchService,

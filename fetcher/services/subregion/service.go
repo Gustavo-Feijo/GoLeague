@@ -11,6 +11,7 @@ import (
 	leagueservice "goleague/fetcher/services/subregion/league"
 	playerservice "goleague/fetcher/services/subregion/player"
 	ratingservice "goleague/fetcher/services/subregion/rating"
+	"goleague/pkg/config"
 	"goleague/pkg/database/models"
 	"goleague/pkg/logger"
 	"goleague/pkg/regions"
@@ -29,7 +30,7 @@ type SubRegionService struct {
 }
 
 // NewSubRegionService creates a new sub-region service.
-func NewSubRegionService(db *gorm.DB, fetcher *data.SubFetcher, region regions.SubRegion) (*SubRegionService, error) {
+func NewSubRegionService(config *config.Config, db *gorm.DB, fetcher *data.SubFetcher, region regions.SubRegion) (*SubRegionService, error) {
 	// Create the repositories.
 	ratingRepository, err := repositories.NewRatingRepository(db)
 	if err != nil {
@@ -42,7 +43,7 @@ func NewSubRegionService(db *gorm.DB, fetcher *data.SubFetcher, region regions.S
 	}
 
 	// Create the logger.
-	logger, err := logger.CreateLogger()
+	logger, err := logger.CreateLogger(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start the logger on sub region %s: %v", region, err)
 	}

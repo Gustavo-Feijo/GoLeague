@@ -12,27 +12,31 @@ import (
 
 // PlayerFetcher with it's limit and region.
 type PlayerFetcher struct {
+	apiKey  string
 	limiter *gomultirate.RateLimiter // Pointer to the fetcher, since it's shared.
 	region  string
 }
 
 // SubPlayerFetcher with it's limit and region.
 type SubPlayerFetcher struct {
+	apiKey  string
 	limiter *gomultirate.RateLimiter // Pointer to the fetcher, since it's shared.
 	region  string
 }
 
 // NewPlayerFetcher creates a player fetcher.
-func NewPlayerFetcher(limiter *gomultirate.RateLimiter, region string) *PlayerFetcher {
+func NewPlayerFetcher(apiKey string, limiter *gomultirate.RateLimiter, region string) *PlayerFetcher {
 	return &PlayerFetcher{
+		apiKey,
 		limiter,
 		region,
 	}
 }
 
 // NewSubPlayerFetcher creates a player fetcher.
-func NewSubPlayerFetcher(limiter *gomultirate.RateLimiter, region string) *SubPlayerFetcher {
+func NewSubPlayerFetcher(apiKey string, limiter *gomultirate.RateLimiter, region string) *SubPlayerFetcher {
 	return &SubPlayerFetcher{
+		apiKey,
 		limiter,
 		region,
 	}
@@ -55,7 +59,7 @@ func (p *PlayerFetcher) GetMatchList(puuid string, lastFetch time.Time, offset i
 		"count":     "100", // 100 is the maximum allowed count.
 	}
 
-	return requests.HandleAuthRequest[[]string](url, "GET", params)
+	return requests.HandleAuthRequest[[]string](p.apiKey, url, "GET", params)
 }
 
 // GetPlayerAccount returns a given player account info.
@@ -72,7 +76,7 @@ func (p *PlayerFetcher) GetPlayerAccount(gameName string, tagLine string, onDema
 
 	params := map[string]string{}
 
-	account, err := requests.HandleAuthRequest[Account](url, "GET", params)
+	account, err := requests.HandleAuthRequest[Account](p.apiKey, url, "GET", params)
 	return &account, err
 }
 
@@ -90,6 +94,6 @@ func (p *SubPlayerFetcher) GetSummonerDataByPuuid(puuid string, onDemand bool) (
 
 	params := map[string]string{}
 
-	summoner, err := requests.HandleAuthRequest[SummonerByPuuid](url, "GET", params)
+	summoner, err := requests.HandleAuthRequest[SummonerByPuuid](p.apiKey, url, "GET", params)
 	return &summoner, err
 }

@@ -11,27 +11,31 @@ import (
 
 // LeagueFetcher contains the fetcher with it's limit and region.
 type LeagueFetcher struct {
+	apiKey  string
 	limiter *gomultirate.RateLimiter // Pointer to the fetcher, since it's shared.
 	region  string
 }
 
 // SubLeagueFetcher is another fetcher instance, used only to diferenciate methods.
 type SubLeagueFetcher struct {
+	apiKey  string
 	limiter *gomultirate.RateLimiter // Pointer to the fetcher, since it's shared.
 	region  string
 }
 
 // NewLeagueFetcher creates a new instance of the league fetcher.
-func NewLeagueFetcher(limiter *gomultirate.RateLimiter, region string) *LeagueFetcher {
+func NewLeagueFetcher(apiKey string, limiter *gomultirate.RateLimiter, region string) *LeagueFetcher {
 	return &LeagueFetcher{
+		apiKey,
 		limiter,
 		region,
 	}
 }
 
 // Create a league fetcher.
-func NewSubLeagueFetcher(limiter *gomultirate.RateLimiter, region string) *SubLeagueFetcher {
+func NewSubLeagueFetcher(apiKey string, limiter *gomultirate.RateLimiter, region string) *SubLeagueFetcher {
 	return &SubLeagueFetcher{
+		apiKey,
 		limiter,
 		region,
 	}
@@ -50,7 +54,7 @@ func (l *SubLeagueFetcher) GetLeagueEntries(tier string, rank string, queue stri
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league-exp/v4/entries/%s/%s/%s",
 		l.region, queue, strings.ToUpper(tier), strings.ToUpper(rank))
 
-	return requests.HandleAuthRequest[[]LeagueEntry](url, "GET", map[string]string{"page": fmt.Sprintf("%d", page)})
+	return requests.HandleAuthRequest[[]LeagueEntry](l.apiKey, url, "GET", map[string]string{"page": fmt.Sprintf("%d", page)})
 }
 
 // GetLeagueEntryByPuuid fetches all queues entries for a given PUUID.
@@ -67,5 +71,5 @@ func (l *SubLeagueFetcher) GetLeagueEntriesByPuuid(puuid string, onDemand bool) 
 	url := fmt.Sprintf("https://%s.api.riotgames.com/lol/league/v4/entries/by-puuid/%s",
 		l.region, puuid)
 
-	return requests.HandleAuthRequest[[]LeagueEntry](url, "GET", map[string]string{})
+	return requests.HandleAuthRequest[[]LeagueEntry](l.apiKey, url, "GET", map[string]string{})
 }

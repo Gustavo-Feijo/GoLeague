@@ -5,6 +5,7 @@ import (
 	matchfetcher "goleague/fetcher/data/match"
 	playerfetcher "goleague/fetcher/data/player"
 	"goleague/fetcher/requests"
+	"goleague/pkg/config"
 )
 
 // MainFetcher with it's dependencies.
@@ -22,27 +23,27 @@ type SubFetcher struct {
 }
 
 // NewMainFetcher instanciate the main fetcher.
-func NewMainFetcher(region string) *MainFetcher {
+func NewMainFetcher(config *config.Config, region string) *MainFetcher {
 	// Create the limiter for this region.
-	limiter := requests.NewRateLimiter()
+	limiter := requests.NewRateLimiter(config.Limits)
 
 	// Return the fetcher with it's player instance for queries.
 	return &MainFetcher{
-		Player: playerfetcher.NewPlayerFetcher(limiter, region),
-		Match:  matchfetcher.NewMatchFetcher(limiter, region),
-		League: leaguefetcher.NewLeagueFetcher(limiter, region),
+		Player: playerfetcher.NewPlayerFetcher(config.ApiKey, limiter, region),
+		Match:  matchfetcher.NewMatchFetcher(config.ApiKey, limiter, region),
+		League: leaguefetcher.NewLeagueFetcher(config.ApiKey, limiter, region),
 	}
 }
 
 // NewSubFetcher instanciate the sub fetcher.
-func NewSubFetcher(region string) *SubFetcher {
+func NewSubFetcher(config *config.Config, region string) *SubFetcher {
 	// Create the limiter for this region.
-	limiter := requests.NewRateLimiter()
+	limiter := requests.NewRateLimiter(config.Limits)
 
 	// Return the fetcher with it's player instance for queries.
 	return &SubFetcher{
-		Player: playerfetcher.NewSubPlayerFetcher(limiter, region),
-		Match:  matchfetcher.NewSubMatchFetcher(limiter, region),
-		League: leaguefetcher.NewSubLeagueFetcher(limiter, region),
+		Player: playerfetcher.NewSubPlayerFetcher(config.ApiKey, limiter, region),
+		Match:  matchfetcher.NewSubMatchFetcher(config.ApiKey, limiter, region),
+		League: leaguefetcher.NewSubLeagueFetcher(config.ApiKey, limiter, region),
 	}
 }

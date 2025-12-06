@@ -2,16 +2,17 @@ package jobs
 
 import (
 	"fmt"
+	"goleague/pkg/config"
 	"goleague/pkg/database"
 	"log"
 )
 
 // RecalculateMatchRating calculates the average rating from all matches that happened in the last one day.
-func RecalculateMatchRating() error {
+func RecalculateMatchRating(config *config.Config) error {
 	log.Println("Starting recalculate match rating.")
 
 	// Create a new connection pool.
-	db, err := database.NewConnection()
+	db, err := database.NewConnection(config.Database.DSN)
 	if err != nil {
 		return fmt.Errorf("couldn't get database connection: %w", err)
 	}

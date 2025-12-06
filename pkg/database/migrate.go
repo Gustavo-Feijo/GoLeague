@@ -12,15 +12,15 @@ import (
 )
 
 // RunMigrations applies all pending migrations to the database.
-func RunMigrations(db *sql.DB) error {
+func RunMigrations(config config.DatabaseConfig, db *sql.DB) error {
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("could not create migration driver: %w", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		fmt.Sprintf("file://%s", config.Database.MigrationsPath),
-		config.Database.Database,
+		fmt.Sprintf("file://%s", config.MigrationsPath),
+		config.Database,
 		driver,
 	)
 	if err != nil {

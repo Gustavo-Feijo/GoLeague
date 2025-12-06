@@ -2,7 +2,6 @@ package database
 
 import (
 	"fmt"
-	"goleague/pkg/config"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -12,10 +11,10 @@ import (
 
 // GetConnections is a singleton implementaudo ssion of the database.
 // Return the connection pool.
-func NewConnection() (*gorm.DB, error) {
+func NewConnection(dsn string) (*gorm.DB, error) {
 
 	// Create the database instance.
-	db, err := gorm.Open(postgres.Open(config.Database.URL), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {

@@ -15,10 +15,10 @@ type RedisClient struct {
 }
 
 // NewClient creates and returns a new redis connection pool.
-func NewClient() (*RedisClient, error) {
+func NewClient(config config.RedisConfig) (*RedisClient, error) {
 	client := redis.NewClient(&redis.Options{
-		Addr:         config.Redis.Host + ":" + config.Redis.Port,
-		Password:     config.Redis.Password,
+		Addr:         config.Host + ":" + config.Port,
+		Password:     config.Password,
 		DB:           0,
 		MaxRetries:   3,
 		PoolSize:     100,
