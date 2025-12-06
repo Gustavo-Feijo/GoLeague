@@ -44,7 +44,7 @@ func (h *PlayerHandler) ForceFetchPlayer(c *gin.Context) {
 
 	filters := filters.NewForceFetchPlayerFilter(pp)
 
-	summoner, err := h.playerService.ForceFetchPlayer(filters)
+	summoner, err := h.playerService.ForceFetchPlayer(c, filters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -65,7 +65,7 @@ func (h *PlayerHandler) ForceFetchPlayerMatchHistory(c *gin.Context) {
 
 	filters := filters.NewForceFetchMatchHistoryFilter(pp)
 
-	confirm, err := h.playerService.ForceFetchPlayerMatchHistory(filters)
+	confirm, err := h.playerService.ForceFetchPlayerMatchHistory(c, filters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

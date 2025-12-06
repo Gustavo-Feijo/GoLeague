@@ -1,6 +1,7 @@
 package playerservice
 
 import (
+	"context"
 	"errors"
 	"goleague/api/filters"
 	"goleague/api/services/testutil"
@@ -31,7 +32,7 @@ func runForceFetch[TFilter any, TResponse any](
 	mockPlayerRedisClient *testutil.MockPlayerRedisClient,
 	mockPlayerGRPCClient *testutil.MockPlayerGRPCClient,
 	functionName string,
-	serviceCall func(*TFilter) (*TResponse, error),
+	serviceCall func(ctx context.Context, T *TFilter) (*TResponse, error),
 	operation string,
 ) {
 	t.Run(testCase.name, func(t *testing.T) {
@@ -51,11 +52,11 @@ func runForceFetch[TFilter any, TResponse any](
 		}
 
 		if testCase.shouldCallGRPC {
-			mockPlayerGRPCClient.On(functionName, testCase.filters, operation).
+			mockPlayerGRPCClient.On(functionName, mock.Anything, testCase.filters, operation).
 				Return(testCase.grpcResponse, testCase.grpcError).Once()
 		}
 
-		result, err := serviceCall(testCase.filters)
+		result, err := serviceCall(context.Background(), testCase.filters)
 
 		if testCase.expectedError != "" {
 			assert.Error(t, err)

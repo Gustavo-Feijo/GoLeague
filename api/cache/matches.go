@@ -10,7 +10,10 @@ import (
 )
 
 // Default key for the match previews.
-const matchPreviewKey = "match:previews:%d"
+const (
+	matchPreviewCacheDuration = time.Hour
+	matchPreviewKey           = "match:previews:%d"
+)
 
 // MatchCache is the public interface for accessing the player repository.
 type MatchCache interface {
@@ -72,7 +75,7 @@ func (mc *matchCache) SetMatchPreview(ctx context.Context, preview dto.MatchPrev
 	j, err := json.Marshal(preview)
 	if err == nil {
 		key := fmt.Sprintf(matchPreviewKey, preview.Metadata.InternalId)
-		mc.redis.Set(context.Background(), key, string(j), time.Hour)
+		mc.redis.Set(context.Background(), key, string(j), matchPreviewCacheDuration)
 	}
 	return err
 }

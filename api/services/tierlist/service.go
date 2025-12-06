@@ -17,6 +17,7 @@ import (
 const (
 	TierlistMemoryCacheDuration = 15 * time.Minute
 	TierlistRedisCacheDuration  = time.Hour
+	TierlistRedisCacheTimeout   = time.Millisecond * 200
 )
 
 type TierlistRedisClient interface {
@@ -90,7 +91,7 @@ func (ts *TierlistService) getFromMemCache(key string) []*dto.TierlistResult {
 
 // getFromRedis retrieves the data from the redis.
 func (ts *TierlistService) getFromRedis(key string) []*dto.TierlistResult {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*200)
+	ctx, cancel := context.WithTimeout(context.Background(), TierlistRedisCacheDuration)
 	defer cancel()
 
 	// Try to get it on redis.

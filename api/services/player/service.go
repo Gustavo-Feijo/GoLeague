@@ -26,6 +26,8 @@ import (
 const (
 	FORCE_FETCH_OPERATION         = "force_fetch_player"
 	FORCE_FETCH_MATCHES_OPERATION = "force_fetch_player_matches"
+	gRPCCallCooldown              = 5 * time.Minute
+	matchPreviewCacheTimeout      = time.Second
 )
 
 type PlayerRedisClient interface {
@@ -175,7 +177,7 @@ func (ps *PlayerService) GetPlayerMatchHistory(ctx context.Context, filters *fil
 	}
 
 	// Add the missing previews to the cache.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), matchPreviewCacheTimeout)
 	defer cancel()
 	for _, match := range formattedPreviews {
 		ps.matchCache.SetMatchPreview(ctx, *match)
@@ -191,7 +193,7 @@ func (ps *PlayerService) GetPlayerMatchHistory(ctx context.Context, filters *fil
 
 // getCachedMatchPreviews return the cached raw match previews for the provided match ids.
 func (ps *PlayerService) getCachedMatchPreviews(ctx context.Context, matchesIds []uint) ([]dto.MatchPreview, []uint) {
-	cacheCtx, cancel := context.WithTimeout(ctx, time.Second)
+	cacheCtx, cancel := context.WithTimeout(ctx, matchPreviewCacheTimeout)
 	defer cancel()
 
 	// Get all the cached matches previews.
@@ -287,26 +289,26 @@ func (ps *PlayerService) GetPlayerStats(ctx context.Context, filters *filters.Pl
 // checkGRPCRateLimit verifies the gRPC calls rate limit.
 func (ps *PlayerService) checkGRPCRateLimit(gameName string, gameTag string, region string, operation string) error {
 	rateLimitKey := ps.createPlayerRateLimitKey(gameName, gameTag, region, operation)
-	redisCtx, cancelRedis := context.WithTimeout(context.Background(), time.Second)
+	redisCtx, cancelRedis := context.WithTimeout(context.Background(), matchPreviewCacheTimeout)
 	defer cancelRedis()
 
-	return ps.checkRateLimit(redisCtx, rateLimitKey, time.Minute*5)
+	return ps.checkRateLimit(redisCtx, rateLimitKey, gRPCCallCooldown)
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
-func (ps *PlayerService) ForceFetchPlayer(filters *filters.PlayerForceFetchFilter) (*pb.Summoner, error) {
+func (ps *PlayerService) ForceFetchPlayer(ctx context.Context, filters *filters.PlayerForceFetchFilter) (*pb.Summoner, error) {
 	if err := ps.checkGRPCRateLimit(filters.GameName, filters.GameTag, filters.Region, FORCE_FETCH_OPERATION); err != nil {
 		return nil, err
 	}
-	return ps.grpcClient.ForceFetchPlayer(filters, FORCE_FETCH_OPERATION)
+	return ps.grpcClient.ForceFetchPlayer(ctx, filters, FORCE_FETCH_OPERATION)
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
-func (ps *PlayerService) ForceFetchPlayerMatchHistory(filters *filters.PlayerForceFetchMatchListFilter) (*pb.MatchHistoryFetchNotification, error) {
+func (ps *PlayerService) ForceFetchPlayerMatchHistory(ctx context.Context, filters *filters.PlayerForceFetchMatchListFilter) (*pb.MatchHistoryFetchNotification, error) {
 	if err := ps.checkGRPCRateLimit(filters.GameName, filters.GameTag, filters.Region, FORCE_FETCH_MATCHES_OPERATION); err != nil {
 		return nil, err
 	}
-	return ps.grpcClient.ForceFetchPlayerMatchHistory(filters, FORCE_FETCH_MATCHES_OPERATION)
+	return ps.grpcClient.ForceFetchPlayerMatchHistory(ctx, filters, FORCE_FETCH_MATCHES_OPERATION)
 }
 
 // parsePlayerStats parse a raw player stats entry to insert into the DTO.

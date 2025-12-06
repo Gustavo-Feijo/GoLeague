@@ -116,13 +116,13 @@ type MockPlayerGRPCClient struct {
 	mock.Mock
 }
 
-func (m *MockPlayerGRPCClient) ForceFetchPlayer(filters *filters.PlayerForceFetchFilter, operation string) (*pb.Summoner, error) {
-	args := m.Called(filters, operation)
+func (m *MockPlayerGRPCClient) ForceFetchPlayer(ctx context.Context, filters *filters.PlayerForceFetchFilter, operation string) (*pb.Summoner, error) {
+	args := m.Called(ctx, filters, operation)
 	return args.Get(0).(*pb.Summoner), args.Error(1)
 }
 
-func (m *MockPlayerGRPCClient) ForceFetchPlayerMatchHistory(filters *filters.PlayerForceFetchMatchListFilter, operation string) (*pb.MatchHistoryFetchNotification, error) {
-	args := m.Called(filters, operation)
+func (m *MockPlayerGRPCClient) ForceFetchPlayerMatchHistory(ctx context.Context, filters *filters.PlayerForceFetchMatchListFilter, operation string) (*pb.MatchHistoryFetchNotification, error) {
+	args := m.Called(ctx, filters, operation)
 	return args.Get(0).(*pb.MatchHistoryFetchNotification), args.Error(1)
 }
 

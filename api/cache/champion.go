@@ -11,6 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// Default cache duration for the champion keys.
+const cacheDuration = time.Hour
+
 type ChampionCache interface {
 	GetChampionCopy(ctx context.Context, championId string) (map[string]any, error)
 	Initialize(ctx context.Context) error
@@ -73,7 +76,7 @@ func (c *championCache) GetChampionCopy(ctx context.Context, championId string) 
 		return nil, fmt.Errorf("failed to unmarshal champion data: %w", err)
 	}
 
-	c.memCache.Set(cacheKey, champJson, time.Hour)
+	c.memCache.Set(cacheKey, champJson, cacheDuration)
 	return deepCopyMap(champJson), nil
 
 }
@@ -93,7 +96,7 @@ func (c *championCache) Initialize(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			c.memCache.Set(champion.CacheKey, champJson, time.Hour)
+			c.memCache.Set(champion.CacheKey, champJson, cacheDuration)
 		}
 		return nil
 	}
@@ -109,7 +112,7 @@ func (c *championCache) Initialize(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal champion data: %w", err)
 		}
-		c.memCache.Set(key, champJson, time.Hour)
+		c.memCache.Set(key, champJson, cacheDuration)
 	}
 	return nil
 }

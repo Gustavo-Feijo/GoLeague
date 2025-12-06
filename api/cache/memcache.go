@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+const (
+	cleanupTickerDuration = 5 * time.Minute
+)
+
 type MemCache interface {
 	StartCleanupWorker()
 	Cleanup()
@@ -34,7 +38,7 @@ func NewMemCache() *memCache {
 	ctx, cancel := context.WithCancel(context.Background())
 	mc := &memCache{
 		cancel:        cancel,
-		cleanupTicker: time.NewTicker(5 * time.Minute),
+		cleanupTicker: time.NewTicker(cleanupTickerDuration),
 		ctx:           ctx,
 	}
 	mc.StartCleanupWorker()

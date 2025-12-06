@@ -13,10 +13,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const gRPCCallTimeout = time.Second * 5
+
 // PlayerGRPCClient is a interface for any player related gRPC client fetching.
 type PlayerGRPCClient interface {
-	ForceFetchPlayer(filters *filters.PlayerForceFetchFilter, operation string) (*pb.Summoner, error)
-	ForceFetchPlayerMatchHistory(filters *filters.PlayerForceFetchMatchListFilter, operation string) (*pb.MatchHistoryFetchNotification, error)
+	ForceFetchPlayer(ctx context.Context, filters *filters.PlayerForceFetchFilter, operation string) (*pb.Summoner, error)
+	ForceFetchPlayerMatchHistory(ctx context.Context, filters *filters.PlayerForceFetchMatchListFilter, operation string) (*pb.MatchHistoryFetchNotification, error)
 }
 
 type playerGRPCClient struct {
@@ -29,14 +31,14 @@ func NewPlayerGRPCClient(grpcConn *grpc.ClientConn) PlayerGRPCClient {
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
-func (pgc *playerGRPCClient) ForceFetchPlayer(filters *filters.PlayerForceFetchFilter, operation string) (*pb.Summoner, error) {
+func (pgc *playerGRPCClient) ForceFetchPlayer(ctx context.Context, filters *filters.PlayerForceFetchFilter, operation string) (*pb.Summoner, error) {
 	client := pb.NewServiceClient(pgc.ClientConn)
 
-	grpcCall := func(ctx context.Context, req *pb.SummonerRequest) (any, error) {
-		return client.FetchSummonerData(ctx, req)
+	grpcCall := func(callCtx context.Context, req *pb.SummonerRequest) (any, error) {
+		return client.FetchSummonerData(callCtx, req)
 	}
 
-	resp, err := pgc.executeSummonerGRPCCall(filters.GameName, filters.GameTag, filters.Region, operation, grpcCall)
+	resp, err := pgc.executeSummonerGRPCCall(ctx, filters.GameName, filters.GameTag, filters.Region, operation, grpcCall)
 	if err != nil {
 		return nil, err
 	}
@@ -45,14 +47,14 @@ func (pgc *playerGRPCClient) ForceFetchPlayer(filters *filters.PlayerForceFetchF
 }
 
 // ForceFetchPlayer makes a gRPC requets to the fetcher to forcefully get data from a Player.
-func (pgc *playerGRPCClient) ForceFetchPlayerMatchHistory(filters *filters.PlayerForceFetchMatchListFilter, operation string) (*pb.MatchHistoryFetchNotification, error) {
+func (pgc *playerGRPCClient) ForceFetchPlayerMatchHistory(ctx context.Context, filters *filters.PlayerForceFetchMatchListFilter, operation string) (*pb.MatchHistoryFetchNotification, error) {
 	client := pb.NewServiceClient(pgc.ClientConn)
 
-	grpcCall := func(ctx context.Context, req *pb.SummonerRequest) (any, error) {
-		return client.FetchMatchHistory(ctx, req)
+	grpcCall := func(callCtx context.Context, req *pb.SummonerRequest) (any, error) {
+		return client.FetchMatchHistory(callCtx, req)
 	}
 
-	resp, err := pgc.executeSummonerGRPCCall(filters.GameName, filters.GameTag, filters.Region, operation, grpcCall)
+	resp, err := pgc.executeSummonerGRPCCall(ctx, filters.GameName, filters.GameTag, filters.Region, operation, grpcCall)
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +64,7 @@ func (pgc *playerGRPCClient) ForceFetchPlayerMatchHistory(filters *filters.Playe
 
 // executeSummonerGRPCCall is a helper to execute any gRPC call for summoner requests.
 func (pgc *playerGRPCClient) executeSummonerGRPCCall(
+	ctx context.Context,
 	gameName string,
 	gameTag string,
 	region string,
@@ -73,7 +76,7 @@ func (pgc *playerGRPCClient) executeSummonerGRPCCall(
 		TagLine:  gameTag,
 		Region:   region,
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(ctx, gRPCCallTimeout)
 	defer cancel()
 
 	resp, err := grpcCall(ctx, request)
