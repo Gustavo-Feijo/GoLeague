@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/testcontainers/testcontainers-go"
 	tc "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"gorm.io/driver/postgres"
@@ -36,7 +37,9 @@ func NewTestConnection(t *testing.T) (*gorm.DB, func()) {
 				"POSTGRES_PASSWORD": "test",
 				"POSTGRES_DB":       "testdb",
 			},
-			WaitingFor: wait.ForListeningPort("5432/tcp"),
+			WaitingFor: wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(60 * time.Second),
 		},
 		Started: true,
 	})
@@ -75,7 +78,7 @@ func NewTestConnection(t *testing.T) (*gorm.DB, func()) {
 
 	// Verify if could get the connection.
 	if sqlErr != nil {
-		t.Fatalf("Failed to get SQL DB: %v", err)
+		t.Fatalf("Failed to get SQL DB: %v", sqlErr)
 	}
 
 	// Set the pool values.
@@ -95,7 +98,7 @@ func NewTestConnection(t *testing.T) (*gorm.DB, func()) {
 
 	cleanup := func() {
 		sqlDB.Close()
-		container.Terminate(ctx)
+		testcontainers.CleanupContainer(t, container)
 	}
 
 	return db, cleanup

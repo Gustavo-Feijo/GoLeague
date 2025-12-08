@@ -77,11 +77,7 @@ func (ts *tierlistRepository) GetTierlist(ctx context.Context, filters *filters.
 	// The team position of some players can be '', leading to bad data.
 	positionFix := whereClause
 	if slices.Contains(queuevalues.QueuesWithPositions, defaultQueue) {
-		if len(whereClause) > 0 {
-			positionFix += " AND ms.team_position != ''"
-		} else {
-			positionFix = "WHERE ms.team_position != ''"
-		}
+		positionFix += " AND ms.team_position != ''"
 	}
 
 	args := []any{}
