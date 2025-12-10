@@ -18,16 +18,12 @@ type TierlistHandler struct {
 }
 
 type TierlistHandlerDependencies struct {
-	MemCache        cache.MemCache
-	Redis           *redis.RedisClient
 	TierlistService *tierlistservice.TierlistService
 }
 
 // Create a new instance of the tierlist handler.
 func NewTierlistHandler(deps *TierlistHandlerDependencies) *TierlistHandler {
 	return &TierlistHandler{
-		memCache:        deps.MemCache,
-		redis:           deps.Redis,
 		tierlistService: deps.TierlistService,
 	}
 }

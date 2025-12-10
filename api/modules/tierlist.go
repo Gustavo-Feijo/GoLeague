@@ -16,8 +16,6 @@ func initializeTierlistHandler(deps *ModuleDependencies) *handlers.TierlistHandl
 	tierlistService := tierlistservice.NewTierlistService(tierlistDeps)
 
 	tierlistHandlerDeps := &handlers.TierlistHandlerDependencies{
-		MemCache:        deps.MemCache,
-		Redis:           deps.Redis,
 		TierlistService: tierlistService,
 	}
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"goleague/api/cache"
 	"goleague/api/modules"
 	"goleague/api/routes"
@@ -47,6 +48,7 @@ func main() {
 	// Create a new router with the routes setup.
 	router := routes.NewRouter(module.Router)
 	router.SetupRoutes(
+		module.ChampionHandler,
 		module.MatchHandler,
 		module.TierlistHandler,
 		module.PlayerHandler,
@@ -105,15 +107,22 @@ func initializeModuleDependencies(config *config.Config) (*modules.ModuleDepende
 		cleanupFuncs = append(cleanupFuncs, func() { sqlDB.Close() })
 	}
 
+	// Create a instance  just for initializing.
+	championCache := cache.NewChampionCache(db, redis, memCache)
+	champCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	championCache.Initialize(champCtx)
+
 	cleanupFuncs = append(cleanupFuncs, func() { grpcClient.Close() })
 	cleanupFuncs = append(cleanupFuncs, func() { memCache.Close() })
 
 	// Pass down the dependencies.
 	moduleDeps := &modules.ModuleDependencies{
-		DB:         db,
-		GrpcClient: grpcClient,
-		MemCache:   memCache,
-		Redis:      redis,
+		DB:            db,
+		ChampionCache: championCache,
+		GrpcClient:    grpcClient,
+		MemCache:      memCache,
+		Redis:         redis,
 	}
 
 	return moduleDeps, cleanup, nil

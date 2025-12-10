@@ -15,6 +15,7 @@ import (
 const cacheDuration = time.Hour
 
 type ChampionCache interface {
+	GetAllChampions(ctx context.Context) ([]map[string]any, error)
 	GetChampionCopy(ctx context.Context, championId string) (map[string]any, error)
 	Initialize(ctx context.Context) error
 }
@@ -115,6 +116,51 @@ func (c *championCache) Initialize(ctx context.Context) error {
 		c.memCache.Set(key, champJson, cacheDuration)
 	}
 	return nil
+}
+
+// GetAllChampions returns all champions that are cached.
+// Don't get from in-memory cache due to TTL, only redis or repo.
+func (c *championCache) GetAllChampions(ctx context.Context) ([]map[string]any, error) {
+	cachePrefix := "ddragon:champion:"
+	championsList := make([]map[string]any, 0)
+
+	// Try to get all keys from Redis.
+	keys, err := c.redis.GetKeysByPrefix(ctx, cachePrefix)
+	if err != nil || len(keys) == 0 {
+		// Fallback: load champions from persistent cache.
+		champions, dbErr := c.cacheRepository.GetByPrefix(cachePrefix)
+		if dbErr != nil {
+			return nil, fmt.Errorf("failed to load champions from fallback cache: %w", dbErr)
+		}
+
+		for _, champion := range champions {
+			var champJson map[string]any
+			if err := json.Unmarshal([]byte(champion.CacheValue), &champJson); err != nil {
+				continue
+			}
+
+			championsList = append(championsList, champJson)
+		}
+
+		return championsList, nil
+	}
+
+	// Redis has the keys
+	for _, key := range keys {
+		champRedis, err := c.redis.Get(ctx, key)
+		if err != nil {
+			continue
+		}
+
+		var champJson map[string]any
+		if err := json.Unmarshal([]byte(champRedis), &champJson); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal champion data: %w", err)
+		}
+
+		championsList = append(championsList, champJson)
+	}
+
+	return championsList, nil
 }
 
 // deepCopyMap creates a deep copy of a map[string]any.

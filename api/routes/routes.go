@@ -30,7 +30,18 @@ func (r *Router) SetupRoutes(handlerList ...any) {
 			r.registerPlayerHandler(handler)
 		case *handlers.MatchHandler:
 			r.registerMatchHandler(handler)
+		case *handlers.ChampionHandler:
+			r.registerChampionHandler(handler)
 		}
+	}
+}
+
+// registerChampionHandler implements the match routes.
+func (r *Router) registerChampionHandler(handler *handlers.ChampionHandler) {
+	champion := r.api.Group("/champion")
+	{
+		champion.GET("", handler.GetAllChampions)
+		champion.GET(":championId", handler.GetChampionData)
 	}
 }
 
