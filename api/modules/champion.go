@@ -9,7 +9,7 @@ func initializeChampionHandler(deps *ModuleDependencies) *handlers.ChampionHandl
 	championDeps := &championservice.ChampionServiceDeps{
 		DB:            deps.DB,
 		ChampionCache: deps.ChampionCache,
-		MemCache:      deps.MemCache,
+		MemCache:      deps.ChampionMemCache,
 	}
 
 	championService := championservice.NewChampionService(championDeps)

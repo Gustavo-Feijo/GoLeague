@@ -30,8 +30,9 @@ func TestSetupRoutes(t *testing.T) {
 	tierlistHandler := &handlers.TierlistHandler{}
 	playerHandler := &handlers.PlayerHandler{}
 	matchHandler := &handlers.MatchHandler{}
+	championHandler := &handlers.ChampionHandler{}
 
-	router.SetupRoutes(tierlistHandler, playerHandler, matchHandler)
+	router.SetupRoutes(tierlistHandler, playerHandler, matchHandler, championHandler)
 
 	routes := router.Engine.Routes()
 	assert.Greater(t, len(routes), 0)

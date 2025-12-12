@@ -5,18 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	cacherepo "goleague/api/repositories/cache"
+	champmodel "goleague/pkg/models/champion"
 	"goleague/pkg/redis"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 // Default cache duration for the champion keys.
-const cacheDuration = time.Hour
+const (
+	cacheDuration             = time.Hour
+	failedParsingChampionData = "failed to unmarshal champion data: %v"
+)
 
 type ChampionCache interface {
-	GetAllChampions(ctx context.Context) ([]map[string]any, error)
-	GetChampionCopy(ctx context.Context, championId string) (map[string]any, error)
+	GetAllChampions(ctx context.Context) ([]*champmodel.Champion, error)
+	GetChampionCopy(ctx context.Context, championId string) (*champmodel.Champion, error)
 	Initialize(ctx context.Context) error
 }
 
@@ -28,13 +33,13 @@ type ChampionCacheRedisClient interface {
 // championCache  uses the in-memory cache with small TTL to minimize Redis calls.
 // Uses db as a fallback as last resource if Redis isn't available.
 type championCache struct {
-	memCache        MemCache
+	memCache        MemCache[*champmodel.Champion]
 	redis           ChampionCacheRedisClient
 	cacheRepository cacherepo.CacheRepository
 }
 
 // NewchampionCache creates the instance of the champion cache.
-func NewChampionCache(db *gorm.DB, redis *redis.RedisClient, memCache MemCache) ChampionCache {
+func NewChampionCache(db *gorm.DB, redis *redis.RedisClient, memCache MemCache[*champmodel.Champion]) ChampionCache {
 	cc := &championCache{
 		memCache:        memCache,
 		redis:           redis,
@@ -46,15 +51,13 @@ func NewChampionCache(db *gorm.DB, redis *redis.RedisClient, memCache MemCache) 
 
 // GetChampionCopy returns a champion from the in memory cache, if not already in there, get from the redis.
 // Returns a deep copy, so it's safe to change the returned value directly.
-func (c *championCache) GetChampionCopy(ctx context.Context, championId string) (map[string]any, error) {
+func (c *championCache) GetChampionCopy(ctx context.Context, championId string) (*champmodel.Champion, error) {
 	// Cache key for memCache and Redis.
 	cacheKey := fmt.Sprintf("ddragon:champion:%s", championId)
 
 	// Try to get directly from memory.
 	if champCache := c.memCache.Get(cacheKey); champCache != nil {
-		if champEntry, ok := champCache.(map[string]any); ok {
-			return deepCopyMap(champEntry), nil
-		}
+		return champCache, nil
 	}
 
 	// Get from the redis if doesn't found.
@@ -70,15 +73,15 @@ func (c *championCache) GetChampionCopy(ctx context.Context, championId string) 
 	}
 
 	// Unmarshal as a generic map.
-	// It will be of type champion.Champion.
-	var champJson map[string]any
+	// It will be of type champmodel.Champion.
+	var champJson *champmodel.Champion
 	err = json.Unmarshal([]byte(champRedis), &champJson)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal champion data: %w", err)
+		return nil, fmt.Errorf(failedParsingChampionData, err)
 	}
 
 	c.memCache.Set(cacheKey, champJson, cacheDuration)
-	return deepCopyMap(champJson), nil
+	return champJson, nil
 
 }
 
@@ -89,10 +92,12 @@ func (c *championCache) Initialize(ctx context.Context) error {
 	// Get all the keys by prefix.
 	keys, err := c.redis.GetKeysByPrefix(ctx, cachePrefix)
 	if err != nil {
+		log.Printf("Failed pre-loading Redis champion keys: %v", err)
+
 		// Get all champions by the prefix and save in memory.
 		champions, _ := c.cacheRepository.GetByPrefix(cachePrefix)
 		for _, champion := range champions {
-			var champJson map[string]any
+			var champJson *champmodel.Champion
 			err := json.Unmarshal([]byte(champion.CacheValue), &champJson)
 			if err != nil {
 				return err
@@ -108,10 +113,10 @@ func (c *championCache) Initialize(ctx context.Context) error {
 		if err != nil {
 			continue
 		}
-		var champJson map[string]any
+		var champJson *champmodel.Champion
 		err = json.Unmarshal([]byte(champRedis), &champJson)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal champion data: %w", err)
+			return fmt.Errorf(failedParsingChampionData, err)
 		}
 		c.memCache.Set(key, champJson, cacheDuration)
 	}
@@ -120,13 +125,14 @@ func (c *championCache) Initialize(ctx context.Context) error {
 
 // GetAllChampions returns all champions that are cached.
 // Don't get from in-memory cache due to TTL, only redis or repo.
-func (c *championCache) GetAllChampions(ctx context.Context) ([]map[string]any, error) {
+func (c *championCache) GetAllChampions(ctx context.Context) ([]*champmodel.Champion, error) {
 	cachePrefix := "ddragon:champion:"
-	championsList := make([]map[string]any, 0)
+	championsList := make([]*champmodel.Champion, 0)
 
 	// Try to get all keys from Redis.
 	keys, err := c.redis.GetKeysByPrefix(ctx, cachePrefix)
 	if err != nil || len(keys) == 0 {
+		log.Printf("Failed getting all champions from Redis: %v", err)
 		// Fallback: load champions from persistent cache.
 		champions, dbErr := c.cacheRepository.GetByPrefix(cachePrefix)
 		if dbErr != nil {
@@ -134,8 +140,9 @@ func (c *championCache) GetAllChampions(ctx context.Context) ([]map[string]any, 
 		}
 
 		for _, champion := range champions {
-			var champJson map[string]any
+			var champJson *champmodel.Champion
 			if err := json.Unmarshal([]byte(champion.CacheValue), &champJson); err != nil {
+				log.Printf(failedParsingChampionData, err)
 				continue
 			}
 
@@ -149,12 +156,13 @@ func (c *championCache) GetAllChampions(ctx context.Context) ([]map[string]any, 
 	for _, key := range keys {
 		champRedis, err := c.redis.Get(ctx, key)
 		if err != nil {
+			log.Printf("Failed getting Redis key %s: %v", key, err)
 			continue
 		}
 
-		var champJson map[string]any
+		var champJson *champmodel.Champion
 		if err := json.Unmarshal([]byte(champRedis), &champJson); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal champion data: %w", err)
+			return nil, fmt.Errorf(failedParsingChampionData, err)
 		}
 
 		championsList = append(championsList, champJson)

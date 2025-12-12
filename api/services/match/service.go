@@ -2,7 +2,6 @@ package matchservice
 
 import (
 	"context"
-	"goleague/api/cache"
 	"goleague/api/converters"
 	"goleague/api/dto"
 	"goleague/api/filters"
@@ -15,14 +14,12 @@ import (
 // MatchService with the  repositories and the gRPC client in case we need to force fetch something (Unlikely).
 type MatchService struct {
 	db              *gorm.DB
-	memCache        cache.MemCache
 	MatchRepository matchrepo.MatchRepository
 }
 
 // MatchServiceDeps is the dependency list for the tierlist service.
 type MatchServiceDeps struct {
-	DB       *gorm.DB
-	MemCache cache.MemCache
+	DB *gorm.DB
 }
 
 // NewTierlistService creates a tierlist service.
@@ -30,7 +27,6 @@ func NewMatchService(deps *MatchServiceDeps) *MatchService {
 	return &MatchService{
 		db:              deps.DB,
 		MatchRepository: matchrepo.NewMatchRepository(deps.DB),
-		memCache:        deps.MemCache,
 	}
 }
 

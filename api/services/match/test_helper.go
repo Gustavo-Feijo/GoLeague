@@ -27,7 +27,6 @@ type RepoGetData[T any] struct {
 type mockSetup struct {
 	filters *filters.GetFullMatchDataFilter
 
-	memCache   *testutil.MockMemCache
 	matchCache *testutil.MockMatchCache
 	repo       *testutil.MockMatchRepository
 
@@ -46,19 +45,16 @@ func setupTestService() (
 	*MatchService,
 	*testutil.MockMatchRepository,
 	*testutil.MockMatchCache,
-	*testutil.MockMemCache,
 ) {
 	mockMatchRepo := new(testutil.MockMatchRepository)
-	mockMemCache := new(testutil.MockMemCache)
 	mockMatchCache := new(testutil.MockMatchCache)
 
 	service := &MatchService{
 		db:              new(gorm.DB),
-		memCache:        mockMemCache,
 		MatchRepository: mockMatchRepo,
 	}
 
-	return service, mockMatchRepo, mockMatchCache, mockMemCache
+	return service, mockMatchRepo, mockMatchCache
 }
 
 func setupMocks(setup mockSetup) {

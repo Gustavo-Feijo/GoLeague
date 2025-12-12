@@ -28,7 +28,7 @@ type TierlistRedisClient interface {
 // Tierlist service with the  repositories and the gRPC client in case we need to force fetch something (Unlikely).
 type TierlistService struct {
 	db                 *gorm.DB
-	memCache           cache.MemCache
+	memCache           cache.MemCache[[]*dto.TierlistResult]
 	redis              TierlistRedisClient
 	TierlistRepository tierlistrepo.TierlistRepository
 }
@@ -36,7 +36,7 @@ type TierlistService struct {
 // TierlistServiceDeps is the dependency list for the tierlist service.
 type TierlistServiceDeps struct {
 	DB       *gorm.DB
-	MemCache cache.MemCache
+	MemCache cache.MemCache[[]*dto.TierlistResult]
 	Redis    TierlistRedisClient
 }
 
@@ -84,7 +84,7 @@ func (ts *TierlistService) GetTierlist(ctx context.Context, filters *filters.Tie
 // getFromMemCache retrieves the data from the memory and returns it.
 func (ts *TierlistService) getFromMemCache(key string) []*dto.TierlistResult {
 	if memCachedData := ts.memCache.Get(key); memCachedData != nil {
-		return memCachedData.([]*dto.TierlistResult)
+		return memCachedData
 	}
 	return nil
 }

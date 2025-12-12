@@ -7,8 +7,7 @@ import (
 
 func initializeMatchHandler(deps *ModuleDependencies) *handlers.MatchHandler {
 	matchDeps := &matchservice.MatchServiceDeps{
-		DB:       deps.DB,
-		MemCache: deps.MemCache,
+		DB: deps.DB,
 	}
 
 	matchService := matchservice.NewMatchService(matchDeps)

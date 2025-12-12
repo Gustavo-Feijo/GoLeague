@@ -24,7 +24,7 @@ type mockSetup struct {
 	key      string
 	strategy string
 
-	memCache *testutil.MockMemCache
+	memCache *testutil.MockMemCache[[]*dto.TierlistResult]
 	redis    *testutil.MockTierlistRedisClient
 	repo     *testutil.MockTierlistRepository
 
@@ -35,9 +35,9 @@ type mockSetup struct {
 }
 
 // Helper to initialize the mocks.
-func setupTestService() (*TierlistService, *testutil.MockTierlistRepository, *testutil.MockMemCache, *testutil.MockTierlistRedisClient) {
+func setupTestService() (*TierlistService, *testutil.MockTierlistRepository, *testutil.MockMemCache[[]*dto.TierlistResult], *testutil.MockTierlistRedisClient) {
 	mockTierlistRepository := new(testutil.MockTierlistRepository)
-	mockMemCache := new(testutil.MockMemCache)
+	mockMemCache := new(testutil.MockMemCache[[]*dto.TierlistResult])
 	mockRedisTierlistClient := new(testutil.MockTierlistRedisClient)
 
 	service := &TierlistService{

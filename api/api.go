@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"goleague/api/cache"
+	"goleague/api/dto"
 	"goleague/api/modules"
 	"goleague/api/routes"
 	"goleague/pkg/config"
 	"goleague/pkg/database"
+	"goleague/pkg/models/champion"
 	"goleague/pkg/redis"
 	"log"
 	"net/http"
@@ -101,28 +103,31 @@ func initializeModuleDependencies(config *config.Config) (*modules.ModuleDepende
 		cleanupFuncs = append(cleanupFuncs, func() { redis.Client.Close() })
 	}
 
-	memCache := cache.NewMemCache()
+	championMemCache := cache.NewMemCache[*champion.Champion]()
+	tierlistMemCache := cache.NewMemCache[[]*dto.TierlistResult]()
 
 	if sqlDB, err := db.DB(); err == nil {
 		cleanupFuncs = append(cleanupFuncs, func() { sqlDB.Close() })
 	}
 
 	// Create a instance  just for initializing.
-	championCache := cache.NewChampionCache(db, redis, memCache)
+	championCache := cache.NewChampionCache(db, redis, championMemCache)
 	champCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	championCache.Initialize(champCtx)
 
 	cleanupFuncs = append(cleanupFuncs, func() { grpcClient.Close() })
-	cleanupFuncs = append(cleanupFuncs, func() { memCache.Close() })
+	cleanupFuncs = append(cleanupFuncs, func() { championMemCache.Close() })
+	cleanupFuncs = append(cleanupFuncs, func() { tierlistMemCache.Close() })
 
 	// Pass down the dependencies.
 	moduleDeps := &modules.ModuleDependencies{
-		DB:            db,
-		ChampionCache: championCache,
-		GrpcClient:    grpcClient,
-		MemCache:      memCache,
-		Redis:         redis,
+		DB:               db,
+		ChampionCache:    championCache,
+		GrpcClient:       grpcClient,
+		ChampionMemCache: championMemCache,
+		TierlistMemCache: tierlistMemCache,
+		Redis:            redis,
 	}
 
 	return moduleDeps, cleanup, nil

@@ -9,7 +9,7 @@ func initializeTierlistHandler(deps *ModuleDependencies) *handlers.TierlistHandl
 	// Initialize the tierlist service and handler.
 	tierlistDeps := &tierlistservice.TierlistServiceDeps{
 		DB:       deps.DB,
-		MemCache: deps.MemCache,
+		MemCache: deps.TierlistMemCache,
 		Redis:    deps.Redis,
 	}
 

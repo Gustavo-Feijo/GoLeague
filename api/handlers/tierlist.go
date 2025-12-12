@@ -1,10 +1,8 @@
 package handlers
 
 import (
-	"goleague/api/cache"
 	"goleague/api/filters"
 	tierlistservice "goleague/api/services/tierlist"
-	"goleague/pkg/redis"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,8 +10,6 @@ import (
 
 // Tier list handler.
 type TierlistHandler struct {
-	memCache        cache.MemCache
-	redis           *redis.RedisClient
 	tierlistService *tierlistservice.TierlistService
 }
 

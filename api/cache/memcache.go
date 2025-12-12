@@ -10,17 +10,18 @@ const (
 	cleanupTickerDuration = 5 * time.Minute
 )
 
-type MemCache interface {
+type MemCache[T any] interface {
 	StartCleanupWorker()
 	Cleanup()
 	Close()
-	Get(key string) any
-	Set(key string, value any, ttl time.Duration)
+	Get(key string) T
+	Set(key string, value T, ttl time.Duration)
 }
 
 // Create a in-memory cache with small TTL to minimize Redis calls.
-type memCache struct {
-	memoryCache   sync.Map
+type memCache[T any] struct {
+	memoryCache   map[string]*MemCacheItem[T]
+	mu            sync.RWMutex
 	cleanupTicker *time.Ticker
 	ctx           context.Context
 	cancel        context.CancelFunc
@@ -28,15 +29,16 @@ type memCache struct {
 }
 
 // Simple cache item.
-type MemCacheItem struct {
-	value any
+type MemCacheItem[T any] struct {
+	value T
 	ttl   time.Time
 }
 
 // NewMemCache creates a new memory cache.
-func NewMemCache() *memCache {
+func NewMemCache[T any]() *memCache[T] {
 	ctx, cancel := context.WithCancel(context.Background())
-	mc := &memCache{
+	mc := &memCache[T]{
+		memoryCache:   make(map[string]*MemCacheItem[T]),
 		cancel:        cancel,
 		cleanupTicker: time.NewTicker(cleanupTickerDuration),
 		ctx:           ctx,
@@ -47,7 +49,7 @@ func NewMemCache() *memCache {
 }
 
 // startCleanupWorker starts the background worker for memory cleaning.
-func (mc *memCache) StartCleanupWorker() {
+func (mc *memCache[T]) StartCleanupWorker() {
 	mc.wg.Add(1)
 	go func() {
 		defer mc.wg.Done()
@@ -63,46 +65,55 @@ func (mc *memCache) StartCleanupWorker() {
 }
 
 // cleanup go through each key and clean any expired key.
-func (mc *memCache) Cleanup() {
+func (mc *memCache[T]) Cleanup() {
 	now := time.Now()
-	mc.memoryCache.Range(func(key, value any) bool {
-		item := value.(*MemCacheItem)
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
+	for key, item := range mc.memoryCache {
 		if now.After(item.ttl) {
-			mc.memoryCache.Delete(key)
+			delete(mc.memoryCache, key)
 		}
-		return true
-	})
+	}
 }
 
 // Close shutdown the memory cache worker.
-func (mc *memCache) Close() {
+func (mc *memCache[T]) Close() {
 	mc.cancel()
 	mc.cleanupTicker.Stop()
 	mc.wg.Wait()
 }
 
 // Get returns a key value of the single cache.
-func (mc *memCache) Get(key string) any {
-	value, exists := mc.memoryCache.Load(key)
+func (mc *memCache[T]) Get(key string) T {
+	mc.mu.RLock()
+	item, exists := mc.memoryCache[key]
+	mc.mu.RUnlock()
 	if !exists {
-		return nil
+		var zero T
+		return zero
 	}
-
-	item := value.(*MemCacheItem)
 
 	// If the reset time was reached, remove the cache.
 	if time.Now().After(item.ttl) {
-		mc.memoryCache.Delete(key)
-		return nil
+		mc.mu.Lock()
+		delete(mc.memoryCache, key)
+		mc.mu.Unlock()
+		var zero T
+		return zero
 	}
 
 	return item.value
 }
 
 // Set a given key on the cache.
-func (mc *memCache) Set(key string, value any, ttl time.Duration) {
-	mc.memoryCache.Store(key, &MemCacheItem{
+func (mc *memCache[T]) Set(key string, value T, ttl time.Duration) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
+	mc.memoryCache[key] = &MemCacheItem[T]{
 		value: value,
 		ttl:   time.Now().Add(ttl),
-	})
+	}
+
 }

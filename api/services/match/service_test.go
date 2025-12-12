@@ -18,10 +18,8 @@ import (
 
 // Simple test for asserting that everything is fine with the match service creation.
 func TestNewMatchService(t *testing.T) {
-	_, _, _, mockMemCache := setupTestService()
 	deps := &MatchServiceDeps{
-		DB:       new(gorm.DB),
-		MemCache: mockMemCache,
+		DB: new(gorm.DB),
 	}
 
 	service := NewMatchService(deps)
@@ -101,13 +99,12 @@ func TestGetFullMatchData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockMatchRepository, mockMatchCache, mockMemCache := setupTestService()
+			service, mockMatchRepository, mockMatchCache := setupTestService()
 
 			setupMocks(mockSetup{
 				err:        tt.expectedError,
 				filters:    tt.filters,
 				matchCache: mockMatchCache,
-				memCache:   mockMemCache,
 
 				repo:         mockMatchRepository,
 				mockMatch:    tt.mockMatch,
@@ -122,13 +119,13 @@ func TestGetFullMatchData(t *testing.T) {
 
 			assertGetMatchResult(t, result, err, tt.returnData, tt.expectedError)
 
-			testutil.VerifyAllMocks(t, mockMemCache, mockMatchCache, mockMatchRepository)
+			testutil.VerifyAllMocks(t, mockMatchCache, mockMatchRepository)
 		})
 	}
 }
 
 func TestGetMatchByMatchId(t *testing.T) {
-	service, mockMatchRepo, _, _ := setupTestService()
+	service, mockMatchRepo, _ := setupTestService()
 
 	expectedMatch := &models.MatchInfo{MatchId: "NA1_12345"}
 

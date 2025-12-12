@@ -171,26 +171,30 @@ func (m *MockChampionCache) Initialize(ctx context.Context) error {
 }
 
 // MemCache mock implementation.
-type MockMemCache struct {
+type MockMemCache[T any] struct {
 	mock.Mock
 }
 
-func (m *MockMemCache) StartCleanupWorker() {
+func (m *MockMemCache[T]) StartCleanupWorker() {
 	m.Called()
 }
-func (m *MockMemCache) Cleanup() {
+func (m *MockMemCache[T]) Cleanup() {
 	m.Called()
 }
-func (m *MockMemCache) Close() {
+func (m *MockMemCache[T]) Close() {
 	m.Called()
 }
-func (m *MockMemCache) Set(key string, value any, ttl time.Duration) {
+func (m *MockMemCache[T]) Set(key string, value T, ttl time.Duration) {
 	m.Called(key, value, ttl)
 }
 
-func (m *MockMemCache) Get(key string) any {
+func (m *MockMemCache[T]) Get(key string) T {
 	args := m.Called(key)
-	return args.Get(0)
+	if args.Get(0) == nil {
+		var zero T
+		return zero
+	}
+	return args.Get(0).(T)
 }
 
 // Redis client mock implementation.
