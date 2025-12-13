@@ -139,12 +139,12 @@ func (ps *PlayerService) GetPlayerMatchHistory(ctx context.Context, filters *fil
 	tag := filters.GameTag
 	region := filters.Region
 
-	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(ctx, name, tag, region)
+	player, err := ps.PlayerRepository.GetPlayerByNameTagRegion(ctx, name, tag, region)
 	if err != nil {
 		return nil, fmt.Errorf(messages.CouldNotFindId+": %w", "player", err)
 	}
 
-	filters.PlayerId = &playerId
+	filters.PlayerId = &player.ID
 	matchesIds, err := ps.PlayerRepository.GetPlayerMatchHistoryIds(ctx, filters)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the match ids: %w", err)
@@ -212,17 +212,12 @@ func (ps *PlayerService) GetPlayerInfo(ctx context.Context, filters *filters.Pla
 	tag := filters.GameTag
 	region := filters.Region
 
-	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(ctx, name, tag, region)
+	playerInfo, err := ps.PlayerRepository.GetPlayerByNameTagRegion(ctx, name, tag, region)
 	if err != nil {
 		return nil, fmt.Errorf(messages.CouldNotFindId+": %w", "player", err)
 	}
 
-	playerInfo, err := ps.PlayerRepository.GetPlayerById(ctx, playerId)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get the player info: %w", err)
-	}
-
-	playerRatings, err := ps.PlayerRepository.GetPlayerRatingsById(ctx, playerId)
+	playerRatings, err := ps.PlayerRepository.GetPlayerRatingsById(ctx, playerInfo.ID)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the player rating: %w", err)
 	}
@@ -262,12 +257,12 @@ func (ps *PlayerService) GetPlayerStats(ctx context.Context, filters *filters.Pl
 	tag := filters.GameTag
 	region := filters.Region
 
-	playerId, err := ps.PlayerRepository.GetPlayerIdByNameTagRegion(ctx, name, tag, region)
+	player, err := ps.PlayerRepository.GetPlayerByNameTagRegion(ctx, name, tag, region)
 	if err != nil {
 		return nil, fmt.Errorf(messages.CouldNotFindId+": %w", "player", err)
 	}
 
-	filters.PlayerId = &playerId
+	filters.PlayerId = &player.ID
 	playerStats, err := ps.PlayerRepository.GetPlayerStats(ctx, filters)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the player stats: %w", err)

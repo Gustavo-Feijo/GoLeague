@@ -41,9 +41,9 @@ func (m *MockPlayerRepository) SearchPlayer(ctx context.Context, filters *filter
 	return args.Get(0).([]*models.PlayerInfo), args.Error(1)
 }
 
-func (m *MockPlayerRepository) GetPlayerIdByNameTagRegion(ctx context.Context, name, tag, region string) (uint, error) {
+func (m *MockPlayerRepository) GetPlayerByNameTagRegion(ctx context.Context, name, tag, region string) (*models.PlayerInfo, error) {
 	args := m.Called(ctx, name, tag, region)
-	return args.Get(0).(uint), args.Error(1)
+	return args.Get(0).(*models.PlayerInfo), args.Error(1)
 }
 
 func (m *MockPlayerRepository) GetPlayerMatchHistoryIds(ctx context.Context, filters *filters.PlayerMatchHistoryFilter) ([]uint, error) {

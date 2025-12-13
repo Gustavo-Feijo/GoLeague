@@ -20,7 +20,7 @@ const searchLimit = 20
 type PlayerRepository interface {
 	SearchPlayer(ctx context.Context, filters *filters.PlayerSearchFilter) ([]*models.PlayerInfo, error)
 	GetPlayerById(ctx context.Context, playerId uint) (*models.PlayerInfo, error)
-	GetPlayerIdByNameTagRegion(ctx context.Context, name string, tag string, region string) (uint, error)
+	GetPlayerByNameTagRegion(ctx context.Context, name string, tag string, region string) (*models.PlayerInfo, error)
 	GetPlayerMatchHistoryIds(ctx context.Context, filters *filters.PlayerMatchHistoryFilter) ([]uint, error)
 	GetPlayerRatingsById(ctx context.Context, playerId uint) ([]models.RatingEntry, error)
 	GetPlayerStats(ctx context.Context, filters *filters.PlayerStatsFilter) ([]RawPlayerStatsStruct, error)
@@ -218,28 +218,21 @@ func (ps *playerRepository) GetPlayerStats(ctx context.Context, filters *filters
 	return playerStats, nil
 }
 
-// GetPlayerIdByNameTagRegion retrieves the id of a given player based on the params.
-func (ps *playerRepository) GetPlayerIdByNameTagRegion(ctx context.Context, name string, tag string, region string) (uint, error) {
-	var id uint
-
+func (ps *playerRepository) GetPlayerByNameTagRegion(ctx context.Context, name, tag, region string) (*models.PlayerInfo, error) {
+	var player models.PlayerInfo
 	formattedRegion := regions.SubRegion(strings.ToUpper(region))
 
 	if err := ps.db.
-		Model(&models.PlayerInfo{}).
-		Select("id").
 		Where("riot_id_game_name = ? AND riot_id_tagline = ? AND region = ?", name, tag, formattedRegion).
-		First(&id).Error; err != nil {
+		First(&player).Error; err != nil {
 
-		// If the record was not found, doesn't need to return an error.
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, fmt.Errorf("player not found: %v", err)
+			return nil, fmt.Errorf("player not found")
 		}
 
-		// Other database error.
-		return 0, fmt.Errorf("could not fetch player id: %v", err)
+		return nil, fmt.Errorf("could not fetch player: %v", err)
 	}
-
-	return id, nil
+	return &player, nil
 }
 
 // GetPlayerInfo returns all the player information.

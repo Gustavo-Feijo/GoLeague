@@ -6,7 +6,8 @@ import (
 	"goleague/api/dto"
 	"goleague/api/filters"
 	tierlistrepo "goleague/api/repositories/tierlist"
-	"goleague/api/services/testutil"
+	servicetestutil "goleague/api/services/testutil"
+	"goleague/internal/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -107,7 +108,7 @@ func TestGetTierlist(t *testing.T) {
 
 			assertTierlistResult(t, result, err, tt.returnData, tt.expectedError)
 
-			testutil.VerifyAllMocks(t, mockMemCache, mockRedis, mockTierlistRepository)
+			servicetestutil.VerifyAllMocks(t, mockMemCache, mockRedis, mockTierlistRepository)
 		})
 	}
 }
@@ -117,7 +118,7 @@ func TestInvalidRedisKey(t *testing.T) {
 	key := "testKey"
 	service, _, _, mockRedis := setupTestService()
 
-	mockRedis.On("Get", mock.AnythingOfType(testutil.DefaultTimerCtx), key).Return("invalid json", nil)
+	mockRedis.On("Get", mock.AnythingOfType(servicetestutil.DefaultTimerCtx), key).Return("invalid json", nil)
 
 	result := service.getFromRedis(key)
 	assert.Nil(t, result)

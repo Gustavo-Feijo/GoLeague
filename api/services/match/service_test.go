@@ -7,7 +7,8 @@ import (
 	"goleague/api/dto"
 	"goleague/api/filters"
 	matchrepo "goleague/api/repositories/match"
-	"goleague/api/services/testutil"
+	servicetestutil "goleague/api/services/testutil"
+	"goleague/internal/testutil"
 	"goleague/pkg/database/models"
 	"testing"
 
@@ -36,10 +37,10 @@ func TestGetFullMatchData(t *testing.T) {
 		returnData *dto.FullMatchData
 		filters    *filters.GetFullMatchDataFilter
 
-		mockMatch    *RepoGetData[*models.MatchInfo]
-		mockPreviews *RepoGetData[[]matchrepo.RawMatchPreview]
-		mockFrames   *RepoGetData[[]matchrepo.RawMatchParticipantFrame]
-		mockEvents   *RepoGetData[[]models.AllEvents]
+		mockMatch    *testutil.RepoGetData[*models.MatchInfo]
+		mockPreviews *testutil.RepoGetData[[]matchrepo.RawMatchPreview]
+		mockFrames   *testutil.RepoGetData[[]matchrepo.RawMatchParticipantFrame]
+		mockEvents   *testutil.RepoGetData[[]models.AllEvents]
 
 		expectedError error
 	}{
@@ -47,52 +48,52 @@ func TestGetFullMatchData(t *testing.T) {
 			name:          "matchNotFoundDbError",
 			returnData:    &dto.FullMatchData{},
 			filters:       defaultFilter,
-			mockMatch:     getMockRepoError[*models.MatchInfo](),
+			mockMatch:     testutil.GetMockRepoError[*models.MatchInfo](),
 			expectedError: errors.New(testutil.DatabaseError),
 		},
 		{
 			name:          "previewsNotFoundDbError",
 			returnData:    &dto.FullMatchData{},
 			filters:       defaultFilter,
-			mockMatch:     toRepoGetData(getMockMatch()),
-			mockPreviews:  getMockRepoError[[]matchrepo.RawMatchPreview](),
+			mockMatch:     testutil.ToRepoGetData(getMockMatch()),
+			mockPreviews:  testutil.GetMockRepoError[[]matchrepo.RawMatchPreview](),
 			expectedError: errors.New(testutil.DatabaseError),
 		},
 		{
 			name:          "emptyPreviews",
 			returnData:    &dto.FullMatchData{},
 			filters:       defaultFilter,
-			mockMatch:     toRepoGetData(getMockMatch()),
-			mockPreviews:  toRepoGetData(getEmptyMockPreviews()),
+			mockMatch:     testutil.ToRepoGetData(getMockMatch()),
+			mockPreviews:  testutil.ToRepoGetData(getEmptyMockPreviews()),
 			expectedError: errors.New(converters.ErrNoPreviews),
 		},
 		{
 			name:          "framesNotFoundDbErr",
 			returnData:    &dto.FullMatchData{},
 			filters:       defaultFilter,
-			mockMatch:     toRepoGetData(getMockMatch()),
-			mockPreviews:  toRepoGetData(getMockPreviews()),
-			mockFrames:    getMockRepoError[[]matchrepo.RawMatchParticipantFrame](),
+			mockMatch:     testutil.ToRepoGetData(getMockMatch()),
+			mockPreviews:  testutil.ToRepoGetData(getMockPreviews()),
+			mockFrames:    testutil.GetMockRepoError[[]matchrepo.RawMatchParticipantFrame](),
 			expectedError: errors.New(testutil.DatabaseError),
 		},
 		{
 			name:          "eventsNotFoundDbErr",
 			returnData:    &dto.FullMatchData{},
 			filters:       defaultFilter,
-			mockMatch:     toRepoGetData(getMockMatch()),
-			mockPreviews:  toRepoGetData(getMockPreviews()),
-			mockFrames:    toRepoGetData(getMockFrames()),
-			mockEvents:    getMockRepoError[[]models.AllEvents](),
+			mockMatch:     testutil.ToRepoGetData(getMockMatch()),
+			mockPreviews:  testutil.ToRepoGetData(getMockPreviews()),
+			mockFrames:    testutil.ToRepoGetData(getMockFrames()),
+			mockEvents:    testutil.GetMockRepoError[[]models.AllEvents](),
 			expectedError: errors.New(testutil.DatabaseError),
 		},
 		{
 			name:          "everythingFine",
 			returnData:    loadExpectedData[*dto.FullMatchData]("testdata/fullmatch.json"),
 			filters:       defaultFilter,
-			mockMatch:     toRepoGetData(getMockMatch()),
-			mockPreviews:  toRepoGetData(getMockPreviews()),
-			mockFrames:    toRepoGetData(getMockFrames()),
-			mockEvents:    toRepoGetData(getMockEvents()),
+			mockMatch:     testutil.ToRepoGetData(getMockMatch()),
+			mockPreviews:  testutil.ToRepoGetData(getMockPreviews()),
+			mockFrames:    testutil.ToRepoGetData(getMockFrames()),
+			mockEvents:    testutil.ToRepoGetData(getMockEvents()),
 			expectedError: nil,
 		},
 	}
@@ -119,7 +120,7 @@ func TestGetFullMatchData(t *testing.T) {
 
 			assertGetMatchResult(t, result, err, tt.returnData, tt.expectedError)
 
-			testutil.VerifyAllMocks(t, mockMatchCache, mockMatchRepository)
+			servicetestutil.VerifyAllMocks(t, mockMatchCache, mockMatchRepository)
 		})
 	}
 }

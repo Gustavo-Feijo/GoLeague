@@ -1,0 +1,2 @@
+ALTER TABLE players
+ALTER COLUMN puuid TYPE CHAR(78);

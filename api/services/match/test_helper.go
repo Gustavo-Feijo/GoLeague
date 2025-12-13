@@ -2,11 +2,11 @@ package matchservice
 
 import (
 	"encoding/json"
-	"errors"
 	"goleague/api/dto"
 	"goleague/api/filters"
 	matchrepo "goleague/api/repositories/match"
-	"goleague/api/services/testutil"
+	servicetestutil "goleague/api/services/testutil"
+	"goleague/internal/testutil"
 	"goleague/pkg/database/models"
 	"os"
 	"testing"
@@ -18,22 +18,17 @@ import (
 	"gorm.io/gorm"
 )
 
-type RepoGetData[T any] struct {
-	data T
-	err  error
-}
-
 // Mock setup struct
 type mockSetup struct {
 	filters *filters.GetFullMatchDataFilter
 
-	matchCache *testutil.MockMatchCache
-	repo       *testutil.MockMatchRepository
+	matchCache *servicetestutil.MockMatchCache
+	repo       *servicetestutil.MockMatchRepository
 
-	mockMatch    *RepoGetData[*models.MatchInfo]
-	mockPreviews *RepoGetData[[]matchrepo.RawMatchPreview]
-	mockFrames   *RepoGetData[[]matchrepo.RawMatchParticipantFrame]
-	mockEvents   *RepoGetData[[]models.AllEvents]
+	mockMatch    *testutil.RepoGetData[*models.MatchInfo]
+	mockPreviews *testutil.RepoGetData[[]matchrepo.RawMatchPreview]
+	mockFrames   *testutil.RepoGetData[[]matchrepo.RawMatchParticipantFrame]
+	mockEvents   *testutil.RepoGetData[[]models.AllEvents]
 
 	returnData *dto.FullMatchData
 
@@ -43,11 +38,11 @@ type mockSetup struct {
 // Helper to initialize the mocks.
 func setupTestService() (
 	*MatchService,
-	*testutil.MockMatchRepository,
-	*testutil.MockMatchCache,
+	*servicetestutil.MockMatchRepository,
+	*servicetestutil.MockMatchCache,
 ) {
-	mockMatchRepo := new(testutil.MockMatchRepository)
-	mockMatchCache := new(testutil.MockMatchCache)
+	mockMatchRepo := new(servicetestutil.MockMatchRepository)
+	mockMatchCache := new(servicetestutil.MockMatchCache)
 
 	service := &MatchService{
 		db:              new(gorm.DB),
@@ -60,35 +55,19 @@ func setupTestService() (
 func setupMocks(setup mockSetup) {
 
 	if setup.mockMatch != nil {
-		setup.repo.On("GetMatchByMatchId", mock.Anything, setup.filters.MatchId).Return(setup.mockMatch.data, setup.mockMatch.err)
+		setup.repo.On("GetMatchByMatchId", mock.Anything, setup.filters.MatchId).Return(setup.mockMatch.Data, setup.mockMatch.Err)
 	}
 
 	if setup.mockPreviews != nil {
-		setup.repo.On("GetMatchPreviewsByInternalId", mock.Anything, setup.mockMatch.data.ID).Return(setup.mockPreviews.data, setup.mockPreviews.err)
+		setup.repo.On("GetMatchPreviewsByInternalId", mock.Anything, setup.mockMatch.Data.ID).Return(setup.mockPreviews.Data, setup.mockPreviews.Err)
 	}
 
 	if setup.mockFrames != nil {
-		setup.repo.On("GetParticipantFramesByInternalId", mock.Anything, setup.mockMatch.data.ID).Return(setup.mockFrames.data, setup.mockFrames.err)
+		setup.repo.On("GetParticipantFramesByInternalId", mock.Anything, setup.mockMatch.Data.ID).Return(setup.mockFrames.Data, setup.mockFrames.Err)
 	}
 
 	if setup.mockEvents != nil {
-		setup.repo.On("GetAllEvents", mock.Anything, setup.mockMatch.data.ID).Return(setup.mockEvents.data, setup.mockEvents.err)
-	}
-}
-
-// Return a generic typed error return for a database call.
-func getMockRepoError[T any]() *RepoGetData[T] {
-	return &RepoGetData[T]{
-		data: *new(T),
-		err:  errors.New(testutil.DatabaseError),
-	}
-}
-
-// Wrap a generic data into a RepoGetData struct.
-func toRepoGetData[T any](data T) *RepoGetData[T] {
-	return &RepoGetData[T]{
-		data: data,
-		err:  nil,
+		setup.repo.On("GetAllEvents", mock.Anything, setup.mockMatch.Data.ID).Return(setup.mockEvents.Data, setup.mockEvents.Err)
 	}
 }
 

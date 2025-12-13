@@ -1,0 +1,2 @@
+ALTER TABLE player_infos
+ALTER COLUMN puuid TYPE VARCHAR(78);

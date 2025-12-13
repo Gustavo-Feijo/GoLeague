@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"goleague/api/filters"
-	"goleague/api/repositories/testutil"
+	"goleague/internal/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -72,7 +72,7 @@ func TestGetTierlist(t *testing.T) {
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), tt.expectedError.Error())
 			assert.Nil(t, result)
-			return
+			continue
 		}
 
 		assert.Equal(t, tt.returnData, result)
