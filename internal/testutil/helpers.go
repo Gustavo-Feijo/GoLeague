@@ -13,9 +13,13 @@ type RepoGetData[T any] struct {
 
 // Return a generic typed error return for a Database call.
 func GetMockRepoError[T any]() *RepoGetData[T] {
+	return GetRepoError[T](DatabaseError)
+}
+
+func GetRepoError[T any](err string) *RepoGetData[T] {
 	return &RepoGetData[T]{
 		Data: *new(T),
-		Err:  errors.New(DatabaseError),
+		Err:  errors.New(err),
 	}
 }
 

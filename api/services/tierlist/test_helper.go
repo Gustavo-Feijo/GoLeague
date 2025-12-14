@@ -5,7 +5,8 @@ import (
 	"goleague/api/dto"
 	"goleague/api/filters"
 	tierlistrepo "goleague/api/repositories/tierlist"
-	"goleague/api/services/testutil"
+	servicetestutil "goleague/api/services/testutil"
+	"goleague/internal/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,32 +14,27 @@ import (
 	"gorm.io/gorm"
 )
 
-type RepoGetTierlist struct {
-	data []*tierlistrepo.TierlistResult
-	err  error
-}
-
 // Mock setup struct
 type mockSetup struct {
 	filters  *filters.TierlistFilter
 	key      string
 	strategy string
 
-	memCache *testutil.MockMemCache[[]*dto.TierlistResult]
-	redis    *testutil.MockTierlistRedisClient
-	repo     *testutil.MockTierlistRepository
+	memCache *servicetestutil.MockMemCache[[]*dto.TierlistResult]
+	redis    *servicetestutil.MockTierlistRedisClient
+	repo     *servicetestutil.MockTierlistRepository
 
-	repoData *RepoGetTierlist
+	repoData *testutil.RepoGetData[[]*tierlistrepo.TierlistResult]
 
-	returnData []*dto.TierlistResult
-	err        error
+	expectedResult []*dto.TierlistResult
+	err            error
 }
 
 // Helper to initialize the mocks.
-func setupTestService() (*TierlistService, *testutil.MockTierlistRepository, *testutil.MockMemCache[[]*dto.TierlistResult], *testutil.MockTierlistRedisClient) {
-	mockTierlistRepository := new(testutil.MockTierlistRepository)
-	mockMemCache := new(testutil.MockMemCache[[]*dto.TierlistResult])
-	mockRedisTierlistClient := new(testutil.MockTierlistRedisClient)
+func setupTestService() (*TierlistService, *servicetestutil.MockTierlistRepository, *servicetestutil.MockMemCache[[]*dto.TierlistResult], *servicetestutil.MockTierlistRedisClient) {
+	mockTierlistRepository := new(servicetestutil.MockTierlistRepository)
+	mockMemCache := new(servicetestutil.MockMemCache[[]*dto.TierlistResult])
+	mockRedisTierlistClient := new(servicetestutil.MockTierlistRedisClient)
 
 	service := &TierlistService{
 		db:                 new(gorm.DB),
@@ -112,28 +108,28 @@ func setupMocks(setup mockSetup) {
 
 // Data already available on memory.
 func setupMemCacheHit(setup mockSetup) {
-	setup.memCache.On("Get", setup.key).Return(setup.returnData)
+	setup.memCache.On("Get", setup.key).Return(setup.expectedResult)
 }
 
 // Not available on memory, but available on Redis.
 func setupRedisCacheHit(setup mockSetup) {
 	setup.memCache.On("Get", setup.key).Return(nil)
 
-	data, _ := json.Marshal(setup.returnData)
-	setup.redis.On("Get", mock.AnythingOfType(testutil.DefaultTimerCtx), setup.key).Return(string(data), nil)
-	setup.memCache.On("Set", setup.key, setup.returnData, TierlistMemoryCacheDuration).Return(nil)
+	data, _ := json.Marshal(setup.expectedResult)
+	setup.redis.On("Get", mock.AnythingOfType(servicetestutil.DefaultTimerCtx), setup.key).Return(string(data), nil)
+	setup.memCache.On("Set", setup.key, setup.expectedResult, TierlistMemoryCacheDuration).Return(nil)
 }
 
 // Data available only on database.
 func setupNoCacheHit(setup mockSetup) {
 	setup.memCache.On("Get", setup.key).Return(nil)
-	setup.redis.On("Get", mock.AnythingOfType(testutil.DefaultTimerCtx), setup.key).Return("", nil)
+	setup.redis.On("Get", mock.AnythingOfType(servicetestutil.DefaultTimerCtx), setup.key).Return("", nil)
 
-	setup.repo.On("GetTierlist", mock.Anything, setup.filters).Return(setup.repoData.data, setup.repoData.err)
+	setup.repo.On("GetTierlist", mock.Anything, setup.filters).Return(setup.repoData.Data, setup.repoData.Err)
 
-	setup.memCache.On("Set", setup.key, setup.returnData, TierlistMemoryCacheDuration).Return(nil)
+	setup.memCache.On("Set", setup.key, setup.expectedResult, TierlistMemoryCacheDuration).Return(nil)
 
-	data, _ := json.Marshal(setup.returnData)
+	data, _ := json.Marshal(setup.expectedResult)
 	setup.redis.On("Set", mock.Anything, setup.key, string(data), TierlistRedisCacheDuration).Return(nil)
 }
 

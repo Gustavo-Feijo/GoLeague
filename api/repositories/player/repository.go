@@ -61,7 +61,7 @@ func (ps *playerRepository) SearchPlayer(ctx context.Context, filters *filters.P
 
 	name := strings.TrimSpace(filters.Name)
 	tag := strings.TrimSpace(filters.Tag)
-	region := strings.TrimSpace(filters.Region)
+	region := strings.ToUpper(strings.TrimSpace(filters.Region))
 
 	// Add the search parameters only if the respective value was passed.
 	if name != "" {

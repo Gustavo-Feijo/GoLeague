@@ -2,8 +2,6 @@ package repositories
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"goleague/api/filters"
 	"goleague/internal/testutil"
 	"goleague/pkg/database/models"
@@ -25,31 +23,28 @@ func TestSearchPlayer(t *testing.T) {
 
 	repository := NewPlayerRepository(db)
 
-	seedPlayerTestData(t, db)
+	seeded := seedPlayerTestData(t, db)
 
 	tests := []struct {
-		name          string
-		filters       *filters.PlayerSearchFilter
-		returnData    []*models.PlayerInfo
-		expectedError error
-		setupFunc     func(db *gorm.DB)
+		name       string
+		filters    *filters.PlayerSearchFilter
+		returnData *testutil.RepoGetData[[]*models.PlayerInfo]
+		setupFunc  func(db *gorm.DB)
 	}{
 		{
-			name:          "nilfilter",
-			filters:       nil,
-			expectedError: fmt.Errorf(messages.FiltersNotNil),
+			name:       "nilfilter",
+			filters:    nil,
+			returnData: testutil.GetRepoError[[]*models.PlayerInfo](messages.FiltersNotNil),
 		},
 		{
-			name:          "allfilters",
-			filters:       filters.NewPlayerSearchFilter(filters.PlayerSearchParams{Name: "Fa", Tag: "T1", Region: "kr1"}),
-			returnData:    getPlayerSearchExpectedResult(t, "allfilters"),
-			expectedError: nil,
+			name:       "allfilters",
+			filters:    filters.NewPlayerSearchFilter(filters.PlayerSearchParams{Name: "Fa", Tag: "T1", Region: "kr1"}),
+			returnData: testutil.ToRepoGetData([]*models.PlayerInfo{seeded["faker"], seeded["fafafa"]}),
 		},
 		{
-			name:          "dbconnectionerr",
-			filters:       filters.NewPlayerSearchFilter(filters.PlayerSearchParams{Name: "test", Tag: "br1", Region: "br1"}),
-			returnData:    nil,
-			expectedError: errors.New("sql: database is closed"),
+			name:       "dbconnectionerr",
+			filters:    filters.NewPlayerSearchFilter(filters.PlayerSearchParams{Name: "test", Tag: "br1", Region: "br1"}),
+			returnData: testutil.GetRepoError[[]*models.PlayerInfo]("sql: database is closed"),
 			setupFunc: func(db *gorm.DB) {
 				sqlDB, _ := db.DB()
 				sqlDB.Close()
@@ -66,14 +61,96 @@ func TestSearchPlayer(t *testing.T) {
 
 		result, err := repository.SearchPlayer(context.Background(), tt.filters)
 
-		if tt.expectedError != nil {
+		if tt.returnData.Err != nil {
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), tt.expectedError.Error())
+			assert.Contains(t, err.Error(), tt.returnData.Err.Error())
 			assert.Nil(t, result)
 			continue
 		}
 
-		assert.Equal(t, tt.returnData, result)
+		var expected []*models.PlayerInfo
+		for _, player := range tt.returnData.Data {
+			expected = append(expected, buildPartialPlayer(player))
+		}
+
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, expected, result)
+	}
+}
+
+func TestGetPlayerByNameTagRegion(t *testing.T) {
+	db, cleanup := testutil.NewTestConnection(t)
+	defer cleanup()
+
+	repository := NewPlayerRepository(db)
+
+	seeded := seedPlayerTestData(t, db)
+
+	type playerData struct {
+		gameName string
+		tagLine  string
+		region   string
+	}
+
+	tests := []struct {
+		name       string
+		player     *playerData
+		returnData *testutil.RepoGetData[*models.PlayerInfo]
+		setupFunc  func(db *gorm.DB)
+	}{
+		{
+			name: "existentplayer",
+			player: &playerData{
+				gameName: "Faker",
+				tagLine:  "T1",
+				region:   "KR1",
+			},
+			returnData: testutil.ToRepoGetData(seeded["faker"]),
+		},
+		{
+			name: "nonexistentplayer",
+			player: &playerData{
+				gameName: "Goku",
+				tagLine:  "GEN",
+				region:   "KR1",
+			},
+			returnData: testutil.GetRepoError[*models.PlayerInfo]("player not found"),
+		},
+		{
+			name:       "dbconnectionerr",
+			returnData: testutil.GetRepoError[*models.PlayerInfo]("sql: database is closed"),
+			player: &playerData{
+				gameName: "Faker",
+				tagLine:  "T1",
+				region:   "KR1",
+			},
+			setupFunc: func(db *gorm.DB) {
+				sqlDB, _ := db.DB()
+				sqlDB.Close()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		if tt.setupFunc != nil {
+			tt.setupFunc(db)
+			sqlDb, _ := db.DB()
+			defer sqlDb.Conn(context.Background())
+		}
+
+		result, err := repository.GetPlayerByNameTagRegion(context.Background(), tt.player.gameName, tt.player.tagLine, tt.player.region)
+
+		if tt.returnData.Err != nil {
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.returnData.Err.Error())
+			assert.Nil(t, result)
+			continue
+		}
+
+		// Normalize timestamp to match seeding.
+		normalizePlayerTimes([]*models.PlayerInfo{tt.returnData.Data, result})
+
+		assert.Equal(t, tt.returnData.Data, result)
 	}
 }
 
@@ -83,32 +160,28 @@ func TestGetPlayerById(t *testing.T) {
 
 	repository := NewPlayerRepository(db)
 
-	seedPlayerTestData(t, db)
+	seeded := seedPlayerTestData(t, db)
 
 	tests := []struct {
-		name          string
-		playerId      uint
-		returnData    *models.PlayerInfo
-		expectedError error
-		setupFunc     func(db *gorm.DB)
+		name       string
+		playerId   uint
+		returnData *testutil.RepoGetData[*models.PlayerInfo]
+		setupFunc  func(db *gorm.DB)
 	}{
 		{
-			name:          "existentplayer",
-			playerId:      12,
-			returnData:    getPlayerByIdExpectedResult(t, "existentplayer"),
-			expectedError: nil,
+			name:       "existentplayer",
+			playerId:   12,
+			returnData: testutil.ToRepoGetData(seeded["fafafa"]),
 		},
 		{
-			name:          "nonexistentplayer",
-			playerId:      20,
-			returnData:    nil,
-			expectedError: fmt.Errorf("couldn't get the player by the ID: record not found"),
+			name:       "nonexistentplayer",
+			playerId:   20,
+			returnData: testutil.GetRepoError[*models.PlayerInfo]("couldn't get the player by the ID: record not found"),
 		},
 		{
-			name:          "dbconnectionerr",
-			playerId:      1,
-			returnData:    nil,
-			expectedError: errors.New("sql: database is closed"),
+			name:       "dbconnectionerr",
+			playerId:   1,
+			returnData: testutil.GetRepoError[*models.PlayerInfo]("sql: database is closed"),
 			setupFunc: func(db *gorm.DB) {
 				sqlDB, _ := db.DB()
 				sqlDB.Close()
@@ -125,16 +198,16 @@ func TestGetPlayerById(t *testing.T) {
 
 		result, err := repository.GetPlayerById(context.Background(), tt.playerId)
 
-		if tt.expectedError != nil {
+		if tt.returnData.Err != nil {
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), tt.expectedError.Error())
+			assert.Contains(t, err.Error(), tt.returnData.Err.Error())
 			assert.Nil(t, result)
 			continue
 		}
 
 		// Normalize timestamp to match seeding.
-		normalizePlayerTimes([]*models.PlayerInfo{result})
+		normalizePlayerTimes([]*models.PlayerInfo{tt.returnData.Data, result})
 
-		assert.Equal(t, tt.returnData, result)
+		assert.Equal(t, tt.returnData.Data, result)
 	}
 }

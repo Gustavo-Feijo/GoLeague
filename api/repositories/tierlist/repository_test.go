@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"context"
-	"errors"
 	"goleague/api/filters"
 	"goleague/internal/testutil"
 	"testing"
@@ -24,35 +23,30 @@ func TestGetTierlist(t *testing.T) {
 
 	seedTestData(t, db)
 	tests := []struct {
-		name          string
-		filters       *filters.TierlistFilter
-		returnData    []*TierlistResult
-		expectedError error
-		setupFunc     func(db *gorm.DB)
+		name       string
+		filters    *filters.TierlistFilter
+		returnData *testutil.RepoGetData[[]*TierlistResult]
+		setupFunc  func(db *gorm.DB)
 	}{
 		{
-			name:          "nofilters",
-			filters:       filters.NewTierlistFilter(filters.TierlistQueryParams{}),
-			expectedError: nil,
-			returnData:    getTierlistExpectedResult(t, "nofilters"),
+			name:       "nofilters",
+			filters:    filters.NewTierlistFilter(filters.TierlistQueryParams{}),
+			returnData: testutil.ToRepoGetData(getTierlistExpectedResult(t, "nofilters")),
 		},
 		{
-			name:          "allgold",
-			filters:       filters.NewTierlistFilter(filters.TierlistQueryParams{Queue: 420, Tier: "GOLD", Rank: "I", AboveTier: false}),
-			expectedError: nil,
-			returnData:    getTierlistExpectedResult(t, "allgold"),
+			name:       "allgold",
+			filters:    filters.NewTierlistFilter(filters.TierlistQueryParams{Queue: 420, Tier: "GOLD", Rank: "I", AboveTier: false}),
+			returnData: testutil.ToRepoGetData(getTierlistExpectedResult(t, "allgold")),
 		},
 		{
-			name:          "allabovegold",
-			filters:       filters.NewTierlistFilter(filters.TierlistQueryParams{Queue: 420, Tier: "GOLD", Rank: "I", AboveTier: true}),
-			expectedError: nil,
-			returnData:    getTierlistExpectedResult(t, "allabovegold"),
+			name:       "allabovegold",
+			filters:    filters.NewTierlistFilter(filters.TierlistQueryParams{Queue: 420, Tier: "GOLD", Rank: "I", AboveTier: true}),
+			returnData: testutil.ToRepoGetData(getTierlistExpectedResult(t, "allabovegold")),
 		},
 		{
-			name:          "dbconnectionerr",
-			filters:       filters.NewTierlistFilter(filters.TierlistQueryParams{}),
-			returnData:    nil,
-			expectedError: errors.New("sql: database is closed"),
+			name:       "dbconnectionerr",
+			filters:    filters.NewTierlistFilter(filters.TierlistQueryParams{}),
+			returnData: testutil.GetRepoError[[]*TierlistResult]("sql: database is closed"),
 			setupFunc: func(db *gorm.DB) {
 				sqlDB, _ := db.DB()
 				sqlDB.Close()
@@ -68,13 +62,13 @@ func TestGetTierlist(t *testing.T) {
 
 		result, err := repository.GetTierlist(context.Background(), tt.filters)
 
-		if tt.expectedError != nil {
+		if tt.returnData.Err != nil {
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), tt.expectedError.Error())
+			assert.Contains(t, err.Error(), tt.returnData.Err.Error())
 			assert.Nil(t, result)
 			continue
 		}
 
-		assert.Equal(t, tt.returnData, result)
+		assert.Equal(t, tt.returnData.Data, result)
 	}
 }

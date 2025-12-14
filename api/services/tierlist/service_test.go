@@ -35,52 +35,52 @@ func TestGetTierlist(t *testing.T) {
 
 	tests := []struct {
 		name                 string
-		returnData           []*dto.TierlistResult
+		expectedResult       []*dto.TierlistResult
 		testStrategy         string
 		filters              *filters.TierlistFilter
-		repositoryReturnData *RepoGetTierlist
+		repositoryReturnData *testutil.RepoGetData[[]*tierlistrepo.TierlistResult]
 		expectedError        error
 	}{
 		{
-			name:         "fromMemCache",
-			returnData:   createExpectedSuccessFullTierlist(),
-			testStrategy: "memcache",
-			filters:      &filters.TierlistFilter{Queue: 420, NumericTier: 1},
+			name:           "fromMemCache",
+			expectedResult: createExpectedSuccessFullTierlist(),
+			testStrategy:   "memcache",
+			filters:        &filters.TierlistFilter{Queue: 420, NumericTier: 1},
 		},
 		{
-			name:         "fromRedis",
-			returnData:   createExpectedSuccessFullTierlist(),
-			testStrategy: "redis",
-			filters:      &filters.TierlistFilter{Queue: 420, NumericTier: 1},
+			name:           "fromRedis",
+			expectedResult: createExpectedSuccessFullTierlist(),
+			testStrategy:   "redis",
+			filters:        &filters.TierlistFilter{Queue: 420, NumericTier: 1},
 		},
 		{
-			name:         "fromRepo",
-			returnData:   createExpectedSuccessFullTierlist(),
-			testStrategy: "nocache",
-			filters:      &filters.TierlistFilter{Queue: 420, NumericTier: 1},
-			repositoryReturnData: &RepoGetTierlist{
-				data: createSuccessRepoTierlist(),
-				err:  nil,
+			name:           "fromRepo",
+			expectedResult: createExpectedSuccessFullTierlist(),
+			testStrategy:   "nocache",
+			filters:        &filters.TierlistFilter{Queue: 420, NumericTier: 1},
+			repositoryReturnData: &testutil.RepoGetData[[]*tierlistrepo.TierlistResult]{
+				Data: createSuccessRepoTierlist(),
+				Err:  nil,
 			},
 		},
 		{
-			name:         "fromRepoEmpty",
-			returnData:   []*dto.TierlistResult{},
-			testStrategy: "nocache",
-			filters:      &filters.TierlistFilter{Queue: 420, NumericTier: 1},
-			repositoryReturnData: &RepoGetTierlist{
-				data: []*tierlistrepo.TierlistResult{},
-				err:  nil,
+			name:           "fromRepoEmpty",
+			expectedResult: []*dto.TierlistResult{},
+			testStrategy:   "nocache",
+			filters:        &filters.TierlistFilter{Queue: 420, NumericTier: 1},
+			repositoryReturnData: &testutil.RepoGetData[[]*tierlistrepo.TierlistResult]{
+				Data: []*tierlistrepo.TierlistResult{},
+				Err:  nil,
 			},
 		},
 		{
-			name:         "fromRepoErr",
-			returnData:   nil,
-			testStrategy: "nocache",
-			filters:      &filters.TierlistFilter{Queue: 420, NumericTier: 1},
-			repositoryReturnData: &RepoGetTierlist{
-				data: nil,
-				err:  errors.New(testutil.DatabaseError),
+			name:           "fromRepoErr",
+			expectedResult: nil,
+			testStrategy:   "nocache",
+			filters:        &filters.TierlistFilter{Queue: 420, NumericTier: 1},
+			repositoryReturnData: &testutil.RepoGetData[[]*tierlistrepo.TierlistResult]{
+				Data: nil,
+				Err:  errors.New(testutil.DatabaseError),
 			},
 			expectedError: errors.New(testutil.DatabaseError),
 		},
@@ -93,20 +93,20 @@ func TestGetTierlist(t *testing.T) {
 			key := service.getTierlistKey(tt.filters)
 
 			setupMocks(mockSetup{
-				err:        tt.expectedError,
-				filters:    tt.filters,
-				key:        key,
-				memCache:   mockMemCache,
-				redis:      mockRedis,
-				repo:       mockTierlistRepository,
-				repoData:   tt.repositoryReturnData,
-				returnData: tt.returnData,
-				strategy:   tt.testStrategy,
+				err:            tt.expectedError,
+				filters:        tt.filters,
+				key:            key,
+				memCache:       mockMemCache,
+				redis:          mockRedis,
+				repo:           mockTierlistRepository,
+				repoData:       tt.repositoryReturnData,
+				expectedResult: tt.expectedResult,
+				strategy:       tt.testStrategy,
 			})
 
 			result, err := service.GetTierlist(context.Background(), tt.filters)
 
-			assertTierlistResult(t, result, err, tt.returnData, tt.expectedError)
+			assertTierlistResult(t, result, err, tt.expectedResult, tt.expectedError)
 
 			servicetestutil.VerifyAllMocks(t, mockMemCache, mockRedis, mockTierlistRepository)
 		})
