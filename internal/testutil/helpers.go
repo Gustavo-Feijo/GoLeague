@@ -6,26 +6,26 @@ import (
 
 const DatabaseError = "database error occurred"
 
-type RepoGetData[T any] struct {
+type OperationRestult[T any] struct {
 	Data T
 	Err  error
 }
 
 // Return a generic typed error return for a Database call.
-func GetMockRepoError[T any]() *RepoGetData[T] {
-	return GetRepoError[T](DatabaseError)
+func GetMockRepoError[T any]() *OperationRestult[T] {
+	return NewErrorResult[T](DatabaseError)
 }
 
-func GetRepoError[T any](err string) *RepoGetData[T] {
-	return &RepoGetData[T]{
+func NewErrorResult[T any](err string) *OperationRestult[T] {
+	return &OperationRestult[T]{
 		Data: *new(T),
 		Err:  errors.New(err),
 	}
 }
 
-// Wrap a generic Data into a RepoGetData struct.
-func ToRepoGetData[T any](Data T) *RepoGetData[T] {
-	return &RepoGetData[T]{
+// Wrap a generic Data into a OperationRestult struct.
+func NewSuccessResult[T any](Data T) *OperationRestult[T] {
+	return &OperationRestult[T]{
 		Data: Data,
 		Err:  nil,
 	}

@@ -2,7 +2,6 @@ package playerservice
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -10,6 +9,7 @@ import (
 	"goleague/api/filters"
 	matchrepo "goleague/api/repositories/match"
 	playerrepo "goleague/api/repositories/player"
+	"goleague/internal/testutil"
 	"goleague/pkg/database/models"
 	"goleague/pkg/messages"
 
@@ -83,15 +83,14 @@ func TestGetPlayerSearch(t *testing.T) {
 	tests := []struct {
 		name           string
 		filter         *filters.PlayerSearchFilter
-		repoResponse   []*models.PlayerInfo
-		repoError      error
+		repoResponse   *testutil.OperationRestult[[]*models.PlayerInfo]
 		expectedResult []*dto.PlayerSearch
 		expectedError  string
 	}{
 		{
 			name:   "successful search",
 			filter: &filters.PlayerSearchFilter{},
-			repoResponse: []*models.PlayerInfo{
+			repoResponse: testutil.NewSuccessResult([]*models.PlayerInfo{
 				{
 					ID:             1,
 					RiotIdGameName: "TestPlayer",
@@ -101,8 +100,7 @@ func TestGetPlayerSearch(t *testing.T) {
 					SummonerLevel:  100,
 					RiotIdTagline:  "TAG1",
 				},
-			},
-			repoError: nil,
+			}),
 			expectedResult: []*dto.PlayerSearch{
 				{
 					Id:            1,
@@ -119,8 +117,7 @@ func TestGetPlayerSearch(t *testing.T) {
 		{
 			name:           "repository error",
 			filter:         &filters.PlayerSearchFilter{},
-			repoResponse:   nil,
-			repoError:      errors.New("database error"),
+			repoResponse:   testutil.NewErrorResult[[]*models.PlayerInfo]("database error"),
 			expectedResult: nil,
 			expectedError:  "database error",
 		},
@@ -128,7 +125,7 @@ func TestGetPlayerSearch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockPlayerRepo.On("SearchPlayer", mock.Anything, tt.filter).Return(tt.repoResponse, tt.repoError).Once()
+			mockPlayerRepo.On("SearchPlayer", mock.Anything, tt.filter).Return(tt.repoResponse.Data, tt.repoResponse.Err).Once()
 
 			result, err := service.GetPlayerSearch(context.Background(), tt.filter)
 
@@ -151,18 +148,14 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 	service, mockPlayerRepo, mockMatchRepo, mockMatchCache, _, _ := setupTestService()
 
 	tests := []struct {
-		name             string
-		filter           *filters.PlayerMatchHistoryFilter
-		playerInfo       *models.PlayerInfo
-		playerInfoError  error
-		matchIds         []uint
-		matchIdsError    error
-		cachedMatches    []dto.MatchPreview
-		missingMatches   []uint
-		cacheError       error
-		rawPreviews      []matchrepo.RawMatchPreview
-		rawPreviewsError error
-		expectedError    string
+		name           string
+		filter         *filters.PlayerMatchHistoryFilter
+		playerInfo     *testutil.OperationRestult[*models.PlayerInfo]
+		matchIds       *testutil.OperationRestult[[]uint]
+		cachedMatches  *testutil.OperationRestult[[]dto.MatchPreview]
+		missingMatches []uint
+		rawPreviews    *testutil.OperationRestult[[]matchrepo.RawMatchPreview]
+		expectedError  string
 	}{
 		{
 			name: "successful with all matches cached",
@@ -171,20 +164,18 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      &models.PlayerInfo{ID: 1},
-			playerInfoError: nil,
-			matchIds:        []uint{1, 2},
-			matchIdsError:   nil,
-			cachedMatches: []dto.MatchPreview{
+			playerInfo: testutil.NewSuccessResult(&models.PlayerInfo{ID: 1}),
+			matchIds:   testutil.NewSuccessResult([]uint{1, 2}),
+			cachedMatches: testutil.NewSuccessResult([]dto.MatchPreview{
 				{
 					Metadata: &dto.MatchPreviewMetadata{MatchId: "match1"},
 				},
 				{
 					Metadata: &dto.MatchPreviewMetadata{MatchId: "match2"},
 				},
-			},
+			}),
+			rawPreviews:    testutil.NewSuccessResult([]matchrepo.RawMatchPreview{}),
 			missingMatches: []uint{},
-			cacheError:     nil,
 			expectedError:  "",
 		},
 		{
@@ -194,9 +185,8 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      nil,
-			playerInfoError: gorm.ErrRecordNotFound,
-			expectedError:   fmt.Sprintf(messages.CouldNotFindId, "player"),
+			playerInfo:    testutil.NewErrorResult[*models.PlayerInfo](gorm.ErrRecordNotFound.Error()),
+			expectedError: fmt.Sprintf(messages.CouldNotFindId, "player"),
 		},
 		{
 			name: "no matches found",
@@ -205,11 +195,9 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      &models.PlayerInfo{ID: 1},
-			playerInfoError: nil,
-			matchIds:        []uint{},
-			matchIdsError:   nil,
-			expectedError:   "",
+			playerInfo:    testutil.NewSuccessResult(&models.PlayerInfo{ID: 1}),
+			matchIds:      testutil.NewSuccessResult([]uint{}),
+			expectedError: "",
 		},
 		{
 			name: "couldn't get matches",
@@ -218,11 +206,9 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      &models.PlayerInfo{ID: 1},
-			playerInfoError: nil,
-			matchIds:        []uint{},
-			matchIdsError:   gorm.ErrInvalidData,
-			expectedError:   "unsupported data",
+			playerInfo:    testutil.NewSuccessResult(&models.PlayerInfo{ID: 1}),
+			matchIds:      testutil.NewErrorResult[[]uint](gorm.ErrInvalidData.Error()),
+			expectedError: "unsupported data",
 		},
 		{
 			name: "match previews error",
@@ -231,20 +217,16 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      &models.PlayerInfo{ID: 1},
-			playerInfoError: nil,
-			matchIds:        []uint{1, 2},
-			matchIdsError:   nil,
-			cachedMatches: []dto.MatchPreview{
+			playerInfo: testutil.NewSuccessResult(&models.PlayerInfo{ID: 1}),
+			matchIds:   testutil.NewSuccessResult([]uint{1, 2}),
+			cachedMatches: testutil.NewSuccessResult([]dto.MatchPreview{
 				{
 					Metadata: &dto.MatchPreviewMetadata{MatchId: "match1"},
 				},
-			},
-			missingMatches:   []uint{2},
-			cacheError:       nil,
-			expectedError:    "couldn't get the match history",
-			rawPreviews:      nil,
-			rawPreviewsError: errors.New("error"),
+			}),
+			missingMatches: []uint{2},
+			expectedError:  "couldn't get the match history",
+			rawPreviews:    testutil.NewErrorResult[[]matchrepo.RawMatchPreview]("error"),
 		},
 		{
 			name: "cached match previews error",
@@ -253,46 +235,42 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:       &models.PlayerInfo{ID: 1},
-			playerInfoError:  nil,
-			matchIds:         []uint{1, 2},
-			matchIdsError:    nil,
-			cachedMatches:    nil,
-			missingMatches:   []uint{1, 2},
-			cacheError:       errors.New("cache error"),
-			expectedError:    "",
-			rawPreviews:      nil,
-			rawPreviewsError: nil,
+			playerInfo:     testutil.NewSuccessResult(&models.PlayerInfo{ID: 1}),
+			matchIds:       testutil.NewSuccessResult([]uint{1, 2}),
+			cachedMatches:  testutil.NewErrorResult[[]dto.MatchPreview]("cache error"),
+			missingMatches: []uint{1, 2},
+			expectedError:  "",
+			rawPreviews:    testutil.NewSuccessResult([]matchrepo.RawMatchPreview{}),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPlayerRepo.On("GetPlayerByNameTagRegion", mock.Anything, tt.filter.GameName, tt.filter.GameTag, tt.filter.Region).
-				Return(tt.playerInfo, tt.playerInfoError).Once()
+				Return(tt.playerInfo.Data, tt.playerInfo.Err).Once()
 
-			if tt.playerInfoError == nil {
+			if tt.playerInfo.Err == nil {
 				expectedFilter := &filters.PlayerMatchHistoryFilter{
 					GameName: tt.filter.GameName,
 					GameTag:  tt.filter.GameTag,
 					Region:   tt.filter.Region,
-					PlayerId: &tt.playerInfo.ID,
+					PlayerId: &tt.playerInfo.Data.ID,
 				}
 				mockPlayerRepo.On("GetPlayerMatchHistoryIds", mock.Anything, expectedFilter).
-					Return(tt.matchIds, tt.matchIdsError).Once()
+					Return(tt.matchIds.Data, tt.matchIds.Err).Once()
 
-				if len(tt.matchIds) > 0 {
-					mockMatchCache.On("GetMatchesPreviewByMatchIds", mock.Anything, tt.matchIds).
-						Return(tt.cachedMatches, tt.missingMatches, tt.cacheError).Once()
+				if len(tt.matchIds.Data) > 0 {
+					mockMatchCache.On("GetMatchesPreviewByMatchIds", mock.Anything, tt.matchIds.Data).
+						Return(tt.cachedMatches.Data, tt.missingMatches, tt.cachedMatches.Err).Once()
 
 					// Cache failed, need to presume all matches are missing on cache.
-					if tt.cacheError != nil {
-						assert.Equal(t, len(tt.missingMatches), len(tt.matchIds))
+					if tt.cachedMatches.Err != nil {
+						assert.Equal(t, len(tt.missingMatches), len(tt.matchIds.Data))
 					}
 
 					if len(tt.missingMatches) > 0 {
 						mockMatchRepo.On("GetMatchPreviewsByInternalIds", mock.Anything, tt.missingMatches).
-							Return(tt.rawPreviews, tt.rawPreviewsError).Once()
+							Return(tt.rawPreviews.Data, tt.rawPreviews.Err).Once()
 					}
 				}
 			}
@@ -304,7 +282,7 @@ func TestGetPlayerMatchHistory(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				if len(tt.matchIds) == 0 {
+				if len(tt.matchIds.Data) == 0 {
 					assert.Nil(t, result)
 				} else {
 					assert.NotNil(t, result)
@@ -323,13 +301,11 @@ func TestGetPlayerInfo(t *testing.T) {
 	service, mockPlayerRepo, _, _, _, _ := setupTestService()
 
 	tests := []struct {
-		name            string
-		filter          *filters.PlayerInfoFilter
-		playerInfo      *models.PlayerInfo
-		playerInfoError error
-		playerRatings   []models.RatingEntry
-		ratingsError    error
-		expectedError   string
+		name          string
+		filter        *filters.PlayerInfoFilter
+		playerInfo    *testutil.OperationRestult[*models.PlayerInfo]
+		playerRatings *testutil.OperationRestult[[]models.RatingEntry]
+		expectedError string
 	}{
 		{
 			name: "successful player info retrieval",
@@ -338,17 +314,17 @@ func TestGetPlayerInfo(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo: &models.PlayerInfo{
-				ID:             1,
-				RiotIdGameName: "TestPlayer",
-				ProfileIcon:    123,
-				Puuid:          "test-puuid-get-info1",
-				Region:         "NA1",
-				SummonerLevel:  100,
-				RiotIdTagline:  "TAG1",
-			},
-			playerInfoError: nil,
-			playerRatings: []models.RatingEntry{
+			playerInfo: testutil.NewSuccessResult(
+				&models.PlayerInfo{
+					ID:             1,
+					RiotIdGameName: "TestPlayer",
+					ProfileIcon:    123,
+					Puuid:          "test-puuid-get-info1",
+					Region:         "NA1",
+					SummonerLevel:  100,
+					RiotIdTagline:  "TAG1",
+				}),
+			playerRatings: testutil.NewSuccessResult([]models.RatingEntry{
 				{
 					LeaguePoints: 1000,
 					Losses:       10,
@@ -358,8 +334,7 @@ func TestGetPlayerInfo(t *testing.T) {
 					Tier:         "GOLD",
 					Wins:         20,
 				},
-			},
-			ratingsError:  nil,
+			}),
 			expectedError: "",
 		},
 		{
@@ -369,9 +344,8 @@ func TestGetPlayerInfo(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      nil,
-			playerInfoError: gorm.ErrInvalidDB,
-			expectedError:   fmt.Sprintf(messages.CouldNotFindId, "player"),
+			playerInfo:    testutil.NewErrorResult[*models.PlayerInfo](gorm.ErrInvalidDB.Error()),
+			expectedError: fmt.Sprintf(messages.CouldNotFindId, "player"),
 		},
 		{
 			name: "player info error",
@@ -380,9 +354,8 @@ func TestGetPlayerInfo(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      nil,
-			playerInfoError: gorm.ErrInvalidDB,
-			expectedError:   "invalid db",
+			playerInfo:    testutil.NewErrorResult[*models.PlayerInfo](gorm.ErrInvalidDB.Error()),
+			expectedError: "invalid db",
 		},
 		{
 			name: "player rating error",
@@ -391,7 +364,7 @@ func TestGetPlayerInfo(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo: &models.PlayerInfo{
+			playerInfo: testutil.NewSuccessResult(&models.PlayerInfo{
 				ID:             1,
 				RiotIdGameName: "TestPlayer",
 				ProfileIcon:    123,
@@ -399,22 +372,20 @@ func TestGetPlayerInfo(t *testing.T) {
 				Region:         "NA1",
 				SummonerLevel:  100,
 				RiotIdTagline:  "TAG1",
-			},
-			playerInfoError: nil,
-			playerRatings:   nil,
-			ratingsError:    gorm.ErrInvalidDB,
-			expectedError:   "invalid db",
+			}),
+			playerRatings: testutil.NewErrorResult[[]models.RatingEntry](gorm.ErrInvalidDB.Error()),
+			expectedError: "invalid db",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPlayerRepo.On("GetPlayerByNameTagRegion", mock.Anything, tt.filter.GameName, tt.filter.GameTag, tt.filter.Region).
-				Return(tt.playerInfo, tt.playerInfoError).Once()
+				Return(tt.playerInfo.Data, tt.playerInfo.Err).Once()
 
-			if tt.playerInfoError == nil {
-				mockPlayerRepo.On("GetPlayerRatingsById", mock.Anything, tt.playerInfo.ID).
-					Return(tt.playerRatings, tt.ratingsError).Once()
+			if tt.playerInfo.Err == nil {
+				mockPlayerRepo.On("GetPlayerRatingsById", mock.Anything, tt.playerInfo.Data.ID).
+					Return(tt.playerRatings.Data, tt.playerRatings.Err).Once()
 			}
 
 			result, err := service.GetPlayerInfo(context.Background(), tt.filter)
@@ -426,9 +397,9 @@ func TestGetPlayerInfo(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
-				assert.Equal(t, tt.playerInfo.ID, result.Id)
-				assert.Equal(t, tt.playerInfo.RiotIdGameName, result.Name)
-				assert.Equal(t, len(tt.playerRatings), len(result.Rating))
+				assert.Equal(t, tt.playerInfo.Data.ID, result.Id)
+				assert.Equal(t, tt.playerInfo.Data.RiotIdGameName, result.Name)
+				assert.Equal(t, len(tt.playerRatings.Data), len(result.Rating))
 			}
 
 			mockPlayerRepo.AssertExpectations(t)
@@ -441,13 +412,11 @@ func TestGetPlayerStats(t *testing.T) {
 	service, mockPlayerRepo, _, _, _, _ := setupTestService()
 
 	tests := []struct {
-		name            string
-		filter          *filters.PlayerStatsFilter
-		playerInfo      *models.PlayerInfo
-		playerInfoError error
-		playerStats     []playerrepo.RawPlayerStatsStruct
-		statsError      error
-		expectedError   string
+		name          string
+		filter        *filters.PlayerStatsFilter
+		playerInfo    *testutil.OperationRestult[*models.PlayerInfo]
+		playerStats   *testutil.OperationRestult[[]playerrepo.RawPlayerStatsStruct]
+		expectedError string
 	}{
 		{
 			name: "successful player stats retrieval",
@@ -456,9 +425,8 @@ func TestGetPlayerStats(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      &models.PlayerInfo{ID: 1},
-			playerInfoError: nil,
-			playerStats: []playerrepo.RawPlayerStatsStruct{
+			playerInfo: testutil.NewSuccessResult(&models.PlayerInfo{ID: 1}),
+			playerStats: testutil.NewSuccessResult([]playerrepo.RawPlayerStatsStruct{
 				{
 					ChampionId:       1,
 					TeamPosition:     "ADC",
@@ -472,8 +440,7 @@ func TestGetPlayerStats(t *testing.T) {
 					Matches:          10,
 					WinRate:          65.0,
 				},
-			},
-			statsError:    nil,
+			}),
 			expectedError: "",
 		},
 		{
@@ -483,9 +450,8 @@ func TestGetPlayerStats(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      &models.PlayerInfo{ID: 1},
-			playerInfoError: nil,
-			playerStats: []playerrepo.RawPlayerStatsStruct{
+			playerInfo: testutil.NewSuccessResult(&models.PlayerInfo{ID: 1}),
+			playerStats: testutil.NewSuccessResult([]playerrepo.RawPlayerStatsStruct{
 				{
 					ChampionId:       400,
 					TeamPosition:     "MIDDLE",
@@ -499,8 +465,7 @@ func TestGetPlayerStats(t *testing.T) {
 					Matches:          10,
 					WinRate:          65.0,
 				},
-			},
-			statsError:    nil,
+			}),
 			expectedError: "",
 		},
 		{
@@ -510,9 +475,8 @@ func TestGetPlayerStats(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      &models.PlayerInfo{ID: 1},
-			playerInfoError: nil,
-			playerStats: []playerrepo.RawPlayerStatsStruct{
+			playerInfo: testutil.NewSuccessResult(&models.PlayerInfo{ID: 1}),
+			playerStats: testutil.NewSuccessResult([]playerrepo.RawPlayerStatsStruct{
 				{
 					ChampionId:       -1,
 					TeamPosition:     "ALL",
@@ -526,8 +490,7 @@ func TestGetPlayerStats(t *testing.T) {
 					Matches:          10,
 					WinRate:          65.0,
 				},
-			},
-			statsError:    nil,
+			}),
 			expectedError: "",
 		},
 		{
@@ -537,9 +500,8 @@ func TestGetPlayerStats(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      nil,
-			playerInfoError: gorm.ErrInvalidDB,
-			expectedError:   fmt.Sprintf(messages.CouldNotFindId, "player"),
+			playerInfo:    testutil.NewErrorResult[*models.PlayerInfo](gorm.ErrInvalidDB.Error()),
+			expectedError: fmt.Sprintf(messages.CouldNotFindId, "player"),
 		},
 		{
 			name: "stats error",
@@ -548,8 +510,8 @@ func TestGetPlayerStats(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:    &models.PlayerInfo{ID: 1},
-			statsError:    gorm.ErrInvalidDB,
+			playerInfo:    testutil.NewSuccessResult(&models.PlayerInfo{ID: 1}),
+			playerStats:   testutil.NewErrorResult[[]playerrepo.RawPlayerStatsStruct](gorm.ErrInvalidDB.Error()),
 			expectedError: "couldn't get the player stats",
 		},
 		{
@@ -559,28 +521,26 @@ func TestGetPlayerStats(t *testing.T) {
 				GameTag:  "TAG1",
 				Region:   "NA1",
 			},
-			playerInfo:      &models.PlayerInfo{ID: 1},
-			playerInfoError: nil,
-			playerStats:     []playerrepo.RawPlayerStatsStruct{},
-			statsError:      nil,
-			expectedError:   "",
+			playerInfo:    testutil.NewSuccessResult(&models.PlayerInfo{ID: 1}),
+			playerStats:   testutil.NewSuccessResult([]playerrepo.RawPlayerStatsStruct{}),
+			expectedError: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPlayerRepo.On("GetPlayerByNameTagRegion", mock.Anything, tt.filter.GameName, tt.filter.GameTag, tt.filter.Region).
-				Return(tt.playerInfo, tt.playerInfoError).Once()
+				Return(tt.playerInfo.Data, tt.playerInfo.Err).Once()
 
-			if tt.playerInfoError == nil {
+			if tt.playerInfo.Err == nil {
 				expectedFilter := &filters.PlayerStatsFilter{
 					GameName: tt.filter.GameName,
 					GameTag:  tt.filter.GameTag,
 					Region:   tt.filter.Region,
-					PlayerId: &tt.playerInfo.ID,
+					PlayerId: &tt.playerInfo.Data.ID,
 				}
 				mockPlayerRepo.On("GetPlayerStats", mock.Anything, expectedFilter).
-					Return(tt.playerStats, tt.statsError).Once()
+					Return(tt.playerStats.Data, tt.playerStats.Err).Once()
 			}
 
 			result, err := service.GetPlayerStats(context.Background(), tt.filter)
@@ -590,7 +550,7 @@ func TestGetPlayerStats(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				if len(tt.playerStats) == 0 {
+				if len(tt.playerStats.Data) == 0 {
 					assert.Nil(t, result)
 				} else {
 					assert.NotNil(t, result)

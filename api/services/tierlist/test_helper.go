@@ -24,7 +24,7 @@ type mockSetup struct {
 	redis    *servicetestutil.MockTierlistRedisClient
 	repo     *servicetestutil.MockTierlistRepository
 
-	repoData *testutil.RepoGetData[[]*tierlistrepo.TierlistResult]
+	repoData *testutil.OperationRestult[[]*tierlistrepo.TierlistResult]
 
 	expectedResult []*dto.TierlistResult
 	err            error

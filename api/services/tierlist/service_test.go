@@ -38,7 +38,7 @@ func TestGetTierlist(t *testing.T) {
 		expectedResult       []*dto.TierlistResult
 		testStrategy         string
 		filters              *filters.TierlistFilter
-		repositoryReturnData *testutil.RepoGetData[[]*tierlistrepo.TierlistResult]
+		repositoryReturnData *testutil.OperationRestult[[]*tierlistrepo.TierlistResult]
 		expectedError        error
 	}{
 		{
@@ -58,7 +58,7 @@ func TestGetTierlist(t *testing.T) {
 			expectedResult: createExpectedSuccessFullTierlist(),
 			testStrategy:   "nocache",
 			filters:        &filters.TierlistFilter{Queue: 420, NumericTier: 1},
-			repositoryReturnData: &testutil.RepoGetData[[]*tierlistrepo.TierlistResult]{
+			repositoryReturnData: &testutil.OperationRestult[[]*tierlistrepo.TierlistResult]{
 				Data: createSuccessRepoTierlist(),
 				Err:  nil,
 			},
@@ -68,7 +68,7 @@ func TestGetTierlist(t *testing.T) {
 			expectedResult: []*dto.TierlistResult{},
 			testStrategy:   "nocache",
 			filters:        &filters.TierlistFilter{Queue: 420, NumericTier: 1},
-			repositoryReturnData: &testutil.RepoGetData[[]*tierlistrepo.TierlistResult]{
+			repositoryReturnData: &testutil.OperationRestult[[]*tierlistrepo.TierlistResult]{
 				Data: []*tierlistrepo.TierlistResult{},
 				Err:  nil,
 			},
@@ -78,7 +78,7 @@ func TestGetTierlist(t *testing.T) {
 			expectedResult: nil,
 			testStrategy:   "nocache",
 			filters:        &filters.TierlistFilter{Queue: 420, NumericTier: 1},
-			repositoryReturnData: &testutil.RepoGetData[[]*tierlistrepo.TierlistResult]{
+			repositoryReturnData: &testutil.OperationRestult[[]*tierlistrepo.TierlistResult]{
 				Data: nil,
 				Err:  errors.New(testutil.DatabaseError),
 			},

@@ -28,23 +28,23 @@ func TestSearchPlayer(t *testing.T) {
 	tests := []struct {
 		name       string
 		filters    *filters.PlayerSearchFilter
-		returnData *testutil.RepoGetData[[]*models.PlayerInfo]
+		returnData *testutil.OperationRestult[[]*models.PlayerInfo]
 		setupFunc  func(db *gorm.DB)
 	}{
 		{
 			name:       "nilfilter",
 			filters:    nil,
-			returnData: testutil.GetRepoError[[]*models.PlayerInfo](messages.FiltersNotNil),
+			returnData: testutil.NewErrorResult[[]*models.PlayerInfo](messages.FiltersNotNil),
 		},
 		{
 			name:       "allfilters",
 			filters:    filters.NewPlayerSearchFilter(filters.PlayerSearchParams{Name: "Fa", Tag: "T1", Region: "kr1"}),
-			returnData: testutil.ToRepoGetData([]*models.PlayerInfo{seeded["faker"], seeded["fafafa"]}),
+			returnData: testutil.NewSuccessResult([]*models.PlayerInfo{seeded["faker"], seeded["fafafa"]}),
 		},
 		{
 			name:       "dbconnectionerr",
 			filters:    filters.NewPlayerSearchFilter(filters.PlayerSearchParams{Name: "test", Tag: "br1", Region: "br1"}),
-			returnData: testutil.GetRepoError[[]*models.PlayerInfo]("sql: database is closed"),
+			returnData: testutil.NewErrorResult[[]*models.PlayerInfo]("sql: database is closed"),
 			setupFunc: func(db *gorm.DB) {
 				sqlDB, _ := db.DB()
 				sqlDB.Close()
@@ -95,7 +95,7 @@ func TestGetPlayerByNameTagRegion(t *testing.T) {
 	tests := []struct {
 		name       string
 		player     *playerData
-		returnData *testutil.RepoGetData[*models.PlayerInfo]
+		returnData *testutil.OperationRestult[*models.PlayerInfo]
 		setupFunc  func(db *gorm.DB)
 	}{
 		{
@@ -105,7 +105,7 @@ func TestGetPlayerByNameTagRegion(t *testing.T) {
 				tagLine:  "T1",
 				region:   "KR1",
 			},
-			returnData: testutil.ToRepoGetData(seeded["faker"]),
+			returnData: testutil.NewSuccessResult(seeded["faker"]),
 		},
 		{
 			name: "nonexistentplayer",
@@ -114,11 +114,11 @@ func TestGetPlayerByNameTagRegion(t *testing.T) {
 				tagLine:  "GEN",
 				region:   "KR1",
 			},
-			returnData: testutil.GetRepoError[*models.PlayerInfo]("player not found"),
+			returnData: testutil.NewErrorResult[*models.PlayerInfo]("player not found"),
 		},
 		{
 			name:       "dbconnectionerr",
-			returnData: testutil.GetRepoError[*models.PlayerInfo]("sql: database is closed"),
+			returnData: testutil.NewErrorResult[*models.PlayerInfo]("sql: database is closed"),
 			player: &playerData{
 				gameName: "Faker",
 				tagLine:  "T1",
@@ -165,23 +165,23 @@ func TestGetPlayerById(t *testing.T) {
 	tests := []struct {
 		name       string
 		playerId   uint
-		returnData *testutil.RepoGetData[*models.PlayerInfo]
+		returnData *testutil.OperationRestult[*models.PlayerInfo]
 		setupFunc  func(db *gorm.DB)
 	}{
 		{
 			name:       "existentplayer",
 			playerId:   12,
-			returnData: testutil.ToRepoGetData(seeded["fafafa"]),
+			returnData: testutil.NewSuccessResult(seeded["fafafa"]),
 		},
 		{
 			name:       "nonexistentplayer",
 			playerId:   20,
-			returnData: testutil.GetRepoError[*models.PlayerInfo]("couldn't get the player by the ID: record not found"),
+			returnData: testutil.NewErrorResult[*models.PlayerInfo]("couldn't get the player by the ID: record not found"),
 		},
 		{
 			name:       "dbconnectionerr",
 			playerId:   1,
-			returnData: testutil.GetRepoError[*models.PlayerInfo]("sql: database is closed"),
+			returnData: testutil.NewErrorResult[*models.PlayerInfo]("sql: database is closed"),
 			setupFunc: func(db *gorm.DB) {
 				sqlDB, _ := db.DB()
 				sqlDB.Close()

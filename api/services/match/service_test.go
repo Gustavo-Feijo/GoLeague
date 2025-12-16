@@ -37,10 +37,10 @@ func TestGetFullMatchData(t *testing.T) {
 		returnData *dto.FullMatchData
 		filters    *filters.GetFullMatchDataFilter
 
-		mockMatch    *testutil.RepoGetData[*models.MatchInfo]
-		mockPreviews *testutil.RepoGetData[[]matchrepo.RawMatchPreview]
-		mockFrames   *testutil.RepoGetData[[]matchrepo.RawMatchParticipantFrame]
-		mockEvents   *testutil.RepoGetData[[]models.AllEvents]
+		mockMatch    *testutil.OperationRestult[*models.MatchInfo]
+		mockPreviews *testutil.OperationRestult[[]matchrepo.RawMatchPreview]
+		mockFrames   *testutil.OperationRestult[[]matchrepo.RawMatchParticipantFrame]
+		mockEvents   *testutil.OperationRestult[[]models.AllEvents]
 
 		expectedError error
 	}{
@@ -55,7 +55,7 @@ func TestGetFullMatchData(t *testing.T) {
 			name:          "previewsNotFoundDbError",
 			returnData:    &dto.FullMatchData{},
 			filters:       defaultFilter,
-			mockMatch:     testutil.ToRepoGetData(getMockMatch()),
+			mockMatch:     testutil.NewSuccessResult(getMockMatch()),
 			mockPreviews:  testutil.GetMockRepoError[[]matchrepo.RawMatchPreview](),
 			expectedError: errors.New(testutil.DatabaseError),
 		},
@@ -63,16 +63,16 @@ func TestGetFullMatchData(t *testing.T) {
 			name:          "emptyPreviews",
 			returnData:    &dto.FullMatchData{},
 			filters:       defaultFilter,
-			mockMatch:     testutil.ToRepoGetData(getMockMatch()),
-			mockPreviews:  testutil.ToRepoGetData(getEmptyMockPreviews()),
+			mockMatch:     testutil.NewSuccessResult(getMockMatch()),
+			mockPreviews:  testutil.NewSuccessResult(getEmptyMockPreviews()),
 			expectedError: errors.New(converters.ErrNoPreviews),
 		},
 		{
 			name:          "framesNotFoundDbErr",
 			returnData:    &dto.FullMatchData{},
 			filters:       defaultFilter,
-			mockMatch:     testutil.ToRepoGetData(getMockMatch()),
-			mockPreviews:  testutil.ToRepoGetData(getMockPreviews()),
+			mockMatch:     testutil.NewSuccessResult(getMockMatch()),
+			mockPreviews:  testutil.NewSuccessResult(getMockPreviews()),
 			mockFrames:    testutil.GetMockRepoError[[]matchrepo.RawMatchParticipantFrame](),
 			expectedError: errors.New(testutil.DatabaseError),
 		},
@@ -80,9 +80,9 @@ func TestGetFullMatchData(t *testing.T) {
 			name:          "eventsNotFoundDbErr",
 			returnData:    &dto.FullMatchData{},
 			filters:       defaultFilter,
-			mockMatch:     testutil.ToRepoGetData(getMockMatch()),
-			mockPreviews:  testutil.ToRepoGetData(getMockPreviews()),
-			mockFrames:    testutil.ToRepoGetData(getMockFrames()),
+			mockMatch:     testutil.NewSuccessResult(getMockMatch()),
+			mockPreviews:  testutil.NewSuccessResult(getMockPreviews()),
+			mockFrames:    testutil.NewSuccessResult(getMockFrames()),
 			mockEvents:    testutil.GetMockRepoError[[]models.AllEvents](),
 			expectedError: errors.New(testutil.DatabaseError),
 		},
@@ -90,10 +90,10 @@ func TestGetFullMatchData(t *testing.T) {
 			name:          "everythingFine",
 			returnData:    loadExpectedData[*dto.FullMatchData]("testdata/fullmatch.json"),
 			filters:       defaultFilter,
-			mockMatch:     testutil.ToRepoGetData(getMockMatch()),
-			mockPreviews:  testutil.ToRepoGetData(getMockPreviews()),
-			mockFrames:    testutil.ToRepoGetData(getMockFrames()),
-			mockEvents:    testutil.ToRepoGetData(getMockEvents()),
+			mockMatch:     testutil.NewSuccessResult(getMockMatch()),
+			mockPreviews:  testutil.NewSuccessResult(getMockPreviews()),
+			mockFrames:    testutil.NewSuccessResult(getMockFrames()),
+			mockEvents:    testutil.NewSuccessResult(getMockEvents()),
 			expectedError: nil,
 		},
 	}

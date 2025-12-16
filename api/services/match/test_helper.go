@@ -25,10 +25,10 @@ type mockSetup struct {
 	matchCache *servicetestutil.MockMatchCache
 	repo       *servicetestutil.MockMatchRepository
 
-	mockMatch    *testutil.RepoGetData[*models.MatchInfo]
-	mockPreviews *testutil.RepoGetData[[]matchrepo.RawMatchPreview]
-	mockFrames   *testutil.RepoGetData[[]matchrepo.RawMatchParticipantFrame]
-	mockEvents   *testutil.RepoGetData[[]models.AllEvents]
+	mockMatch    *testutil.OperationRestult[*models.MatchInfo]
+	mockPreviews *testutil.OperationRestult[[]matchrepo.RawMatchPreview]
+	mockFrames   *testutil.OperationRestult[[]matchrepo.RawMatchParticipantFrame]
+	mockEvents   *testutil.OperationRestult[[]models.AllEvents]
 
 	returnData *dto.FullMatchData
 

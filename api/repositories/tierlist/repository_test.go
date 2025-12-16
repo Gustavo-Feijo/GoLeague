@@ -25,28 +25,28 @@ func TestGetTierlist(t *testing.T) {
 	tests := []struct {
 		name       string
 		filters    *filters.TierlistFilter
-		returnData *testutil.RepoGetData[[]*TierlistResult]
+		returnData *testutil.OperationRestult[[]*TierlistResult]
 		setupFunc  func(db *gorm.DB)
 	}{
 		{
 			name:       "nofilters",
 			filters:    filters.NewTierlistFilter(filters.TierlistQueryParams{}),
-			returnData: testutil.ToRepoGetData(getTierlistExpectedResult(t, "nofilters")),
+			returnData: testutil.NewSuccessResult(getTierlistExpectedResult(t, "nofilters")),
 		},
 		{
 			name:       "allgold",
 			filters:    filters.NewTierlistFilter(filters.TierlistQueryParams{Queue: 420, Tier: "GOLD", Rank: "I", AboveTier: false}),
-			returnData: testutil.ToRepoGetData(getTierlistExpectedResult(t, "allgold")),
+			returnData: testutil.NewSuccessResult(getTierlistExpectedResult(t, "allgold")),
 		},
 		{
 			name:       "allabovegold",
 			filters:    filters.NewTierlistFilter(filters.TierlistQueryParams{Queue: 420, Tier: "GOLD", Rank: "I", AboveTier: true}),
-			returnData: testutil.ToRepoGetData(getTierlistExpectedResult(t, "allabovegold")),
+			returnData: testutil.NewSuccessResult(getTierlistExpectedResult(t, "allabovegold")),
 		},
 		{
 			name:       "dbconnectionerr",
 			filters:    filters.NewTierlistFilter(filters.TierlistQueryParams{}),
-			returnData: testutil.GetRepoError[[]*TierlistResult]("sql: database is closed"),
+			returnData: testutil.NewErrorResult[[]*TierlistResult]("sql: database is closed"),
 			setupFunc: func(db *gorm.DB) {
 				sqlDB, _ := db.DB()
 				sqlDB.Close()
