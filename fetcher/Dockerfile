@@ -9,6 +9,7 @@ RUN go mod download
 # Copy the used code.
 COPY fetcher ./fetcher
 COPY pkg ./pkg
+COPY internal ./internal
 
 # Run the build.
 RUN CGO_ENABLED=0 GOOS=linux go build -o fetcher ./fetcher
@@ -22,7 +23,11 @@ RUN adduser -D appuser
 USER appuser
 
 WORKDIR /app
+
+COPY --from=builder /app/pkg/database/migrations /app/migrations
 COPY --from=builder /app/fetcher/fetcher /app/fetcher
 COPY --from=builder /bin/grpc_health_probe /bin/grpc_health_probe
+
+ENV MIGRATIONS_PATH=/app/migrations
 
 CMD ["./fetcher"]

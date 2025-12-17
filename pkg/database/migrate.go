@@ -20,7 +20,7 @@ func RunMigrations(config *config.Config, db *sql.DB) error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		filepath.Join("file://", config.ProjectRoot, config.Database.MigrationsPath),
+		filepath.Join("file://", config.Database.MigrationsPath),
 		config.Database.Database,
 		driver,
 	)

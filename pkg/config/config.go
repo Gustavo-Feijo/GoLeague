@@ -71,12 +71,14 @@ const (
 )
 
 func Load() (*Config, error) {
-	projectRoot, err := findProjectRoot()
-	if err != nil {
-		log.Fatal("Error finding project root")
-	}
-
+	var err error
+	projectRoot := ""
 	if os.Getenv("ENVIRONMENT") != "docker" {
+		projectRoot, err = findProjectRoot()
+		if err != nil {
+			log.Fatal("Error finding project root")
+		}
+
 		err = godotenv.Load(filepath.Join(projectRoot, ".env"))
 		if err != nil {
 			log.Fatal("Error loading .env file")
@@ -108,6 +110,11 @@ func Load() (*Config, error) {
 		Port:           os.Getenv("POSTGRES_PORT"),
 		User:           os.Getenv("POSTGRES_USER"),
 		MigrationsPath: os.Getenv("MIGRATIONS_PATH"),
+	}
+
+	if os.Getenv("ENVIRONMENT") != "docker" {
+		dbConfig.MigrationsPath = os.Getenv("LOCAL_MIGRATIONS_PATH")
+		dbConfig.MigrationsPath = filepath.Join(projectRoot, dbConfig.MigrationsPath)
 	}
 
 	dbConfig.DSN = fmt.Sprintf(
@@ -145,8 +152,7 @@ func Load() (*Config, error) {
 			},
 			SlowInterval: time.Duration(jobInterval) * time.Millisecond,
 		},
-		PrintLogs:   printLogs,
-		ProjectRoot: projectRoot,
+		PrintLogs: printLogs,
 		Redis: RedisConfig{
 			Host:     os.Getenv("REDIS_HOST"),
 			Password: os.Getenv("REDIS_PASSWORD"),
