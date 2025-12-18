@@ -20,6 +20,7 @@ type MatchService struct {
 	PlayerRepository   repositories.PlayerRepository
 	RatingRepository   repositories.RatingRepository
 	TimelineRepository repositories.TimelineRepository
+	playerService      *playerservice.PlayerService
 	maxRetries         int
 }
 
@@ -30,6 +31,7 @@ func NewMatchService(
 	playerRepo repositories.PlayerRepository,
 	ratingRepo repositories.RatingRepository,
 	timelineRepo repositories.TimelineRepository,
+	playerService *playerservice.PlayerService,
 	maxRetries int,
 ) *MatchService {
 	return &MatchService{
@@ -38,6 +40,7 @@ func NewMatchService(
 		PlayerRepository:   playerRepo,
 		RatingRepository:   ratingRepo,
 		TimelineRepository: timelineRepo,
+		playerService:      playerService,
 		maxRetries:         maxRetries,
 	}
 }
@@ -138,8 +141,7 @@ func (m *MatchService) ProcessMatchData(
 	}
 
 	// Process each player.
-	playerService := playerservice.NewPlayerService(m.MatchRepository, m.PlayerRepository, m.RatingRepository)
-	playersToUpsert, participantByPuuid, err := playerService.ProcessPlayersFromMatch(match.Info.Participants, matchInfo, region)
+	playersToUpsert, participantByPuuid, err := m.playerService.ProcessPlayersFromMatch(match.Info.Participants, matchInfo, region)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("couldn't create the players for the match %s: %v", matchInfo.MatchId, err)
 	}

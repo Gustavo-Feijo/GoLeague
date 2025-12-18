@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	matchfetcher "goleague/fetcher/data/match"
 	playerfetcher "goleague/fetcher/data/player"
 
 	eventservice "goleague/fetcher/services/mainregion/events"
@@ -103,19 +102,20 @@ func NewMainRegionService(
 		matchRepository,
 	)
 
+	playerService := playerservice.NewPlayerService(
+		matchRepository,
+		playerRepository,
+		ratingRepository,
+	)
+
 	matchService := matchservice.NewMatchService(
 		*fetcher,
 		matchRepository,
 		playerRepository,
 		ratingRepository,
 		timelineRepository,
+		playerService,
 		mainRegionConfig.MaxRetries,
-	)
-
-	playerService := playerservice.NewPlayerService(
-		matchRepository,
-		playerRepository,
-		ratingRepository,
 	)
 
 	// Passing the raw db as well to use in the batch collector.
@@ -244,42 +244,6 @@ func (p *MainRegionService) GetPlayerByNameTagRegion(
 	return p.playerService.GetPlayerByNameTagRegion(gameName, gameTag, region)
 }
 
-// GetMatchData retrives the data of the match from the Riot API.
-func (p *MainRegionService) GetMatchData(
-	matchId string,
-	onDemand bool,
-) (*matchfetcher.MatchData, error) {
-	return p.matchService.GetMatchData(matchId, onDemand)
-}
-
-// ProcessMatchData process the match data to insert it into the database.
-// Wrapper to call the service.
-func (p *MainRegionService) ProcessMatchData(
-	match *matchfetcher.MatchData,
-	matchId string,
-	region regions.SubRegion,
-) (*models.MatchInfo, []*models.MatchBans, []*models.MatchStats, error) {
-	return p.matchService.ProcessMatchData(match, matchId, region)
-}
-
-// GetMatchTimeline retrives the match timeline from the Riot API.
-func (p *MainRegionService) GetMatchTimeline(
-	matchId string,
-	onDemand bool,
-) (*matchfetcher.MatchTimeline, error) {
-	return p.timelineService.GetMatchTimeline(matchId, onDemand)
-}
-
-// ProcessMatchTimeline process the match timeline to insert it into the database.
-// Wrapper to call the service.
-func (p *MainRegionService) ProcessMatchTimeline(
-	matchTimeline *matchfetcher.MatchTimeline,
-	statIdByPuuid map[string]uint64,
-	matchInfo *models.MatchInfo,
-) error {
-	return p.timelineService.ProcessMatchTimeline(matchTimeline, statIdByPuuid, matchInfo, p.MatchRepository)
-}
-
 // ProcessPlayerHistory process the player match history with Goroutines.
 func (p *MainRegionService) ProcessPlayerHistory(
 	ctx context.Context,
@@ -378,7 +342,7 @@ func (p *MainRegionService) processMatch(
 	onDemand bool,
 ) matchResult {
 	matchfetchStart := time.Now()
-	matchData, err := p.GetMatchData(matchId, onDemand)
+	matchData, err := p.matchService.GetMatchData(matchId, onDemand)
 	if err != nil {
 		return matchResult{
 			matchId: matchId,
@@ -397,7 +361,7 @@ func (p *MainRegionService) processMatch(
 
 	matchParseStart := time.Now()
 
-	matchInfo, _, matchStats, err := p.ProcessMatchData(matchData, matchId, subRegion)
+	matchInfo, _, matchStats, err := p.matchService.ProcessMatchData(matchData, matchId, subRegion)
 	if err != nil {
 		return matchResult{
 			matchId: matchId,
@@ -412,7 +376,7 @@ func (p *MainRegionService) processMatch(
 	}
 
 	timelineFetchStart := time.Now()
-	matchTimeline, err := p.GetMatchTimeline(matchId, onDemand)
+	matchTimeline, err := p.timelineService.GetMatchTimeline(matchId, onDemand)
 	if err != nil {
 		return matchResult{
 			matchId: matchId,
@@ -422,7 +386,7 @@ func (p *MainRegionService) processMatch(
 	}
 
 	timelineParseStart := time.Now()
-	err = p.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo)
+	err = p.timelineService.ProcessMatchTimeline(matchTimeline, statByPuuid, matchInfo, p.MatchRepository)
 	if err != nil {
 		return matchResult{
 			matchId: matchId,
