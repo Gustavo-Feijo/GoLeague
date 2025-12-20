@@ -104,7 +104,7 @@ func (q *MainRegionQueue) Run() {
 
 // processQueue gets a unfetched player and starts processing it's matches.
 func (q *MainRegionQueue) processQueue(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
-	player, err := q.service.PlayerRepository.GetUnfetchedBySubRegions(subRegion)
+	player, err := q.service.PlayerRepository.GetNextFetchPlayerBySubRegion(subRegion)
 	if err != nil {
 		q.logger.Errorf("Couldn't get any unfetched player on regions %v: %v", subRegion, err)
 		// Could be the first fetch, wait to the sub regions to start filling the database.

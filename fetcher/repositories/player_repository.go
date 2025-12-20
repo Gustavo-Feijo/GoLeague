@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"goleague/pkg/database/models"
 	"goleague/pkg/regions"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -19,7 +20,7 @@ type PlayerRepository interface {
 	GetPlayerByNameTagRegion(gameName string, gameTag string, region string) (*models.PlayerInfo, error)
 	GetPlayerByPuuid(puuid string) (*models.PlayerInfo, error)
 	GetPlayersByPuuids(puuids []string) (map[string]*models.PlayerInfo, error)
-	GetUnfetchedBySubRegions(subRegion regions.SubRegion) (*models.PlayerInfo, error)
+	GetNextFetchPlayerBySubRegion(subRegion regions.SubRegion) (*models.PlayerInfo, error)
 	SetDelayedLastFetch(playerId uint) error
 	SetFetched(playerId uint) error
 	UpsertPlayerBatch(players []*models.PlayerInfo) error
@@ -102,17 +103,39 @@ func (ps *playerRepository) GetPlayersByPuuids(puuids []string) (map[string]*mod
 	return playersMap, nil
 }
 
-// GetUnfetchedBySubRegions returns the player from a given region that has spent the most time without being fetched.
-func (ps *playerRepository) GetUnfetchedBySubRegions(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
+// GetNextFetchPlayerBySubRegion returns a single player from a region, getting the next player with pending matches ordered by fetch priority.
+func (ps *playerRepository) GetNextFetchPlayerBySubRegion(subRegion regions.SubRegion) (*models.PlayerInfo, error) {
 	var unfetchedPlayer models.PlayerInfo
-	result := ps.db.Where("unfetched_match = ? AND region = ?", true, subRegion).Order("last_match_fetch ASC").First(&unfetchedPlayer)
+	result := ps.db.
+		Joins("JOIN player_fetch_priorities pfp ON pfp.player_id = player_infos.id").
+		Where("player_infos.unfetched_match = ?", true).
+		Where("pfp.region = ?", subRegion).
+		Order("pfp.fetch_priority DESC").
+		Order("player_infos.last_match_fetch ASC").
+		First(&unfetchedPlayer)
 
-	// Verify if there is any error.
-	if result.Error != nil {
-		return nil, result.Error
+	if result.Error == nil {
+		return &unfetchedPlayer, nil
 	}
 
-	return &unfetchedPlayer, nil
+	// If no rows found (priorities table might be empty), use fallback.
+	if result.Error == gorm.ErrRecordNotFound {
+		log.Printf("No prioritized players found for region %s, using fallback query", subRegion)
+
+		fallbackResult := ps.db.
+			Where("player_infos.unfetched_match = ?", true).
+			Where("player_infos.region = ?", subRegion).
+			Order("player_infos.last_match_fetch ASC").
+			First(&unfetchedPlayer)
+
+		if fallbackResult.Error != nil {
+			return nil, fallbackResult.Error
+		}
+
+		return &unfetchedPlayer, nil
+	}
+
+	return nil, result.Error
 }
 
 // SetDelayedLastFetch set the date of the last time fetch to the previous + 1 day.

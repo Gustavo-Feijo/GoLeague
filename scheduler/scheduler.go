@@ -66,6 +66,24 @@ func main() {
 		log.Fatalf("Failed to create match rating revalidation job: %v", err)
 	}
 
+	_, err = s.NewJob(
+		gocron.DailyJob(
+			1,
+			gocron.NewAtTimes(
+				gocron.NewAtTime(4, 0, 0),
+			),
+		),
+		gocron.NewTask(
+			jobs.RecalculateFetchPriority,
+			cfg,
+		),
+		gocron.WithName("fetch-priority-revalidation"),
+		gocron.WithTags("priority"),
+	)
+	if err != nil {
+		log.Fatalf("Failed to create fetch priority revalidation job: %v", err)
+	}
+
 	// Start the scheduler.
 	s.Start()
 
