@@ -15,8 +15,14 @@ type SubRegionQueueConfig struct {
 	Queues        []string
 	Ranks         []string
 	SleepDuration time.Duration
-	TierOrder     []string
-	Tiers         map[string][]string
+	tierPriority  []TierPriority
+}
+
+type TierPriority struct {
+	tier              string
+	ranks             []string
+	pagesPerTierCycle int
+	currentPage       int
 }
 
 // SubRegionQueue is the type for the sub region main process.
@@ -32,29 +38,21 @@ func NewDefaultQueueConfig() *SubRegionQueueConfig {
 	return &SubRegionQueueConfig{
 		Queues:        []string{"RANKED_SOLO_5x5", "RANKED_FLEX_SR"},
 		SleepDuration: 60 * time.Minute,
-		TierOrder: []string{
-			"CHALLENGER",
-			"GRANDMASTER",
-			"MASTER",
-			"DIAMOND",
-			"EMERALD",
-			"PLATINUM",
-			"GOLD",
-			"SILVER",
-			"BRONZE",
-			"IRON",
-		},
-		Tiers: map[string][]string{
-			"CHALLENGER":  {"I"},
-			"GRANDMASTER": {"I"},
-			"MASTER":      {"I"},
-			"DIAMOND":     {"I", "II", "III", "IV"},
-			"EMERALD":     {"I", "II", "III", "IV"},
-			"PLATINUM":    {"I", "II", "III", "IV"},
-			"GOLD":        {"I", "II", "III", "IV"},
-			"SILVER":      {"I", "II", "III", "IV"},
-			"BRONZE":      {"I", "II", "III", "IV"},
-			"IRON":        {"I", "II", "III", "IV"},
+		tierPriority: []TierPriority{
+			// High elos, get all possible ranking plages for each full cycle.
+			{tier: "CHALLENGER", ranks: []string{"I"}, pagesPerTierCycle: 999, currentPage: 1},
+			{tier: "GRANDMASTER", ranks: []string{"I"}, pagesPerTierCycle: 999, currentPage: 1},
+			{tier: "MASTER", ranks: []string{"I"}, pagesPerTierCycle: 999, currentPage: 1},
+
+			{tier: "DIAMOND", ranks: []string{"I", "II", "III", "IV"}, pagesPerTierCycle: 30, currentPage: 1},
+			{tier: "EMERALD", ranks: []string{"I", "II", "III", "IV"}, pagesPerTierCycle: 10, currentPage: 1},
+			{tier: "PLATINUM", ranks: []string{"I", "II", "III", "IV"}, pagesPerTierCycle: 5, currentPage: 1},
+
+			// Less prioritized, only 2 pages per tier (8 total)
+			{tier: "GOLD", ranks: []string{"I", "II", "III", "IV"}, pagesPerTierCycle: 2, currentPage: 1},
+			{tier: "SILVER", ranks: []string{"I", "II", "III", "IV"}, pagesPerTierCycle: 2, currentPage: 1},
+			{tier: "BRONZE", ranks: []string{"I", "II", "III", "IV"}, pagesPerTierCycle: 2, currentPage: 1},
+			{tier: "IRON", ranks: []string{"I", "II", "III", "IV"}, pagesPerTierCycle: 2, currentPage: 1},
 		},
 	}
 }
@@ -113,18 +111,34 @@ func (q *SubRegionQueue) processQueues() {
 // processLeagues process each league and sub rank.
 func (q *SubRegionQueue) processLeagues(queue string) {
 	// Loop through each available tier.
-	for _, tier := range q.config.TierOrder {
-		ranks := q.config.Tiers[tier]
+	for i := range q.config.tierPriority {
+		tier := &q.config.tierPriority[i]
 		// Loop through each available rank.
-		for _, rank := range ranks {
+		for _, rank := range tier.ranks {
 			q.logger.EmptyLine()
-			q.logger.Infof("Starting fetching on %s-%s: Queue(%s)", tier, rank, queue)
+			q.logger.Infof("Starting fetching on %s-%s: Queue(%s)", tier.tier, rank, queue)
 			q.logger.EmptyLine()
 
-			if err := q.service.ProcessLeagueRank(tier, rank, queue); err != nil {
-				q.logger.Errorf("Couldn't process the league %s - rank %s for the queue %s on region %s: %v", tier, rank, queue, q.subRegion, err)
-				continue
-			}
+			q.processTierRank(queue, tier, rank)
 		}
+	}
+}
+
+// processTierRank handles the pagination to process the defined amount of league pages for each tier + rank.
+func (q *SubRegionQueue) processTierRank(queue string, tier *TierPriority, rank string) {
+	finalPageCycle := tier.currentPage + tier.pagesPerTierCycle
+	for tier.currentPage < finalPageCycle {
+		isLastPage, err := q.service.ProcessLeagueRank(tier.tier, rank, queue, tier.currentPage)
+		if err != nil {
+			q.logger.Errorf("Couldn't process the league %s - rank %s for the queue %s on region %s: %v", tier.tier, rank, queue, q.subRegion, err)
+			return
+		}
+
+		if isLastPage {
+			tier.currentPage = 1
+			break
+		}
+
+		tier.currentPage++
 	}
 }

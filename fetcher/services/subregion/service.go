@@ -71,34 +71,25 @@ func (s *SubRegionService) GetLogger() *logger.NewLogger {
 	return s.logger
 }
 
-// ProcessLeagueRank processes a specific tier and rank.
-func (s *SubRegionService) ProcessLeagueRank(tier string, rank string, queue string) error {
-	// Starting page.
-	page := 1
-
-	// Fetch pages until we get an empty result.
-	for {
-		// Get entries for the current page.
-		entries, err := s.leagueService.GetLeagueEntries(tier, rank, queue, page)
-		if err != nil {
-			return err
-		}
-
-		// If no entry is found, break and go to the next rank.
-		if len(entries) == 0 {
-			break
-		}
-
-		// Process the batch.
-		if err := s.batchService.ProcessBatchEntry(entries, queue); err != nil {
-			return fmt.Errorf("error at processing page %d: %v", page, err)
-		}
-
-		// Increment page for next iteration.
-		page++
+// ProcessLeagueRank processes a specific page for a given ranking page.
+func (s *SubRegionService) ProcessLeagueRank(tier string, rank string, queue string, page int) (isLastPage bool, err error) {
+	// Get entries for the current page.
+	entries, err := s.leagueService.GetLeagueEntries(tier, rank, queue, page)
+	if err != nil {
+		return false, err
 	}
 
-	return nil
+	// If no entry is found, break and go to the next rank.
+	if len(entries) == 0 {
+		return true, nil
+	}
+
+	// Process the batch.
+	if err := s.batchService.ProcessBatchEntry(entries, queue); err != nil {
+		return false, fmt.Errorf("error at processing page %d: %v", page, err)
+	}
+
+	return false, nil
 }
 
 // ProcessPlayerLeagueEntries get all league entries for a given player and process them.
