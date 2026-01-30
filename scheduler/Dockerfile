@@ -20,6 +20,9 @@ RUN adduser -D appuser
 USER appuser
 
 WORKDIR /app
+COPY --from=builder /app/pkg/database/migrations /app/migrations
 COPY --from=builder /app/scheduler /app/scheduler
+
+ENV MIGRATIONS_PATH=/app/migrations
 
 CMD ["./scheduler/scheduler"]

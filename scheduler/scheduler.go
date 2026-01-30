@@ -2,6 +2,7 @@ package main
 
 import (
 	"goleague/pkg/config"
+	"goleague/pkg/database"
 	"goleague/scheduler/jobs"
 	"log"
 	"os"
@@ -16,6 +17,21 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Couldn't initialize the configuration: %v", err)
+	}
+
+	db, err := database.NewConnection(cfg.Database.DSN)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Runs the migrations.
+	rawDb, err := db.DB()
+	if err != nil {
+		log.Fatalf("Couldn't get raw db connection: %v", err)
+	}
+
+	if err := database.RunMigrations(cfg, rawDb); err != nil {
+		log.Fatal(err)
 	}
 
 	log.Println("Starting scheduler.")
@@ -42,6 +58,7 @@ func main() {
 		),
 		gocron.WithName("cache-revalidation"),
 		gocron.WithTags("cache"),
+		gocron.JobOption(gocron.WithStartImmediately()),
 	)
 	if err != nil {
 		log.Fatalf("Failed to create cache job: %v", err)
@@ -61,6 +78,7 @@ func main() {
 		),
 		gocron.WithName("match-rating-revalidation"),
 		gocron.WithTags("rating"),
+		gocron.JobOption(gocron.WithStartImmediately()),
 	)
 	if err != nil {
 		log.Fatalf("Failed to create match rating revalidation job: %v", err)
@@ -79,6 +97,7 @@ func main() {
 		),
 		gocron.WithName("fetch-priority-revalidation"),
 		gocron.WithTags("priority"),
+		gocron.JobOption(gocron.WithStartImmediately()),
 	)
 	if err != nil {
 		log.Fatalf("Failed to create fetch priority revalidation job: %v", err)
